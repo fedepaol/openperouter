@@ -50,6 +50,11 @@ topology:
       binds:
         - kind/setupworker.sh:/setupworker.sh
 
+    pe-kind-worker2:
+      kind: ext-container
+      binds:
+        - kind/setupworker2.sh:/setupworker2.sh
+
   links:
     - endpoints: ["leaf1:eth1", "spine:eth1"]
     - endpoints: ["leaf2:eth1", "spine:eth2"]
@@ -57,3 +62,5 @@ topology:
     - endpoints: ["leaf2:eth2", "leaf2-switch:cleth1"]
     - endpoints: ["pe-kind-control-plane:cleth1", "leaf2-switch:cleth2"]
     - endpoints: ["pe-kind-worker:cleth1", "leaf2-switch:cleth3"]
+    - endpoints: ["pe-kind-worker2:eth1", "leaf3:eth2"]
+    - endpoints: ["spine:eth3", "leaf3:eth1"]
