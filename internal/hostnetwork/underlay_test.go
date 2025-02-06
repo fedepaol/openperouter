@@ -3,11 +3,13 @@ package hostnetwork
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
-	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -20,8 +22,8 @@ const (
 	externalInterfaceEditIP   = "192.170.0.10/24"
 )
 
-func TestUnderlay(t *testing.T) {
-	cleanTest(t, underlayTestNS)
+var _ = Describe("Underlay configuration", func() {
+	var testNs netns.NsHandle
 
 	setup := func() netns.NsHandle {
 		toMove := &netlink.Dummy{
@@ -30,134 +32,104 @@ func TestUnderlay(t *testing.T) {
 			},
 		}
 		err := netlink.LinkAdd(toMove)
-		if err != nil {
-			t.Fatalf("failed to create interface %s: %v", toMove.Name, err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
 		err = assignIPToInterface(toMove, externalInterfaceIP)
-		if err != nil {
-			t.Fatalf("failed to assign ip to current interface: %v", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
+
 		toEdit := &netlink.Dummy{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: underlayTestInterfaceEdit,
 			},
 		}
 		err = netlink.LinkAdd(toEdit)
-		if err != nil {
-			t.Fatalf("failed to create interface %s: %v", toEdit.Name, err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
 		err = assignIPToInterface(toEdit, externalInterfaceEditIP)
-		if err != nil {
-			t.Fatalf("failed to assign ip to current interface: %v", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
-		_, testNs := createTestNS(t, underlayTestNS)
-		return testNs
+		return createTestNS(underlayTestNS)
 	}
 
-	t.Run("test single underlay", func(t *testing.T) {
-		cleanTest(t, underlayTestNS)
-		testNs := setup()
-		params := UnderlayParams{
-			UnderlayInterface: underlayTestInterface,
-			VtepIP:            "192.168.1.1/32",
-			TargetNS:          underlayTestNS,
-		}
-		err := SetupUnderlay(context.Background(), params)
-		if err != nil {
-			t.Fatalf("failed to setup underlay %s", err)
-		}
-
-		validateUnderlay(t, testNs, externalInterfaceIP, params)
+	BeforeEach(func() {
+		cleanTest(underlayTestNS)
+		testNs = setup()
 	})
 
-	t.Run("test underlay is idempotent", func(t *testing.T) {
-		cleanTest(t, underlayTestNS)
-		testNs := setup()
+	It("should work with a single underlay", func() {
 		params := UnderlayParams{
 			UnderlayInterface: underlayTestInterface,
 			VtepIP:            "192.168.1.1/32",
 			TargetNS:          underlayTestNS,
 		}
 		err := SetupUnderlay(context.Background(), params)
-		if err != nil {
-			t.Fatalf("failed to setup underlay %s", err)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateUnderlay(testNs, externalInterfaceIP, params)
+	})
+
+	It("creating the same underlay twice should be idempotent", func() {
+		params := UnderlayParams{
+			UnderlayInterface: underlayTestInterface,
+			VtepIP:            "192.168.1.1/32",
+			TargetNS:          underlayTestNS,
 		}
+		err := SetupUnderlay(context.Background(), params)
+		Expect(err).NotTo(HaveOccurred())
 		err = SetupUnderlay(context.Background(), params)
-		if err != nil {
-			t.Fatalf("failed to setup underlay %s", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
-		validateUnderlay(t, testNs, externalInterfaceIP, params)
+		validateUnderlay(testNs, externalInterfaceIP, params)
 	})
 
-	t.Run("test underlay changes primary interface and vtep", func(t *testing.T) {
-		cleanTest(t, underlayTestNS)
-		testNs := setup()
-
+	It("changing the underlay interface and vtep", func() {
 		params := UnderlayParams{
 			UnderlayInterface: underlayTestInterface,
 			VtepIP:            "192.168.1.1/32",
 			TargetNS:          underlayTestNS,
 		}
 		err := SetupUnderlay(context.Background(), params)
-		if err != nil {
-			t.Fatalf("failed to setup underlay %s", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
 		params.UnderlayInterface = underlayTestInterfaceEdit
 		params.VtepIP = "192.168.1.2/32"
 
 		err = SetupUnderlay(context.Background(), params)
-		if err != nil {
-			t.Fatalf("failed to setup underlay %s", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
-		validateUnderlay(t, testNs, externalInterfaceEditIP, params)
+		validateUnderlay(testNs, externalInterfaceEditIP, params)
 	})
-	cleanTest(t, underlayTestNS)
-}
+})
 
-func validateUnderlay(t *testing.T, ns netns.NsHandle, ipToValidate string, params UnderlayParams) {
+func validateUnderlay(ns netns.NsHandle, ipToValidate string, params UnderlayParams) {
 	_ = inNamespace(ns, func() error {
 		links, err := netlink.LinkList()
-		if err != nil {
-			t.Fatalf("failed to list links %v", err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 		loopbackFound := false
 		mainNicFound := false
 		for _, l := range links {
 			if l.Attrs().Name == UnderlayLoopback {
 				loopbackFound = true
-				validateIP(t, l, params.VtepIP)
+				validateIP(l, params.VtepIP)
 			}
 			if l.Attrs().Name == params.UnderlayInterface {
 				mainNicFound = true
-				validateIP(t, l, ipToValidate)
-				validateIP(t, l, underlayInterfaceSpecialAddr)
+				validateIP(l, ipToValidate)
+				validateIP(l, underlayInterfaceSpecialAddr)
 			}
 
 		}
-		if !loopbackFound {
-			t.Fatalf("failed to find loopback in ns, links %v", links)
-		}
-		if !mainNicFound {
-			t.Fatalf("failed to find loopback in ns, links %v", links)
-		}
-
+		Expect(loopbackFound).To(BeTrue(), fmt.Sprintf("failed to find loopback in ns, links %v", links))
+		Expect(mainNicFound).To(BeTrue(), fmt.Sprintf("failed to find underlay interface in ns, links %v", links))
 		return nil
 	})
 
 }
 
-func validateIP(t *testing.T, l netlink.Link, address string) {
-	t.Helper()
+func validateIP(l netlink.Link, address string) {
 	addresses, err := netlink.AddrList(l, netlink.FAMILY_ALL)
-	if err != nil {
-		t.Fatalf("failed to list addresses for %s: %v", l.Attrs().Name, err)
-	}
+	Expect(err).NotTo(HaveOccurred())
+
 	found := false
 	for _, a := range addresses {
 		if a.IPNet.String() == address {
@@ -165,74 +137,46 @@ func validateIP(t *testing.T, l netlink.Link, address string) {
 			break
 		}
 	}
-	if !found {
-		t.Fatalf("failed to find address %s for %s: %v", address, l.Attrs().Name, addresses)
-	}
+	Expect(found).To(BeTrue(), fmt.Sprintf("failed to find address %s for %s: %v", address, l.Attrs().Name, addresses))
 }
 
-func cleanTest(t *testing.T, namespace string) {
-	t.Helper()
+func cleanTest(namespace string) {
 	err := netns.DeleteNamed(namespace)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("failed to delete ns: %v", err)
+	if !errors.Is(err, os.ErrNotExist) {
+		Expect(err).NotTo(HaveOccurred())
 	}
 	links, err := netlink.LinkList()
 	if err != nil {
-		t.Fatalf("failed to list links: %v", err)
+		Expect(err).NotTo(HaveOccurred())
 	}
 	for _, l := range links {
 		if strings.HasPrefix(l.Attrs().Name, "test") ||
 			strings.HasPrefix(l.Attrs().Name, PEVethPrefix) ||
 			strings.HasPrefix(l.Attrs().Name, HostVethPrefix) {
 			err := netlink.LinkDel(l)
-			if err != nil {
-				t.Fatalf("failed remove link %s: %v", l.Attrs().Name, err)
-			}
+			Expect(err).NotTo(HaveOccurred())
 		}
 	}
 	loopback, err := netlink.LinkByName(UnderlayLoopback)
 	if errors.As(err, &netlink.LinkNotFoundError{}) {
 		return
 	}
-	if err != nil {
-		t.Fatalf("failed to find link %s: %v", UnderlayLoopback, err)
-	}
+	Expect(err).NotTo(HaveOccurred())
 	err = netlink.LinkDel(loopback)
-	if err != nil {
-		t.Fatalf("failed remove link %s: %v", UnderlayLoopback, err)
-	}
+	Expect(err).NotTo(HaveOccurred())
 }
 
-func createTestNS(t *testing.T, testNs string) (netns.NsHandle, netns.NsHandle) {
-	t.Helper()
+func createTestNS(testNs string) netns.NsHandle {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	currentNs, err := netns.Get()
-	if err != nil {
-		t.Fatalf("failed to create new ns %s", err)
-	}
+	Expect(err).NotTo(HaveOccurred())
 
 	newNs, err := netns.NewNamed(testNs)
-	if err != nil {
-		t.Fatalf("failed to create new ns %s", err)
-	}
-
-	t.Cleanup(func() {
-		err := currentNs.Close()
-		if err != nil {
-			t.Fatalf("failed to close current ns")
-		}
-		err = newNs.Close()
-		if err != nil {
-			t.Fatalf("failed to close new ns")
-		}
-		cleanTest(t, underlayTestInterface)
-	})
+	Expect(err).NotTo(HaveOccurred())
 
 	err = netns.Set(currentNs)
-	if err != nil {
-		t.Fatalf("failed to restore to current ns %s", err)
-	}
-	return currentNs, newNs
+	Expect(err).NotTo(HaveOccurred())
+	return newNs
 }
