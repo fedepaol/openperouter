@@ -2,6 +2,7 @@
 set -euo pipefail
 
 pushd "$(dirname $(readlink -f $0))"
+
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"$(pwd)/kubeconfig"}
 KIND_BIN=${KIND_BIN:-"kind"}
 CLAB_VERSION=0.64.0
@@ -58,4 +59,8 @@ docker exec clab-kind-leaf1 /setup.sh
 docker exec clab-kind-leaf2 /setup.sh
 docker exec clab-kind-spine /setup.sh
 docker exec clab-kind-HOST1 /setup.sh
+
+source check_veths.sh
+ensure_interface kindctrlpl toswitch pe-kind-control-plane 192.168.11.3/24 &
+ensure_interface kindworker toswitch pe-kind-control-plane 192.168.11.4/24 &
 popd
