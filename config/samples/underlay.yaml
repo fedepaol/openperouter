@@ -7,7 +7,7 @@ spec:
   asn: 64514
   vtepcidr:  100.65.0.0/24
   nics:
-    - cleth1
+    - toswitch
   neighbors:
     - asn: 64512
       address: 192.168.11.2
