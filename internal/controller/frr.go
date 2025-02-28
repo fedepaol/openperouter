@@ -31,7 +31,6 @@ func configureFRR(ctx context.Context, data frrConfigData) error {
 	if errors.As(err, &emptyConfig) {
 		slog.InfoContext(ctx, "reloading FRR config", "empty config", data, "event", "cleaning the frr configuration")
 		frrConfig = frr.Config{}
-		return nil
 	}
 	if err != nil && !errors.As(err, &emptyConfig) {
 		return fmt.Errorf("failed to generate the frr configuration: %w", err)

@@ -10,12 +10,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const nodeNameIndex = "spec.NodeName"
+
 // routerPodForNode returns the router pod for the given node
 func routerPodForNode(ctx context.Context, cli client.Client, node string) (*v1.Pod, error) {
 	var pods v1.PodList
 	if err := cli.List(ctx, &pods, client.MatchingLabels{"app": "router"},
 		client.MatchingFields{
-			"spec.NodeName": node,
+			nodeNameIndex: node,
 		}); err != nil {
 		return nil, fmt.Errorf("failed to get router pod for node %s: %v", node, err)
 	}

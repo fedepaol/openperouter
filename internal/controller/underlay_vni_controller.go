@@ -75,9 +75,9 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 	routerPodIsReady := PodIsReady(routerPod)
-	logger.Info("router pod", "Pod", routerPod.Name, "is ready", routerPodIsReady)
 
 	if !routerPodIsReady {
+		logger.Info("router pod", "Pod", routerPod.Name, "event", "is not ready, waiting for it to be ready before configuring")
 		return ctrl.Result{}, nil
 	}
 
@@ -179,7 +179,7 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func setPodNodeNameIndex(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.NodeName", func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, nodeNameIndex, func(rawObj client.Object) []string {
 		pod, ok := rawObj.(*v1.Pod)
 		if pod == nil {
 			slog.Error("podindexer", "error", "received nil pod")

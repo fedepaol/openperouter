@@ -30,5 +30,5 @@ func nodeIndex(ctx context.Context, cli client.Client, node string) (int, error)
 			return i, nil
 		}
 	}
-	return 0, nil
+	return 0, fmt.Errorf("could not find index for node name %s", node)
 }
