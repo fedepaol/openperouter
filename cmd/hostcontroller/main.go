@@ -29,11 +29,13 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/logr"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
-	"github.com/openperouter/openperouter/internal/controller"
+	"github.com/openperouter/openperouter/internal/controller/nodeindex"
+	"github.com/openperouter/openperouter/internal/controller/routerconfiguration"
 	"github.com/openperouter/openperouter/internal/logging"
 	"github.com/openperouter/openperouter/internal/pods"
 	// +kubebuilder:scaffold:imports
@@ -58,6 +60,7 @@ func main() {
 		secureMetrics bool
 		enableHTTP2   bool
 		nodeName      string
+		podName       string
 		namespace     string
 		logLevel      string
 		frrConfigPath string
@@ -73,6 +76,7 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.StringVar(&nodeName, "nodename", "", "The name of the node the controller runs on")
 	flag.StringVar(&namespace, "namespace", "", "The namespace the controller runs in")
+	flag.StringVar(&podName, "podname", "", "The pod the controller runs in")
 	flag.StringVar(&logLevel, "loglevel", "info", "the verbosity of the process")
 	flag.StringVar(&frrConfigPath, "frrconfig", "/etc/perouter/frr/frr.conf", "the location of the frr configuration file")
 	flag.IntVar(&reloadPort, "reloadport", 9080, "the port of the reloader process")
@@ -110,7 +114,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.PERouterReconciler{
+	if podName == "" {
+		setupLog.Error(err, "pod name not set")
+		os.Exit(1)
+	}
+
+	if err = (&routerconfiguration.PERouterReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		MyNode:      nodeName,
@@ -121,6 +130,20 @@ func main() {
 		Logger:      logger,
 		MyNamespace: namespace,
 	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Underlay")
+		os.Exit(1)
+	}
+
+	signalHandlerContext := ctrl.SetupSignalHandler()
+	if err = (&nodeindex.NodesReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		LogLevel:      logLevel,
+		Logger:        logger,
+		MyNamespace:   namespace,
+		PodName:       podName,
+		ReconcileChan: make(chan event.GenericEvent),
+	}).SetupWithManager(signalHandlerContext, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Underlay")
 		os.Exit(1)
 	}
@@ -136,7 +159,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(signalHandlerContext); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

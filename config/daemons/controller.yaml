@@ -30,6 +30,7 @@ spec:
         - "--nodename=$(NODE_NAME)"
         - "--loglevel=debug"
         - "--namespace=$(NAMESPACE)"
+        - "--podname=$(POD_NAME)"
         - "--frrconfig=/etc/frr/frr.conf"
         image: router:latest
         imagePullPolicy: IfNotPresent
@@ -47,6 +48,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         volumeMounts:
         - mountPath: /run/containerd/containerd.sock
           name: varrun

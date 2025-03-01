@@ -265,6 +265,7 @@ rules:
   verbs:
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - ""
@@ -273,6 +274,17 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
   - watch
 - apiGroups:
   - openpe.openperouter.github.io
@@ -471,6 +483,7 @@ spec:
         - --nodename=$(NODE_NAME)
         - --loglevel=debug
         - --namespace=$(NAMESPACE)
+        - --podname=$(POD_NAME)
         - --frrconfig=/etc/frr/frr.conf
         command:
         - /controller
@@ -483,6 +496,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         image: quay.io/openperouter/router:latest
         imagePullPolicy: IfNotPresent
         name: controller
