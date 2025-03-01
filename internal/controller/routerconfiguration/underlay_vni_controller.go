@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package routerconfiguration
 
 import (
 	"context"
@@ -58,9 +58,9 @@ type requestKey string
 // +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=underlays/finalizers,verbs=update
 
 func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := r.Logger.With("request", req.NamespacedName.String())
-	logger.Info("controller", "UnderlayReconciler", "start reconcile")
-	defer logger.Info("controller", "UnderlayReconciler", "end reconcile")
+	logger := r.Logger.With("controller", "RouterConfiguration", "request", req.NamespacedName.String())
+	logger.Info("start reconcile")
+	defer logger.Info("end reconcile")
 
 	ctx = context.WithValue(ctx, requestKey("request"), req.NamespacedName.String())
 
