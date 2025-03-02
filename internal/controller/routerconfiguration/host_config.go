@@ -42,6 +42,10 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 		return UnderlayRemovedError{}
 	}
 
+	if len(config.Underlays) == 0 {
+		return nil // nothing to do
+	}
+
 	slog.InfoContext(ctx, "configure interface start", "namespace", targetNS)
 	defer slog.InfoContext(ctx, "configure interface end", "namespace", targetNS)
 	underlayParams, vnis, err := conversion.APItoHostConfig(config.NodeIndex, targetNS, config.Underlays, config.Vnis)
