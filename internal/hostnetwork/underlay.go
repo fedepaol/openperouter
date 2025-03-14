@@ -21,9 +21,9 @@ const (
 const underlayInterfaceSpecialAddr = "172.16.1.1/32"
 
 type UnderlayParams struct {
-	UnderlayInterface string
-	VtepIP            string
-	TargetNS          string
+	UnderlayInterface string `json:"underlay_interface"`
+	VtepIP            string `json:"vtep_ip"`
+	TargetNS          string `json:"target_ns"`
 }
 
 func SetupUnderlay(ctx context.Context, params UnderlayParams) error {

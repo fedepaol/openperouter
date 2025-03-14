@@ -48,7 +48,7 @@ var _ = Describe("VNI configuration", func() {
 			validateHostLeg(g, params)
 
 			_ = inNamespace(testNS, func() error {
-				validateNS(g, params)
+				validateVNI(g, params)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -83,7 +83,7 @@ var _ = Describe("VNI configuration", func() {
 			Eventually(func(g Gomega) {
 				validateHostLeg(g, p)
 				_ = inNamespace(testNS, func() error {
-					validateNS(g, p)
+					validateVNI(g, p)
 					return nil
 				})
 			}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -100,7 +100,7 @@ var _ = Describe("VNI configuration", func() {
 		Eventually(func(g Gomega) {
 			validateHostLeg(g, remaining)
 			_ = inNamespace(testNS, func() error {
-				validateNS(g, remaining)
+				validateVNI(g, remaining)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -134,7 +134,7 @@ var _ = Describe("VNI configuration", func() {
 			validateHostLeg(g, params)
 
 			_ = inNamespace(testNS, func() error {
-				validateNS(g, params)
+				validateVNI(g, params)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -153,7 +153,7 @@ func validateHostLeg(g Gomega, params VNIParams) {
 	g.Expect(hasIP).To(BeTrue(), "host leg does not have ip", params.VethHostIP)
 }
 
-func validateNS(g Gomega, params VNIParams) {
+func validateVNI(g Gomega, params VNIParams) {
 	loopback, err := netlink.LinkByName(UnderlayLoopback)
 	g.Expect(err).NotTo(HaveOccurred(), "loopback not found", UnderlayLoopback)
 

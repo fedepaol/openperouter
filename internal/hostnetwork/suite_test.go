@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestAPIs(t *testing.T) {
+func TestHostNetwork(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
