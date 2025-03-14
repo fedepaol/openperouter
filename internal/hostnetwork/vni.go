@@ -14,13 +14,13 @@ import (
 )
 
 type VNIParams struct {
-	VRF        string
-	TargetNS   string
-	VTEPIP     string
-	VethHostIP string
-	VethNSIP   string
-	VNI        int
-	VXLanPort  int
+	VRF        string `json:"vrf"`
+	TargetNS   string `json:"targetns"`
+	VTEPIP     string `json:"vtepip"`
+	VethHostIP string `json:"vethhostip"`
+	VethNSIP   string `json:"vethnsip"`
+	VNI        int    `json:"vni"`
+	VXLanPort  int    `json:"vxlanport"`
 }
 
 const (

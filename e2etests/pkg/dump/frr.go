@@ -9,13 +9,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/metallb/frrk8stests/pkg/k8s"
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/openperouter/openperouter/e2etests/pkg/executor"
+	"github.com/openperouter/openperouter/e2etests/pkg/frr"
+	frrcontainer "github.com/openperouter/openperouter/e2etests/pkg/frr/container"
 
-	"go.universe.tf/e2etest/pkg/executor"
-	"go.universe.tf/e2etest/pkg/frr"
-	frrcontainer "go.universe.tf/e2etest/pkg/frr/container"
 	clientset "k8s.io/client-go/kubernetes"
 )
 

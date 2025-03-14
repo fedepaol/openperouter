@@ -293,3 +293,8 @@ bumpversion:
 .PHONY: cutrelease
 cutrelease: bumpversion generate-all-in-one helm-docs
 	hack/release/release.sh
+
+.PHONY: build-validator
+build-validator: ginkgo ## Build Ginkgo test binary.
+	$(GINKGO) build -tags=externaltests ./internal/hostnetwork
+	mv internal/hostnetwork/hostnetwork.test bin/validatehost
