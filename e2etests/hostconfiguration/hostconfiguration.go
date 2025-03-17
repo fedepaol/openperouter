@@ -2,66 +2,79 @@ package hostconfiguration
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 
 	"github.com/onsi/ginkgo/v2"
-	"github.com/openperouter/openperouter/e2etests/pkg/ipfamily"
-	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
-	"sigs.k8s.io/kube-storage-version-migrator/pkg/clients/clientset"
+	. "github.com/onsi/gomega"
+	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/e2etests/pkg/config"
+	"github.com/openperouter/openperouter/e2etests/pkg/executor"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
+	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientset "k8s.io/client-go/kubernetes"
 )
 
-var _ = ginkgo.Describe("BGP", func() {
+var ValidatorPath string
+
+var _ = ginkgo.Describe("Router Host configuration", func() {
 	var cs clientset.Interface
-	testNamespace := ""
 
 	ginkgo.AfterEach(func() {
 	})
 
 	ginkgo.BeforeEach(func() {
-		ginkgo.By("Clearing any previous configuration")
-
-		err := ConfigUpdater.Clean()
+		cs = k8sclient.New()
+		ginkgo.By("ensuring the validator is in all the pods")
+		routerPods, err := openperouter.RouterPods(cs)
 		Expect(err).NotTo(HaveOccurred())
-
-		for _, c := range FRRContainers {
-			err := c.UpdateBGPConfigFile(frrconfig.Empty)
-			Expect(err).NotTo(HaveOccurred())
+		for _, pod := range routerPods {
+			ensureValidator(cs, pod)
 		}
+
+		/*
+			err := ConfigUpdater.Clean()
+			Expect(err).NotTo(HaveOccurred())
+		*/
 
 		cs = k8sclient.New()
-		testNamespace, err = k8s.CreateTestNamespace(cs, "bgp")
-		Expect(err).NotTo(HaveOccurred())
 	})
 
-	ginkgo.DescribeTable("A service of protocol load balancer should work with ETP=cluster", func(pairingIPFamily ipfamily.Family, poolAddresses []string, tweak testservice.Tweak) {
-
-		_, svc := setupBGPService(cs, testNamespace, pairingIPFamily, poolAddresses, FRRContainers, func(svc *corev1.Service) {
-			testservice.TrafficPolicyCluster(svc)
-			tweak(svc)
-		})
-		defer testservice.Delete(cs, svc)
-
-		allNodes, err := cs.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
-		Expect(err).NotTo(HaveOccurred())
-		testservice.ValidateDesiredLB(svc)
-
-		for _, c := range FRRContainers {
-			validateService(svc, allNodes.Items, c)
+	ginkgo.It("is applied correctly", func() {
+		resources := config.Resources{
+			Underlays: []v1alpha1.Underlay{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "underlay",
+						Namespace: openperouter.Namespace,
+					},
+				},
+			},
+			VNIs: []v1alpha1.VNI{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "vni",
+						Namespace: openperouter.Namespace,
+					},
+				},
+			},
 		}
-	},
-		ginkgo.Entry("IPV4", ipfamily.IPv4, []string{v4PoolAddresses}, func(_ *corev1.Service) {}),
-		ginkgo.Entry("IPV6", ipfamily.IPv6, []string{v6PoolAddresses}, func(_ *corev1.Service) {}),
-		ginkgo.Entry("DUALSTACK", ipfamily.DualStack, []string{v4PoolAddresses, v6PoolAddresses},
-			func(svc *corev1.Service) {
-				testservice.DualStack(svc)
-			}),
-		ginkgo.Entry("IPV4 - request IPv4 via custom annotation", ipfamily.IPv4, []string{v4PoolAddresses},
-			func(svc *corev1.Service) {
-				testservice.WithSpecificIPs(svc, "192.168.10.100")
-			}),
-		ginkgo.Entry("DUALSTACK - request Dual Stack via custom annotation", ipfamily.DualStack, []string{v4PoolAddresses, v6PoolAddresses},
-			func(svc *corev1.Service) {
-				testservice.DualStack(svc)
-				testservice.WithSpecificIPs(svc, "192.168.10.100", "fc00:f853:ccd:e799::")
-			}),
-	)
+	})
+
 })
+
+func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
+	if pod.Annotations != nil && pod.Annotations["validator"] == "true" {
+		return
+	}
+	dst := fmt.Sprintf("%s/%s:/", pod.Namespace, pod.Name)
+	fullargs := []string{"cp", ValidatorPath, dst}
+	_, err := exec.Command(executor.Kubectl, fullargs...).CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	pod.Annotations["validator"] = "true"
+	_, err = cs.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+}

@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/onsi/ginkgo/v2"
-	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
-	"github.com/openperouter/openperouter/e2etests/pkg/dump"
+	"github.com/openperouter/openperouter/e2etests/hostconfiguration"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
+	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -22,14 +23,13 @@ var (
 
 // handleFlags sets up all flags and parses the command line.
 func handleFlags() {
-	flag.BoolVar(&skipDockerCmd, "skip-docker", false, "set this to true if the BGP daemon is running on the host instead of in a container")
-	flag.StringVar(&reportPath, "report-path", "/tmp/report", "the path to be used to dump test failure information")
+	// 	flag.BoolVar(&skipDockerCmd, "skip-docker", false, "set this to true if the BGP daemon is running on the host instead of in a container")
+	//	flag.StringVar(&reportPath, "report-path", "/tmp/report", "the path to be used to dump test failure information")
 	flag.StringVar(&executor.Kubectl, "kubectl", "kubectl", "the path for the kubectl binary")
-	flag.StringVar(&frrImage, "frr-image", "quay.io/frrouting/frr:9.1.0", "the image to use for the external frr containers")
+	flag.StringVar(&hostconfiguration.ValidatorPath, "hostvalidator", "hostvalidator", "the path for the hostvalidator binary")
 	flag.Parse()
 
-	dump.ReportPath = reportPath
-	tests.FRRImage = frrImage
+	// dump.ReportPath = reportPath
 }
 
 func TestMain(m *testing.M) {
@@ -47,13 +47,16 @@ func TestE2E(t *testing.T) {
 		return
 	}
 
-	gomega.RegisterFailHandler(ginkgo.Fail)
+	RegisterFailHandler(ginkgo.Fail)
 	ginkgo.RunSpecs(t, "E2E Suite")
 }
 
 var _ = ginkgo.BeforeSuite(func() {
 	log.SetLogger(zap.New(zap.WriteTo(ginkgo.GinkgoWriter), zap.UseDevMode(true)))
 	cs := k8sclient.New()
+	updater, err = testsconfig.UpdaterForCRs(clientconfig, openperouter.Namespace)
+	Expect(err).NotTo(HaveOccurred())
+
 })
 
 var _ = ginkgo.AfterSuite(func() {
