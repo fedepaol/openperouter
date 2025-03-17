@@ -2,7 +2,10 @@ package hostconfiguration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 
 	"github.com/onsi/ginkgo/v2"
@@ -10,11 +13,13 @@ import (
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 )
 
 var ValidatorPath string
@@ -58,12 +63,36 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 						Name:      "vni",
 						Namespace: openperouter.Namespace,
 					},
+					Spec: v1alpha1.VNISpec{
+						ASN:       64514,
+						VNI:       100,
+						LocalCIDR: "192.169.10.0/24",
+						HostASN:   pointer.Uint32(64515),
+					},
 				},
 			},
 		}
 	})
 
 })
+
+func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) {
+	jsonData, err := json.MarshalIndent(toValidate, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	toValidateFile, err := ioutil.TempFile(os.TempDir(), "validate-*.json")
+	Expect(err).NotTo(HaveOccurred())
+
+	_, err = toValidateFile.Write(jsonData)
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, p := range pods {
+		err := k8s.SendFileToPod(toValidateFile.Name(), p)
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
 
 func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
 	if pod.Annotations != nil && pod.Annotations["validator"] == "true" {
