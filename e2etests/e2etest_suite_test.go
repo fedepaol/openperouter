@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/e2etests/hostconfiguration"
+	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
@@ -19,6 +20,7 @@ import (
 
 var (
 	skipDockerCmd bool
+	updater       config.Updater
 )
 
 // handleFlags sets up all flags and parses the command line.
@@ -53,13 +55,15 @@ func TestE2E(t *testing.T) {
 
 var _ = ginkgo.BeforeSuite(func() {
 	log.SetLogger(zap.New(zap.WriteTo(ginkgo.GinkgoWriter), zap.UseDevMode(true)))
-	cs := k8sclient.New()
-	updater, err = testsconfig.UpdaterForCRs(clientconfig, openperouter.Namespace)
+	clientconfig := k8sclient.RestConfig()
+	var err error
+	updater, err = config.UpdaterForCRs(clientconfig, openperouter.Namespace)
 	Expect(err).NotTo(HaveOccurred())
 
 })
 
 var _ = ginkgo.AfterSuite(func() {
-	cs := k8sclient.New()
+	updater.Clean()
+	// cs := k8sclient.New()
 
 })

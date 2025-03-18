@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
-	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
@@ -19,13 +17,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 var ValidatorPath string
 
 var _ = ginkgo.Describe("Router Host configuration", func() {
 	var cs clientset.Interface
+	routerPods := []*corev1.Pod{}
 
 	ginkgo.AfterEach(func() {
 	})
@@ -33,7 +32,8 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 	ginkgo.BeforeEach(func() {
 		cs = k8sclient.New()
 		ginkgo.By("ensuring the validator is in all the pods")
-		routerPods, err := openperouter.RouterPods(cs)
+		var err error
+		routerPods, err = openperouter.RouterPods(cs)
 		Expect(err).NotTo(HaveOccurred())
 		for _, pod := range routerPods {
 			ensureValidator(cs, pod)
@@ -48,30 +48,25 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 	})
 
 	ginkgo.It("is applied correctly", func() {
-		resources := config.Resources{
-			Underlays: []v1alpha1.Underlay{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "underlay",
-						Namespace: openperouter.Namespace,
-					},
-				},
-			},
-			VNIs: []v1alpha1.VNI{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "vni",
-						Namespace: openperouter.Namespace,
-					},
-					Spec: v1alpha1.VNISpec{
-						ASN:       64514,
-						VNI:       100,
-						LocalCIDR: "192.169.10.0/24",
-						HostASN:   pointer.Uint32(64515),
-					},
-				},
+		underlay := v1alpha1.Underlay{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "underlay",
+				Namespace: openperouter.Namespace,
 			},
 		}
+		vni := v1alpha1.VNI{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vni",
+				Namespace: openperouter.Namespace,
+			},
+			Spec: v1alpha1.VNISpec{
+				ASN:       64514,
+				VNI:       100,
+				LocalCIDR: "192.169.10.0/24",
+				HostASN:   ptr.To(uint32(64515)),
+			},
+		}
+
 	})
 
 })
@@ -82,7 +77,7 @@ func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) {
 		panic(err)
 	}
 
-	toValidateFile, err := ioutil.TempFile(os.TempDir(), "validate-*.json")
+	toValidateFile, err := os.CreateTemp(os.TempDir(), "validate-*.json")
 	Expect(err).NotTo(HaveOccurred())
 
 	_, err = toValidateFile.Write(jsonData)
