@@ -59,6 +59,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	var err error
 	updater, err = config.UpdaterForCRs(clientconfig, openperouter.Namespace)
 	Expect(err).NotTo(HaveOccurred())
+	hostconfiguration.Updater = updater
 
 })
 
