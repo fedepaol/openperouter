@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
@@ -20,7 +21,10 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var ValidatorPath string
+var (
+	ValidatorPath string
+	Updater       config.Updater
+)
 
 var _ = ginkgo.Describe("Router Host configuration", func() {
 	var cs clientset.Interface
@@ -39,10 +43,8 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 			ensureValidator(cs, pod)
 		}
 
-		/*
-			err := ConfigUpdater.Clean()
-			Expect(err).NotTo(HaveOccurred())
-		*/
+		err = Updater.Clean()
+		Expect(err).NotTo(HaveOccurred())
 
 		cs = k8sclient.New()
 	})
@@ -66,26 +68,25 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				HostASN:   ptr.To(uint32(64515)),
 			},
 		}
-
+		Updater.Update(config.Resources{
+			Underlays: []v1alpha1.Underlay{
+				underlay,
+			},
+			VNIs: []v1alpha1.VNI{
+				vni,
+			},
+		})
+		sendConfigToValidate(routerPods, underlay)
+		sendConfigToValidate(routerPods, vni)
 	})
 
 })
 
-func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) {
-	jsonData, err := json.MarshalIndent(toValidate, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-
-	toValidateFile, err := os.CreateTemp(os.TempDir(), "validate-*.json")
-	Expect(err).NotTo(HaveOccurred())
-
-	_, err = toValidateFile.Write(jsonData)
-	Expect(err).NotTo(HaveOccurred())
-
+func validateVNI(vni v1alpha1.VNI, pods []*corev1.Pod) {
+	fileToValidate := sendConfigToValidate(pods, vni)
 	for _, p := range pods {
-		err := k8s.SendFileToPod(toValidateFile.Name(), p)
-		Expect(err).NotTo(HaveOccurred())
+		exec := executor.ForPod(p.Namespace, p.Name, "frr")
+		exec.Exec("/validator", "--ginkgo.focus", "EXTERNAL.*vni", "--paramsfile", fileToValidate)
 	}
 }
 
@@ -101,4 +102,24 @@ func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
 	pod.Annotations["validator"] = "true"
 	_, err = cs.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 	Expect(err).NotTo(HaveOccurred())
+}
+
+func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) string {
+	jsonData, err := json.MarshalIndent(toValidate, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	toValidateFile, err := os.CreateTemp(os.TempDir(), "validate-*.json")
+	Expect(err).NotTo(HaveOccurred())
+
+	_, err = toValidateFile.Write(jsonData)
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, p := range pods {
+		err := k8s.SendFileToPod(toValidateFile.Name(), p)
+		Expect(err).NotTo(HaveOccurred())
+	}
+	return toValidateFile.Name()
+
 }

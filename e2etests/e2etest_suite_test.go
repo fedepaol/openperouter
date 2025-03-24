@@ -1,5 +1,3 @@
-// SPDX-License-Identifier:Apache-2.0
-
 package e2e
 
 import (
@@ -59,11 +57,11 @@ var _ = ginkgo.BeforeSuite(func() {
 	var err error
 	updater, err = config.UpdaterForCRs(clientconfig, openperouter.Namespace)
 	Expect(err).NotTo(HaveOccurred())
+	hostconfiguration.Updater = updater
 
 })
 
 var _ = ginkgo.AfterSuite(func() {
 	updater.Clean()
 	// cs := k8sclient.New()
-
 })

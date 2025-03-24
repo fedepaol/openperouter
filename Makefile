@@ -113,6 +113,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 HELM ?= $(LOCALBIN)/helm
 KUBECONFIG_PATH ?= $(LOCALBIN)/kubeconfig
+VALIDATOR_PATH ?= $(LOCALBIN)/validatehost
 APIDOCSGEN ?= $(LOCALBIN)/crd-ref-docs
 export KUBECONFIG=$(KUBECONFIG_PATH)
 
@@ -120,7 +121,7 @@ export KUBECONFIG=$(KUBECONFIG_PATH)
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 KUBECTL_VERSION ?= v1.27.0
-GINKGO_VERSION ?= v2.19.0
+GINKGO_VERSION ?= v2.23.0
 KIND_VERSION ?= v0.23.0
 KIND_CLUSTER_NAME ?= pe-kind
 HELM_VERSION ?= v3.12.3
@@ -233,8 +234,8 @@ $(APIDOCSGEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install github.com/elastic/crd-ref-docs@$(APIDOCSGEN_VERSION)
 
 .PHONY: e2etests
-e2etests: ginkgo kubectl
-	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS)
+e2etests: ginkgo kubectl build-validator
+	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH)
 
 
 .PHONY: clab-cluster
@@ -297,4 +298,4 @@ cutrelease: bumpversion generate-all-in-one helm-docs
 .PHONY: build-validator
 build-validator: ginkgo ## Build Ginkgo test binary.
 	$(GINKGO) build -tags=externaltests ./internal/hostnetwork
-	mv internal/hostnetwork/hostnetwork.test bin/validatehost
+	mv internal/hostnetwork/hostnetwork.test $(VALIDATOR_PATH)
