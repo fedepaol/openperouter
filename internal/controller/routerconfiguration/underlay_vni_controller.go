@@ -31,6 +31,7 @@ import (
 
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/pods"
 	v1 "k8s.io/api/core/v1"
 )
@@ -88,10 +89,19 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	if err := conversion.ValidateUnderlays(underlays.Items); err != nil {
+		slog.Error("failed to validate underlays", "error", err)
+		return ctrl.Result{}, nil
+	}
+
 	var vnis v1alpha1.VNIList
 	if err := r.Client.List(ctx, &vnis); err != nil {
 		slog.Error("failed to list vnis", "error", err)
 		return ctrl.Result{}, err
+	}
+	if err := conversion.ValidateVNIs(vnis.Items); err != nil {
+		slog.Error("failed to validate vnis", "error", err)
+		return ctrl.Result{}, nil
 	}
 	logger.Debug("using config", "vnis", vnis.Items, "underlays", underlays.Items)
 

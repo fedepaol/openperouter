@@ -35,6 +35,16 @@ func TestValidateUnderlay(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "empty VTEP CIDR",
+			underlay: v1alpha1.Underlay{
+				Spec: v1alpha1.UnderlaySpec{
+					VTEPCIDR: "",
+					Nics:     []string{"eth0", "eth1"},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "invalid NIC name",
 			underlay: v1alpha1.Underlay{
 				Spec: v1alpha1.UnderlaySpec{
@@ -48,7 +58,7 @@ func TestValidateUnderlay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUnderlay(tt.underlay)
+			err := ValidateUnderlays([]v1alpha1.Underlay{tt.underlay})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateUnderlay() error = %v, wantErr %v", err, tt.wantErr)
 			}
