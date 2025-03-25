@@ -10,6 +10,12 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+type setNamespaceError string
+
+func (i setNamespaceError) Error() string {
+	return string(i)
+}
+
 // inNamespace execs the provided function in the given network
 // namespace.
 func inNamespace(ns netns.NsHandle, execInNamespace func() error) error {
@@ -20,16 +26,16 @@ func inNamespace(ns netns.NsHandle, execInNamespace func() error) error {
 
 	origns, err := netns.Get()
 	if err != nil {
-		return fmt.Errorf("setupUnderlay: Failed to get current network namespace")
+		return fmt.Errorf("failed to get current network namespace")
 	}
 	defer func() {
 		if err := origns.Close(); err != nil {
-			slog.Error("failed to default namespace", "error", err)
+			slog.Error("failed to close default namespace", "error", err)
 		}
 	}()
 
 	if err := netns.Set(ns); err != nil {
-		return fmt.Errorf("setupUnderlay: Failed to set current network namespace to %s", ns.String())
+		return setNamespaceError(fmt.Sprintf("failed to set current network namespace to %s", ns.String()))
 	}
 
 	defer func() {

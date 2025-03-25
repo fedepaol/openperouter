@@ -4,6 +4,7 @@ package hostnetwork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -116,6 +117,10 @@ func moveInterfaceToNamespace(ctx context.Context, intf string, ns netns.NsHandl
 	if err == nil {
 		slog.DebugContext(ctx, "intf is already in namespace", "intf", intf, "namespace", ns.String())
 		return nil
+	}
+	var nsError setNamespaceError
+	if errors.As(err, &nsError) {
+		return fmt.Errorf("moveInterfaceToNamespace: Failed to execute in ns %s: %w", intf, err)
 	}
 
 	link, err := netlink.LinkByName(intf)
