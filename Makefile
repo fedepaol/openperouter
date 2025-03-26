@@ -297,5 +297,5 @@ cutrelease: bumpversion generate-all-in-one helm-docs
 
 .PHONY: build-validator
 build-validator: ginkgo ## Build Ginkgo test binary.
-	$(GINKGO) build -tags=externaltests ./internal/hostnetwork
+	CGO_ENABLED=0 $(GINKGO) build -tags=externaltests ./internal/hostnetwork
 	mv internal/hostnetwork/hostnetwork.test $(VALIDATOR_PATH)
