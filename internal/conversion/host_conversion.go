@@ -14,7 +14,7 @@ func APItoHostConfig(nodeIndex int, targetNS string, underlays []v1alpha1.Underl
 	if len(underlays) > 1 {
 		return hostnetwork.UnderlayParams{}, nil, fmt.Errorf("can't have more than one underlay")
 	}
-	if len(underlays) == 0 || len(vnis) == 0 {
+	if len(underlays) == 0 {
 		return hostnetwork.UnderlayParams{}, nil, nil
 	}
 
