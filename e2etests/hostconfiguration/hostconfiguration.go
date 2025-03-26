@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +33,8 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 	routerPods := []*corev1.Pod{}
 
 	ginkgo.AfterEach(func() {
+		err := Updater.Clean()
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	ginkgo.BeforeEach(func() {
@@ -55,6 +59,17 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				Name:      "underlay",
 				Namespace: openperouter.Namespace,
 			},
+			Spec: v1alpha1.UnderlaySpec{
+				ASN:      64514,
+				VTEPCIDR: "100.65.0.0/24",
+				Nics:     []string{"toswitch"},
+				Neighbors: []v1alpha1.Neighbor{
+					{
+						ASN:     64514,
+						Address: "192.168.11.2",
+					},
+				},
+			},
 		}
 		vni := v1alpha1.VNI{
 			ObjectMeta: metav1.ObjectMeta{
@@ -68,7 +83,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				HostASN:   ptr.To(uint32(64515)),
 			},
 		}
-		Updater.Update(config.Resources{
+		err := Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
 				underlay,
 			},
@@ -76,18 +91,38 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				vni,
 			},
 		})
-		sendConfigToValidate(routerPods, underlay)
-		sendConfigToValidate(routerPods, vni)
+		Expect(err).NotTo(HaveOccurred())
+
+		ginkgo.By("validating VNI")
+
+		validateVNI(vniParams{
+			VRF:        vni.Name,
+			VethHostIP: "192.169.10.0",
+			VNI:        100,
+			VXLanPort:  4789,
+		}, routerPods)
 	})
 
 })
 
-func validateVNI(vni v1alpha1.VNI, pods []*corev1.Pod) {
-	fileToValidate := sendConfigToValidate(pods, vni)
-	for _, p := range pods {
-		exec := executor.ForPod(p.Namespace, p.Name, "frr")
-		exec.Exec("/validator", "--ginkgo.focus", "EXTERNAL.*vni", "--paramsfile", fileToValidate)
-	}
+type vniParams struct {
+	VRF        string `json:"vrf"`
+	VTEPIP     string `json:"vtepip"`
+	VethHostIP string `json:"vethhostip"`
+	VNI        int    `json:"vni"`
+	VXLanPort  int    `json:"vxlanport"`
+}
+
+func validateVNI(vni vniParams, pod *corev1.Pod) {
+	fileToValidate := sendConfigToValidate(pod, vni)
+	Eventually(func() error {
+		exec := executor.ForPod(pod.Namespace, pod.Name, "frr")
+		res, err := exec.Exec("/validatehost", "--ginkgo.focus", "EXTERNAL.*vni", "--paramsfile", fileToValidate)
+		if err != nil {
+			return fmt.Errorf("failed to validate vni: %s %w", res, err)
+		}
+		return nil
+	}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred(), "a downtime should be observed")
 }
 
 func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
@@ -104,7 +139,7 @@ func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) string {
+func sendConfigToValidate[T any](pod *corev1.Pod, toValidate T) string {
 	jsonData, err := json.MarshalIndent(toValidate, "", "  ")
 	if err != nil {
 		panic(err)
@@ -116,10 +151,7 @@ func sendConfigToValidate[T any](pods []*corev1.Pod, toValidate T) string {
 	_, err = toValidateFile.Write(jsonData)
 	Expect(err).NotTo(HaveOccurred())
 
-	for _, p := range pods {
-		err := k8s.SendFileToPod(toValidateFile.Name(), p)
-		Expect(err).NotTo(HaveOccurred())
-	}
-	return toValidateFile.Name()
-
+	err = k8s.SendFileToPod(toValidateFile.Name(), pod)
+	Expect(err).NotTo(HaveOccurred())
+	return filepath.Base(toValidateFile.Name())
 }

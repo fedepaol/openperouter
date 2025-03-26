@@ -73,6 +73,11 @@ func (o beta1Updater) Update(r Resources) error {
 		oldValues[key] = underlay.DeepCopy()
 		key++
 	}
+	for _, vni := range r.VNIs {
+		objects[key] = vni.DeepCopy()
+		oldValues[key] = vni.DeepCopy()
+		key++
+	}
 
 	// Iterating over the map will return the items in a random order.
 	for i, obj := range objects {
@@ -83,6 +88,9 @@ func (o beta1Updater) Update(r Resources) error {
 			switch toChange := obj.(type) {
 			case *v1alpha1.Underlay:
 				old := oldValues[i].(*v1alpha1.Underlay)
+				toChange.Spec = *old.Spec.DeepCopy()
+			case *v1alpha1.VNI:
+				old := oldValues[i].(*v1alpha1.VNI)
 				toChange.Spec = *old.Spec.DeepCopy()
 			}
 
@@ -97,6 +105,10 @@ func (o beta1Updater) Update(r Resources) error {
 
 func (o beta1Updater) Clean() error {
 	err := o.cli.DeleteAllOf(context.Background(), &v1alpha1.Underlay{}, client.InNamespace(o.namespace))
+	if err != nil {
+		return err
+	}
+	err = o.cli.DeleteAllOf(context.Background(), &v1alpha1.VNI{}, client.InNamespace(o.namespace))
 	if err != nil {
 		return err
 	}

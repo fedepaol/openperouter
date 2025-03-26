@@ -12,7 +12,7 @@ import (
 
 const (
 	Namespace           = "openperouter-system"
-	routerLabelSelector = "app.kubernetes.io/component=router"
+	routerLabelSelector = "app=router"
 )
 
 func RouterPods(cs clientset.Interface) ([]*corev1.Pod, error) {
