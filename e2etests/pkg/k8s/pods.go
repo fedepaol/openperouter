@@ -41,6 +41,11 @@ func PodLogs(cs clientset.Interface, pod *corev1.Pod, podLogOpts corev1.PodLogOp
 	return str, nil
 }
 
+func NodeObjectForPod(cs clientset.Interface, pod *corev1.Pod) (*corev1.Node, error) {
+	nodeName := pod.Spec.NodeName
+	return cs.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+}
+
 // PodIsReady returns the given pod's PodReady and ContainersReady condition.
 func PodIsReady(p *corev1.Pod) bool {
 	return podConditionStatus(p, corev1.PodReady) == corev1.ConditionTrue && podConditionStatus(p, corev1.ContainersReady) == corev1.ConditionTrue

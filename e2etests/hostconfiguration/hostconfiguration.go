@@ -113,7 +113,12 @@ type vniParams struct {
 	VXLanPort  int    `json:"vxlanport"`
 }
 
-func validateVNI(vni vniParams, pod *corev1.Pod) {
+func validateVNI(cs clientset.Interface, vni vniParams, vtepCIDR string, pod *corev1.Pod) {
+	node, err := k8s.NodeObjectForPod(cs, pod)
+	Expect(err).NotTo(HaveOccurred())
+
+	vtepIP, err := openperouter.VtepIPForNode(vtepCIDR, node)
+
 	fileToValidate := sendConfigToValidate(pod, vni)
 	Eventually(func() error {
 		exec := executor.ForPod(pod.Namespace, pod.Name, "frr")
