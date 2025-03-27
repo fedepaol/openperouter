@@ -56,6 +56,31 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 		},
 	}
 
+	vni := v1alpha1.VNI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vni",
+			Namespace: openperouter.Namespace,
+		},
+		Spec: v1alpha1.VNISpec{
+			ASN:       64514,
+			VNI:       100,
+			LocalCIDR: "192.169.10.0/24",
+			HostASN:   ptr.To(uint32(64515)),
+		},
+	}
+	vni1 := v1alpha1.VNI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vni1",
+			Namespace: openperouter.Namespace,
+		},
+		Spec: v1alpha1.VNISpec{
+			ASN:       64514,
+			VNI:       200,
+			LocalCIDR: "192.169.11.0/24",
+			HostASN:   ptr.To(uint32(64515)),
+		},
+	}
+
 	ginkgo.BeforeEach(func() {
 		cs = k8sclient.New()
 		ginkgo.By("ensuring the validator is in all the pods")
@@ -82,18 +107,6 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 	})
 
 	ginkgo.It("is applied correctly", func() {
-		vni := v1alpha1.VNI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "vni",
-				Namespace: openperouter.Namespace,
-			},
-			Spec: v1alpha1.VNISpec{
-				ASN:       64514,
-				VNI:       100,
-				LocalCIDR: "192.169.10.0/24",
-				HostASN:   ptr.To(uint32(64515)),
-			},
-		}
 		err := Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
 				underlay,
@@ -126,31 +139,6 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 	})
 
 	ginkgo.It("works with two vnis and deletion", func() {
-		vni := v1alpha1.VNI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "vni",
-				Namespace: openperouter.Namespace,
-			},
-			Spec: v1alpha1.VNISpec{
-				ASN:       64514,
-				VNI:       100,
-				LocalCIDR: "192.169.10.0/24",
-				HostASN:   ptr.To(uint32(64515)),
-			},
-		}
-		vni1 := v1alpha1.VNI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "vni1",
-				Namespace: openperouter.Namespace,
-			},
-			Spec: v1alpha1.VNISpec{
-				ASN:       64514,
-				VNI:       200,
-				LocalCIDR: "192.169.11.0/24",
-				HostASN:   ptr.To(uint32(64515)),
-			},
-		}
-
 		err := Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
 				underlay,
@@ -219,6 +207,123 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				VtepIP:            vtepIP,
 			}, underlayTestSelector, p)
 		}
+	})
+
+	ginkgo.It("works while editing the vni parameters", func() {
+		resources := config.Resources{
+			Underlays: []v1alpha1.Underlay{
+				underlay,
+			},
+			VNIs: []v1alpha1.VNI{
+				*vni.DeepCopy(),
+			},
+		}
+
+		err := Updater.Update(resources)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, p := range routerPods {
+			ginkgo.By(fmt.Sprintf("validating VNI for pod %s", p.Name))
+
+			vtepIP := vtepIPForPod(cs, underlay.Spec.VTEPCIDR, p)
+			validateConfig(vniParams{
+				VRF:       vni.Name,
+				VethNSIP:  vni.Spec.LocalCIDR,
+				VNI:       vni.Spec.VNI,
+				VXLanPort: 4789,
+				VTEPIP:    vtepIP,
+			}, vniConfiguredTestSelector, p)
+		}
+
+		ginkgo.By("editing the first vni")
+
+		resources.VNIs[0].Spec.ASN = 64515
+		resources.VNIs[0].Spec.VNI = 300
+		resources.VNIs[0].Spec.LocalCIDR = "192.171.10.0/24"
+		resources.VNIs[0].Spec.HostASN = ptr.To(uint32(64516))
+		err = Updater.Update(resources)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, p := range routerPods {
+			ginkgo.By(fmt.Sprintf("validating VNI for pod %s", p.Name))
+
+			vtepIP := vtepIPForPod(cs, underlay.Spec.VTEPCIDR, p)
+			changedVni := resources.VNIs[0]
+			validateConfig(vniParams{
+				VRF:       changedVni.Name,
+				VethNSIP:  changedVni.Spec.LocalCIDR,
+				VNI:       changedVni.Spec.VNI,
+				VXLanPort: 4789,
+				VTEPIP:    vtepIP,
+			}, vniConfiguredTestSelector, p)
+		}
+
+		for _, p := range routerPods {
+			vtepIP := vtepIPForPod(cs, underlay.Spec.VTEPCIDR, p)
+
+			ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
+
+			validateConfig(underlayParams{
+				UnderlayInterface: "toswitch",
+				VtepIP:            vtepIP,
+			}, underlayTestSelector, p)
+		}
+	})
+
+	ginkgo.It("works while editing the underlay parameters", func() {
+		resources := config.Resources{
+			Underlays: []v1alpha1.Underlay{
+				*underlay.DeepCopy(),
+			},
+			VNIs: []v1alpha1.VNI{
+				vni,
+			},
+		}
+
+		err := Updater.Update(resources)
+		Expect(err).NotTo(HaveOccurred())
+
+		validate := func(vtepCidr string) {
+			for _, p := range routerPods {
+				ginkgo.By(fmt.Sprintf("validating VNI for pod %s", p.Name))
+
+				vtepIP := vtepIPForPod(cs, vtepCidr, p)
+				validateConfig(vniParams{
+					VRF:       vni.Name,
+					VethNSIP:  vni.Spec.LocalCIDR,
+					VNI:       vni.Spec.VNI,
+					VXLanPort: 4789,
+					VTEPIP:    vtepIP,
+				}, vniConfiguredTestSelector, p)
+
+				ginkgo.By(fmt.Sprintf("validating underlay for pod %s", p.Name))
+				validateConfig(underlayParams{
+					UnderlayInterface: "toswitch",
+					VtepIP:            vtepIP,
+				}, underlayTestSelector, p)
+			}
+		}
+
+		validate(underlay.Spec.VTEPCIDR)
+
+		ginkgo.By("editing the vtep cidr vni")
+
+		newCidr := "100.64.0.0/24"
+		resources.Underlays[0].Spec.VTEPCIDR = newCidr
+		err = Updater.Update(resources)
+		Expect(err).NotTo(HaveOccurred())
+
+		validate(newCidr)
+
+		ginkgo.By("editing the underlay nic (to non existent one)")
+		resources.Underlays[0].Spec.Nics[0] = "foo"
+		err = Updater.Update(resources)
+		Expect(err).NotTo(HaveOccurred())
+
+		ginkgo.By("waiting for the routers to be rolled out again")
+		Eventually(func() error {
+			return openperouter.DaemonsetRolled(cs, routerPods)
+		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
 })
