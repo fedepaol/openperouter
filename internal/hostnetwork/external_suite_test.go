@@ -62,6 +62,12 @@ var _ = Describe("EXTERNAL", func() {
 				validateVNI(g, params)
 			}, 30*time.Second, 1*time.Second).Should(Succeed())
 		})
+		It("should be deleted", func() {
+			Eventually(func(g Gomega) {
+				validateVNIIsNotConfigured(g, params)
+			}, 30*time.Second, 1*time.Second).Should(Succeed())
+		})
+
 	})
 
 })

@@ -17,6 +17,9 @@ func VtepIPForNode(cidr string, node *corev1.Node) (string, error) {
 		return "", fmt.Errorf("no index for node %s", node.Name)
 	}
 	nodeIndex, err := strconv.Atoi(node.Annotations[nodeIndexAnnotation])
+	if err != nil {
+		return "", fmt.Errorf("non int index %s for node %s", node.Annotations[nodeIndexAnnotation], node.Name)
+	}
 	_, vtepCIDR, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse cidr %s: %w", cidr, err)
