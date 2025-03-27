@@ -59,12 +59,8 @@ docker exec clab-kind-leaf2 /setup.sh
 docker exec clab-kind-spine /setup.sh
 docker exec clab-kind-HOST1 /setup.sh
 
-if not pgrep -f check_veths.sh | xargs -r ps -p | grep -q pe-kind-control-plane; then
-	sudo ./check_veths.sh kindctrlpl toswitch pe-kind-control-plane 192.168.11.3/24 &
-fi
-
-if not pgrep -f check_veths.sh | xargs -r ps -p | grep -q pe-kind-worker; then
-	sudo ./check_veths.sh kindworker toswitch pe-kind-worker 192.168.11.4/24 &
+if ! pgrep -f check_veths.sh | xargs -r ps -p | grep -q pe-kind-control-plane; then
+	sudo ./check_veths.sh kindctrlpl:toswitch:pe-kind-control-plane:192.168.11.3/24  kindworker:toswitch:pe-kind-worker:192.168.11.4/24 & 
 fi
 
 popd
