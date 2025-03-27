@@ -1,7 +1,5 @@
 namespace: openperouter-system
 
-namePrefix: openperouter-
-
 resources:
 - ../crd
 - ../rbac
