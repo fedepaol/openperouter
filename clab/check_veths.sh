@@ -1,8 +1,6 @@
 #!/bin/bash
 
-set -e
 set -u
-set -o pipefail
 
 function veth_exists {
     ip link show "$1" &> /dev/null
@@ -20,9 +18,7 @@ CONTAINER_NAME=$3
 CONTAINER_SIDE_IP=$4
 
 SCRIPT_NAME=$(basename "$0")
-if pgrep -f "$SCRIPT_NAME" | xargs -r ps -p | grep -q "$CONTAINER_NAME"; then
-	echo "Checker already running for $CONTAINER_NAME, exiting"
-fi
+
 
 echo "keeping $VETH_NAME - $PEER_NAME up in $CONTAINER_NAME"
 while true; do
