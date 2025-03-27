@@ -63,6 +63,9 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 			return fmt.Errorf("failed to setup vni: %w", err)
 		}
 	}
+	if err := hostnetwork.RemoveNonConfiguredVNIs(targetNS, vnis); err != nil {
+		return fmt.Errorf("failed to remove leftover vnis: %w", err)
+	}
 	return nil
 }
 

@@ -108,7 +108,7 @@ func SetupVNI(ctx context.Context, params VNIParams) error {
 
 // RemoveNonConfiguredVNIs removes from the target namespace the
 // leftovers corresponding to VNIs that are not configured anymore.
-func RemoveNonConfiguredVNIs(ns netns.NsHandle, params []VNIParams) error {
+func RemoveNonConfiguredVNIs(targetNS string, params []VNIParams) error {
 	vrfs := map[string]bool{}
 	vnis := map[int]bool{}
 	for _, p := range params {
@@ -135,6 +135,16 @@ func RemoveNonConfiguredVNIs(ns netns.NsHandle, params []VNIParams) error {
 			failedDeletes = append(failedDeletes, fmt.Errorf("remove host leg: %s %w", hl.Attrs().Name, err))
 		}
 	}
+
+	ns, err := netns.GetFromName(targetNS)
+	if err != nil {
+		return fmt.Errorf("RemoveNonConfiguredVNIs: Failed to get network namespace %s: %w", targetNS, err)
+	}
+	defer func() {
+		if err := ns.Close(); err != nil {
+			slog.Error("failed to close namespace", "namespace", targetNS, "error", err)
+		}
+	}()
 
 	if err := inNamespace(ns, func() error {
 		links, err := netlink.LinkList()

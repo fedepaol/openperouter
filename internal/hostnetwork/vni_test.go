@@ -93,7 +93,7 @@ var _ = Describe("VNI configuration", func() {
 		toDelete := params[1]
 
 		By("removing non configured vnis")
-		err := RemoveNonConfiguredVNIs(testNS, []VNIParams{remaining})
+		err := RemoveNonConfiguredVNIs(testNSName, []VNIParams{remaining})
 		Expect(err).NotTo(HaveOccurred())
 
 		By("checking remaining vnis")
