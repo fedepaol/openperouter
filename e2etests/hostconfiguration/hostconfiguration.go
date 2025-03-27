@@ -93,41 +93,51 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		ginkgo.By("validating VNI")
+		for _, p := range routerPods {
+			ginkgo.By(fmt.Sprintf("validating VNI for pod %s", p.Name))
 
-		validateVNI(vniParams{
-			VRF:        vni.Name,
-			VethHostIP: "192.169.10.0",
-			VNI:        100,
-			VXLanPort:  4789,
-		}, routerPods)
+			vtepIP := vtepIPForPod(cs, underlay.Spec.VTEPCIDR, p)
+			validateConfig(vniParams{
+				VRF:       vni.Name,
+				VethNSIP:  "192.169.10.0/24",
+				VNI:       100,
+				VXLanPort: 4789,
+				VTEPIP:    vtepIP,
+			}, "EXTERNAL.*vni", p)
+
+			ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
+
+			validateConfig(underlayParams{
+				UnderlayInterface: "toswitch",
+				VtepIP:            vtepIP,
+			}, "EXTERNAL.*underlay", p)
+		}
 	})
-
 })
 
 type vniParams struct {
-	VRF        string `json:"vrf"`
-	VTEPIP     string `json:"vtepip"`
-	VethHostIP string `json:"vethhostip"`
-	VNI        int    `json:"vni"`
-	VXLanPort  int    `json:"vxlanport"`
+	VRF       string `json:"vrf"`
+	VTEPIP    string `json:"vtepip"`
+	VethNSIP  string `json:"vethnsip"`
+	VNI       int    `json:"vni"`
+	VXLanPort int    `json:"vxlanport"`
 }
 
-func validateVNI(cs clientset.Interface, vni vniParams, vtepCIDR string, pod *corev1.Pod) {
-	node, err := k8s.NodeObjectForPod(cs, pod)
-	Expect(err).NotTo(HaveOccurred())
+type underlayParams struct {
+	UnderlayInterface string `json:"underlay_interface"`
+	VtepIP            string `json:"vtep_ip"`
+}
 
-	vtepIP, err := openperouter.VtepIPForNode(vtepCIDR, node)
-
-	fileToValidate := sendConfigToValidate(pod, vni)
+func validateConfig[T any](config T, test string, pod *corev1.Pod) {
+	fileToValidate := sendConfigToValidate(pod, config)
 	Eventually(func() error {
 		exec := executor.ForPod(pod.Namespace, pod.Name, "frr")
-		res, err := exec.Exec("/validatehost", "--ginkgo.focus", "EXTERNAL.*vni", "--paramsfile", fileToValidate)
+		res, err := exec.Exec("/validatehost", "--ginkgo.focus", test, "--paramsfile", fileToValidate)
 		if err != nil {
-			return fmt.Errorf("failed to validate vni: %s %w", res, err)
+			return fmt.Errorf("failed to validate test %s : %s %w", test, res, err)
 		}
 		return nil
-	}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred(), "a downtime should be observed")
+	}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 }
 
 func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
@@ -142,6 +152,14 @@ func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
 	pod.Annotations["validator"] = "true"
 	_, err = cs.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 	Expect(err).NotTo(HaveOccurred())
+}
+
+func vtepIPForPod(cs clientset.Interface, vtepCIDR string, pod *corev1.Pod) string {
+	node, err := k8s.NodeObjectForPod(cs, pod)
+	Expect(err).NotTo(HaveOccurred())
+	vtepIP, err := openperouter.VtepIPForNode(vtepCIDR, node)
+	Expect(err).NotTo(HaveOccurred())
+	return vtepIP
 }
 
 func sendConfigToValidate[T any](pod *corev1.Pod, toValidate T) string {

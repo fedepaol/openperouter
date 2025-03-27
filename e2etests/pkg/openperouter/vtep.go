@@ -26,6 +26,10 @@ func VtepIPForNode(cidr string, node *corev1.Node) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get index %d from cidr %s", nodeIndex, vtepCIDR)
 	}
-	return ip.String(), nil
+	netip := net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(32, 32),
+	}
+	return netip.String(), nil
 
 }

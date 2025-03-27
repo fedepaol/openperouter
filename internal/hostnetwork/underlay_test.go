@@ -135,12 +135,12 @@ var _ = Describe("Underlay configuration should work when", func() {
 
 func validateUnderlayInNS(g Gomega, ns netns.NsHandle, params UnderlayParams) {
 	_ = inNamespace(ns, func() error {
-		validateUnderlay(g, params)
+		validateUnderlay(g, params, externalInterfaceIP)
 		return nil
 	})
 }
 
-func validateUnderlay(g Gomega, params UnderlayParams) {
+func validateUnderlay(g Gomega, params UnderlayParams, interfaceIPs ...string) {
 	links, err := netlink.LinkList()
 	g.Expect(err).NotTo(HaveOccurred())
 	loopbackFound := false
@@ -152,7 +152,9 @@ func validateUnderlay(g Gomega, params UnderlayParams) {
 		}
 		if l.Attrs().Name == params.UnderlayInterface {
 			mainNicFound = true
-			validateIP(g, l, externalInterfaceIP)
+			for _, ip := range interfaceIPs {
+				validateIP(g, l, ip)
+			}
 			validateIP(g, l, underlayInterfaceSpecialAddr)
 		}
 

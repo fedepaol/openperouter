@@ -4,7 +4,6 @@ package executor
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -68,7 +67,6 @@ func (p *podExecutor) Exec(cmd string, args ...string) (string, error) {
 		return "", errors.New("the kubectl parameter is not set")
 	}
 	fullargs := append([]string{"exec", p.name, "-n", p.namespace, "-c", p.container, "--", cmd}, args...)
-	fmt.Println("FEDE ", fullargs)
 	out, err := exec.Command(Kubectl, fullargs...).CombinedOutput()
 	return string(out), err
 }
