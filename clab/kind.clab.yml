@@ -1,28 +1,36 @@
 name: kind
 topology:
   nodes:
-    leaf1:
+    leafA:
       kind: linux
       image: quay.io/frrouting/frr:10.2.1
       binds:
-        - leaf1/daemons:/etc/frr/daemons
+        - frrcommon/daemons:/etc/frr/daemons
+        - leafA/frr.conf:/etc/frr/frr.conf
+        - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
+        - leafA/setup.sh:/setup.sh
+    leafB:
+      kind: linux
+      image: quay.io/frrouting/frr:10.2.1
+      binds:
+        - frrcommon/daemons:/etc/frr/daemons
         - leaf1/frr.conf:/etc/frr/frr.conf
-        - leaf1/vtysh.conf:/etc/frr/vtysh.conf
+        - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
         - leaf1/setup.sh:/setup.sh
     leaf2:
       kind: linux
       image: quay.io/frrouting/frr:10.2.1
       binds:
-        - leaf2/daemons:/etc/frr/daemons
-        - leaf2/vtysh.conf:/etc/frr/vtysh.conf
+        - frrcommon/daemons:/etc/frr/daemons
+        - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
         - leaf2/frr.conf:/etc/frr/frr.conf
         - leaf2/setup.sh:/setup.sh
     spine:
       kind: linux
       image: quay.io/frrouting/frr:10.2.1
       binds:
-        - spine/daemons:/etc/frr/daemons
-        - spine/vtysh.conf:/etc/frr/vtysh.conf
+        - frrcommon/daemons:/etc/frr/daemons
+        - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
         - spine/frr.conf:/etc/frr/frr.conf
         - spine/setup.sh:/setup.sh
 
@@ -51,9 +59,13 @@ topology:
         - kind/setupworker.sh:/setupworker.sh
 
   links:
-    - endpoints: ["leaf1:eth1", "spine:eth1"]
-    - endpoints: ["leaf2:eth1", "spine:eth2"]
-    - endpoints: ["HOST1:eth1", "leaf1:eth2"]
-    - endpoints: ["leaf2:toswitch", "leaf2-switch:leaf2"]
-    - endpoints: ["pe-kind-control-plane:toswitch", "leaf2-switch:kindctrlpl"]
-    - endpoints: ["pe-kind-worker:toswitch", "leaf2-switch:kindworker"]
+    - endpoints: ["leafA:eth1", "spine:eth1"]
+    - endpoints: ["leafB:eth1", "spine:eth2"]
+    - endpoints: ["leafkind:eth1", "spine:eth3"]
+    - endpoints: ["leafA:ethred", "hostA_red:eth1"]
+    - endpoints: ["leafA:ethblue", "hostA_blue:eth1"]
+    - endpoints: ["leafB:ethred", "hostB_red:eth1"]
+    - endpoints: ["leafB:ethblue", "hostB_blue:eth1"]
+    - endpoints: ["leafkind:toswitch", "leafkind-switch:leaf2"]
+    - endpoints: ["pe-kind-control-plane:toswitch", "leafkind-switch:kindctrlpl"]
+    - endpoints: ["pe-kind-worker:toswitch", "leafkind-switch:kindworker"]
