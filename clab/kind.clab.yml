@@ -14,17 +14,16 @@ topology:
       image: quay.io/frrouting/frr:10.2.1
       binds:
         - frrcommon/daemons:/etc/frr/daemons
-        - leaf1/frr.conf:/etc/frr/frr.conf
+        - leafB/frr.conf:/etc/frr/frr.conf
         - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
-        - leaf1/setup.sh:/setup.sh
-    leaf2:
+        - leafB/setup.sh:/setup.sh
+    leafkind:
       kind: linux
       image: quay.io/frrouting/frr:10.2.1
       binds:
         - frrcommon/daemons:/etc/frr/daemons
         - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
-        - leaf2/frr.conf:/etc/frr/frr.conf
-        - leaf2/setup.sh:/setup.sh
+        - leafkind/frr.conf:/etc/frr/frr.conf
     spine:
       kind: linux
       image: quay.io/frrouting/frr:10.2.1
@@ -32,16 +31,36 @@ topology:
         - frrcommon/daemons:/etc/frr/daemons
         - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
         - spine/frr.conf:/etc/frr/frr.conf
-        - spine/setup.sh:/setup.sh
 
-    HOST1:
+    hostA_red:
       kind: linux
       image: praqma/network-multitool:latest
       binds:
-        - host1/setup.sh:/setup.sh
+        - hostA_red/setup.sh:/setup.sh
       cmd: sleep INF
 
-    leaf2-switch:
+    hostB_red:
+      kind: linux
+      image: praqma/network-multitool:latest
+      binds:
+        - hostB_red/setup.sh:/setup.sh
+      cmd: sleep INF
+
+    hostA_blue:
+      kind: linux
+      image: praqma/network-multitool:latest
+      binds:
+        - hostA_blue/setup.sh:/setup.sh
+      cmd: sleep INF
+
+    hostB_blue:
+      kind: linux
+      image: praqma/network-multitool:latest
+      binds:
+        - hostB_blue/setup.sh:/setup.sh
+      cmd: sleep INF
+
+    leafkind-switch:
       kind: bridge
 
     pe-kind:
@@ -50,13 +69,9 @@ topology:
 
     pe-kind-control-plane:
       kind: ext-container
-      binds:
-        - kind/setup.sh:/setup.sh
 
     pe-kind-worker:
       kind: ext-container
-      binds:
-        - kind/setupworker.sh:/setupworker.sh
 
   links:
     - endpoints: ["leafA:eth1", "spine:eth1"]
