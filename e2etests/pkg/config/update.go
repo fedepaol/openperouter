@@ -21,7 +21,8 @@ type Resources struct {
 
 type Updater interface {
 	Update(r Resources) error
-	Clean() error
+	CleanAll() error
+	CleanButUnderlay() error
 	Client() client.Client
 	Namespace() string
 }
@@ -103,12 +104,18 @@ func (o beta1Updater) Update(r Resources) error {
 	return nil
 }
 
-func (o beta1Updater) Clean() error {
-	err := o.cli.DeleteAllOf(context.Background(), &v1alpha1.Underlay{}, client.InNamespace(o.namespace))
-	if err != nil {
+func (o beta1Updater) CleanAll() error {
+	if err := o.cli.DeleteAllOf(context.Background(), &v1alpha1.Underlay{}, client.InNamespace(o.namespace)); err != nil {
 		return err
 	}
-	err = o.cli.DeleteAllOf(context.Background(), &v1alpha1.VNI{}, client.InNamespace(o.namespace))
+	if err := o.CleanButUnderlay(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o beta1Updater) CleanButUnderlay() error {
+	err := o.cli.DeleteAllOf(context.Background(), &v1alpha1.VNI{}, client.InNamespace(o.namespace))
 	if err != nil {
 		return err
 	}

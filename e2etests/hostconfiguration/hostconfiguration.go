@@ -91,14 +91,14 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 			ensureValidator(cs, pod)
 		}
 
-		err = Updater.Clean()
+		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 
 		cs = k8sclient.New()
 	})
 
 	ginkgo.AfterEach(func() {
-		err := Updater.Clean()
+		err := Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 		ginkgo.By("waiting for the router pod to rollout after removing the underlay")
 		Eventually(func() error {
