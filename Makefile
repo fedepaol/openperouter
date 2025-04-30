@@ -255,12 +255,7 @@ clab-cluster:
 
 .PHONY: load-on-kind
 load-on-kind: clab-cluster ## Load the docker image into the kind cluster.
-	@if [ "$(CONTAINER_ENGINE)" = "podman" ]; then \
-		sudo KIND_EXPERIMENTAL_PROVIDER=podman $(LOCALBIN)/kind load docker-image ${IMG} -n ${KIND_CLUSTER_NAME}; \
-	else \
-		$(LOCALBIN)/kind load docker-image ${IMG} -n ${KIND_CLUSTER_NAME};\
-	fi
-
+	KIND=$(KIND) bash -c 'source clab/common.sh && load_local_image_to_kind ${IMG} router'
 
 .PHONY: lint
 lint:

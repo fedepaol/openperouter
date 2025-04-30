@@ -2,29 +2,8 @@
 set -euo pipefail
 
 pushd "$(dirname $(readlink -f $0))"
+source common.sh
 
-CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
-CONTAINER_ENGINE_CLI="docker"
-KUBECONFIG_PATH=${KUBECONFIG_PATH:-"$(pwd)/kubeconfig"}
-KIND=${KIND:-"kind"}
-CLAB_VERSION=0.64.0
-
-KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-pe-kind}"
-
-PODMAN_OPTION=""
-PODMAN_KIND_ENV="KIND_EXPERIMENTAL_PROVIDER=podman"
-KIND_COMMAND=$KIND
-
-if [[ $CONTAINER_ENGINE == "podman" ]]; then
-    PODMAN_OPTION="--runtime podman"
-    CONTAINER_ENGINE_CLI="sudo podman"
-    KIND_COMMAND="sudo KIND_EXPERIMENTAL_PROVIDER=podman $KIND"
-    if ! systemctl is-enabled --quiet podman.socket || ! systemctl is-active --quiet podman.socket; then
-        echo "Enabling and starting podman.socket service..."
-        sudo systemctl enable podman.socket
-        sudo systemctl start podman.socket
-    fi
-fi
 
 clusters=$(${KIND_COMMAND} get clusters)
 for cluster in $clusters; do
@@ -63,10 +42,11 @@ else
     sudo clab deploy --reconfigure --topo kind.clab.yml $RUNTIME_OPTION
 fi
 
-${KIND_COMMAND} load docker-image quay.io/frrouting/frr:9.1.0 --name pe-kind
-${KIND_COMMAND} load docker-image quay.io/frrouting/frr:10.2.1 --name pe-kind
-${KIND_COMMAND} load docker-image gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1 --name pe-kind
-${KIND_COMMAND} load docker-image quay.io/metallb/frr-k8s:v0.0.17 --name pe-kind
+load_image_to_kind quay.io/frrouting/frr:9.1.0 frr9
+load_image_to_kind quay.io/frrouting/frr:10.2.1 frr10
+load_image_to_kind gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1 rbacproxy
+load_image_to_kind quay.io/metallb/frr-k8s:v0.0.17 frrk8s
+
 ${KIND_COMMAND} --name pe-kind get kubeconfig > $KUBECONFIG_PATH
 export KUBECONFIG=$KUBECONFIG_PATH
 
@@ -82,7 +62,7 @@ ${CONTAINER_ENGINE_CLI} exec clab-kind-hostB_red /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-hostB_blue /setup.sh
 
 if ! pgrep -f check_veths.sh | xargs -r ps -p | grep -q pe-kind-control-plane; then
-	sudo ./check_veths.sh kindctrlpl:toswitch:pe-kind-control-plane:192.168.11.3/24  kindworker:toswitch:pe-kind-worker:192.168.11.4/24 &
+	sudo -E ./check_veths.sh kindctrlpl:toswitch:pe-kind-control-plane:192.168.11.3/24  kindworker:toswitch:pe-kind-worker:192.168.11.4/24 &
 fi
 sleep 4s
 

@@ -2,12 +2,7 @@
 
 set -u
 
-CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
-CONTAINER_ENGINE_CLI="docker"
-
-if [[ $CONTAINER_ENGINE == "podman" ]]; then
-    CONTAINER_ENGINE_CLI="sudo podman"
-fi
+source common.sh
 
 function veth_exists {
     ip link show "$1" &> /dev/null
@@ -15,7 +10,7 @@ function veth_exists {
 }
 
 function container_exists {
-    "$CONTAINER_ENGINE_CLI" ps -a --format '{{.Names}}' | grep -w "$1" &> /dev/null
+    ${CONTAINER_ENGINE_CLI} ps -a --format '{{.Names}}' | grep -w "$1" &> /dev/null
     return $?
 }
 
