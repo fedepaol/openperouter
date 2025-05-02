@@ -74,16 +74,9 @@ var _ = Describe("Router Host configuration", Ordered, func() {
 		exec := executor.ForContainer(infra.KindLeaf)
 		Eventually(func() error {
 			for _, node := range nodes {
-				ipToCheck, err := infra.NeighborIP(infra.KindLeaf, node.Name)
+				neighborIP, err := infra.NeighborIP(infra.KindLeaf, node.Name)
 				Expect(err).NotTo(HaveOccurred())
-
-				neigh, err := frr.NeighborInfo(ipToCheck, exec)
-				if err != nil {
-					return err
-				}
-				if neigh.BgpState != "Established" {
-					return fmt.Errorf("neighbor %s is not established", ipToCheck)
-				}
+				validateSessionWithNeighbor(exec, neighborIP, Established)
 			}
 			return nil
 		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
@@ -92,7 +85,7 @@ var _ = Describe("Router Host configuration", Ordered, func() {
 	Context("with a vni", func() {
 		vni := v1alpha1.VNI{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "vni",
+				Name:      "red",
 				Namespace: openperouter.Namespace,
 			},
 			Spec: v1alpha1.VNISpec{
@@ -140,7 +133,7 @@ var _ = Describe("Router Host configuration", Ordered, func() {
 
 		})
 
-		It("establishes a session with the host", func() {
+		It("establishes a session with the host and then removes it when deleting the vni", func() {
 			frrConfig, err := frrk8s.ConfigFromVNI(vni)
 			Expect(err).ToNot(HaveOccurred())
 			err = Updater.Update(config.Resources{
@@ -148,23 +141,27 @@ var _ = Describe("Router Host configuration", Ordered, func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			ipToCheck, err := openperouter.RouterIPFromCIDR(vni.Spec.LocalCIDR)
+			validateFRRK8sSessionForVNI(vni, frrk8sPods, Established)
+
+			By("deleting the vni removes the session with the host")
+			err = Updater.Client().Delete(context.Background(), &vni)
 			Expect(err).NotTo(HaveOccurred())
 
-			for _, p := range frrk8sPods {
-				exec := executor.ForPod(p.Namespace, p.Name, "frr")
-				Eventually(func() error {
-					neigh, err := frr.NeighborInfo(ipToCheck, exec)
-					if err != nil {
-						return err
-					}
-					if neigh.BgpState != "Established" {
-						return fmt.Errorf("neighbor %s is not established", ipToCheck)
-					}
-					return nil
-				}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
-			}
+			validateFRRK8sSessionForVNI(vni, frrk8sPods, !Established)
 		})
 
+		// This test must be the last of the ordered describe as it will remove the underlay
+		It("deleting the underlay removes the sessoin with the tor", func() {
+			By("deleting the vni removes the session with the host")
+			err := Updater.Client().Delete(context.Background(), &infra.Underlay)
+			Expect(err).NotTo(HaveOccurred())
+
+			exec := executor.ForContainer(infra.KindLeaf)
+			for _, node := range nodes {
+				neighborIP, err := infra.NeighborIP(infra.KindLeaf, node.Name)
+				Expect(err).NotTo(HaveOccurred())
+				validateNoSuchNeigh(exec, neighborIP)
+			}
+		})
 	})
 })

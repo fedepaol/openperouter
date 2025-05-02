@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
@@ -134,4 +135,30 @@ func parseL2VPNEVPN(data []byte) (EVPNData, error) {
 	}
 
 	return res, nil
+}
+
+func GetVNI(extendedCommunity string) int {
+	s := "RT:64514:200 ET:8 Rmac:22:2e:e4:41:7f:5c"
+
+	// Split by space to get the RT part
+	parts := strings.Split(s, " ")
+
+	// Get the RT:64514:200 part
+	rtPart := parts[0]
+
+	// Split by : to get the 200
+	rtValues := strings.Split(rtPart, ":")
+
+	// Get the third element (index 2)
+	if len(rtValues) >= 3 {
+		valueStr := rtValues[2]
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			fmt.Println("Error parsing value:", err)
+			return
+		}
+		// TODO FEDE
+		return value
+	}
+
 }

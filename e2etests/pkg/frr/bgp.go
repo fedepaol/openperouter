@@ -43,7 +43,8 @@ type FRRNeighbor struct {
 	AddressFamilyInfo            map[string]struct {
 		SentPrefixCounter int `json:"sentPrefixCounter"`
 	} `json:"addressFamilyInfo"`
-	ConnectionsDropped int `json:"connectionsDropped"`
+	ConnectionsDropped int  `json:"connectionsDropped"`
+	NoSuchNeighbor     bool `json:"bgpNoSuchNeighbor"`
 }
 
 type PeerBFDInfo struct {
