@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.23.6 AS builder
+FROM golang:1.24.3 AS builder
 
 ARG GIT_COMMIT=dev
 ARG GIT_BRANCH=dev
