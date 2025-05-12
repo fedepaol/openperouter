@@ -60,7 +60,8 @@ func main() {
 
 	flag.StringVar(&args.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&args.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&args.namespace, "namespace", "", "The namespace to watch for resources. Leave empty for all namespaces.")
+	flag.StringVar(&args.namespace, "namespace", "",
+		"The namespace to watch for resources. Leave empty for all namespaces.")
 	flag.StringVar(&args.logLevel, "loglevel", "info", "Set the logging level (debug, info, warn, error).")
 
 	flag.Parse()

@@ -75,7 +75,8 @@ func main() {
 	flag.StringVar(&args.nodeName, "nodename", "", "The name of the node the controller runs on")
 	flag.StringVar(&args.namespace, "namespace", "", "The namespace the controller runs in")
 	flag.StringVar(&args.logLevel, "loglevel", "info", "the verbosity of the process")
-	flag.StringVar(&args.frrConfigPath, "frrconfig", "/etc/perouter/frr/frr.conf", "the location of the frr configuration file")
+	flag.StringVar(&args.frrConfigPath, "frrconfig", "/etc/perouter/frr/frr.conf",
+		"the location of the frr configuration file")
 	flag.IntVar(&args.reloadPort, "reloadport", 9080, "the port of the reloader process")
 	flag.StringVar(&args.criSocket, "crisocket", "/var/run/containerd/containerd.sock", "the location of the cri socket")
 
