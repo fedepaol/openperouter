@@ -110,7 +110,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          tags: quay.io/openperouter/router:latest
+          tags: quay.io/openperouter/router:main
           file: Dockerfile
           outputs: type=docker,dest=/tmp/openperouter.tar
           cache-from: type=gha
@@ -159,7 +159,7 @@ jobs:
         run: |
           MAKE_RULE="deploy"
           if [ ${{ matrix.deployment }} = "helm" ]; then MAKE_RULE="deploy-helm"; fi
-          IMG_TAG=latest make $MAKE_RULE
+          IMG_TAG=main make $MAKE_RULE
 
       - name: Run e2e tests
         run: |
