@@ -92,9 +92,10 @@ jobs:
         run: |
           make test
 
-      - name: Lint
-        run: |
-          ENV=host make lint
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
 
   build-test-images:
     runs-on: ubuntu-22.04
