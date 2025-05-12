@@ -78,7 +78,7 @@ func main() {
 	flag.StringVar(&args.frrConfigPath, "frrconfig", "/etc/perouter/frr/frr.conf",
 		"the location of the frr configuration file")
 	flag.IntVar(&args.reloadPort, "reloadport", 9080, "the port of the reloader process")
-	flag.StringVar(&args.criSocket, "crisocket", "/var/run/containerd/containerd.sock", "the location of the cri socket")
+	flag.StringVar(&args.criSocket, "crisocket", "/containerd.sock", "the location of the cri socket")
 
 	flag.Parse()
 
