@@ -3,6 +3,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -15,16 +16,17 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/frr"
 	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 )
 
 var (
-	ReportPath string
 	// NOTE: we can't advertise any ip via EVPN from the leaves, they
 	// must be reacheable otherwise FRR will skip them.
 	leafAVRFRedPrefixes  = []string{"192.168.20.0/24"}
@@ -37,7 +39,6 @@ var (
 var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 	var cs clientset.Interface
 	routerPods := []*corev1.Pod{}
-	frrk8sPods := []*corev1.Pod{}
 
 	vniRed := v1alpha1.VNI{
 		ObjectMeta: metav1.ObjectMeta{
@@ -63,15 +64,6 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			LocalCIDR: "192.169.11.0/24",
 			HostASN:   ptr.To(uint32(64515)),
 		},
-	}
-
-	frrK8sConfigRed, err := frrk8s.ConfigFromVNI(vniRed)
-	if err != nil {
-		panic(err)
-	}
-	frrK8sConfigBlue, err := frrk8s.ConfigFromVNI(vniBlue)
-	if err != nil {
-		panic(err)
 	}
 
 	changeLeafPrefixes := func(leaf infra.Leaf, redPrefixes, bluePrefixes []string) {
@@ -100,8 +92,6 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		cs = k8sclient.New()
 		routerPods, err = openperouter.RouterPods(cs)
-		Expect(err).NotTo(HaveOccurred())
-		frrk8sPods, err = frrk8s.Pods(cs)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = Updater.Update(config.Resources{
@@ -210,7 +200,19 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 	Context("with vnis and frr-k8s", func() {
 		ShouldExist := true
+		frrk8sPods := []*corev1.Pod{}
+		frrK8sConfigRed, err := frrk8s.ConfigFromVNI(vniRed)
+		if err != nil {
+			panic(err)
+		}
+		frrK8sConfigBlue, err := frrk8s.ConfigFromVNI(vniBlue)
+		if err != nil {
+			panic(err)
+		}
+
 		BeforeEach(func() {
+			frrk8sPods, err = frrk8s.Pods(cs)
+			Expect(err).NotTo(HaveOccurred())
 			err := Updater.Update(config.Resources{
 				VNIs: []v1alpha1.VNI{
 					vniRed,
@@ -223,8 +225,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			validateFRRK8sSessionForVNI(vniRed, frrk8sPods, Established)
-			validateFRRK8sSessionForVNI(vniBlue, frrk8sPods, Established)
+			validateFRRK8sSessionForVNI(vniRed, Established, frrk8sPods...)
+			validateFRRK8sSessionForVNI(vniBlue, Established, frrk8sPods...)
 		})
 
 		It("translates EVPN incoming routes as BGP routes", func() {
@@ -286,6 +288,79 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 				checkBGPPrefixesForVNI(frrk8s, vniBlue, leafAVRFBluePrefixes, !ShouldExist)
 				checkBGPPrefixesForVNI(frrk8s, vniBlue, leafBVRFBluePrefixes, !ShouldExist)
 			}
+		})
+	})
+
+	FContext("testing e2e integration between a pod and the blue / red hosts", func() {
+		const testNamespace = "test-namespace"
+		var testPod *corev1.Pod
+
+		BeforeEach(func() {
+			By("Creating the test namespace")
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNamespace}}
+			_, err := cs.CoreV1().Namespaces().Create(context.Background(), &ns, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() error {
+				_, err := cs.CoreV1().Namespaces().Get(context.Background(), testNamespace, metav1.GetOptions{})
+				return err
+			}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
+
+			By("Creating the test pod")
+			testPod, err = k8s.CreateAgnhostPod(cs, "test-pod", testNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			testPodName := testPod.Name
+
+			By("Waiting for the test pod to be ready")
+			Eventually(func() error {
+				var err error
+				testPod, err = cs.CoreV1().Pods(testNamespace).Get(context.Background(), testPodName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				if !k8s.PodIsReady(testPod) {
+					return fmt.Errorf("pod %s is not ready", testPod.Name)
+				}
+				return nil
+			}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
+
+			nodeSelector := k8s.NodeSelectorForPod(testPod)
+
+			By("Creating the frr-k8s configuration for the node where the test pod runs and advertising the pod ip")
+			frrK8sConfigRedForPod, err := frrk8s.ConfigFromVNI(vniRed, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP))
+			Expect(err).NotTo(HaveOccurred())
+			frrK8sConfigBlueForPod, err := frrk8s.ConfigFromVNI(vniBlue, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP))
+			Expect(err).NotTo(HaveOccurred())
+
+			err = Updater.Update(config.Resources{
+				VNIs: []v1alpha1.VNI{
+					vniRed,
+					vniBlue,
+				},
+				FRRConfigurations: []frrk8sv1beta1.FRRConfiguration{
+					frrK8sConfigRedForPod,
+					frrK8sConfigBlueForPod,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			frrK8sPodOnNode, err := frrk8s.PodForNode(cs, testPod.Spec.NodeName)
+			validateFRRK8sSessionForVNI(vniRed, Established, frrK8sPodOnNode)
+			validateFRRK8sSessionForVNI(vniBlue, Established, frrK8sPodOnNode)
+		})
+
+		AfterEach(func() {
+			By("Deleting the test namespace")
+			err := cs.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() bool {
+				_, err := cs.CoreV1().Namespaces().Get(context.Background(), testNamespace, metav1.GetOptions{})
+				return errors.IsNotFound(err)
+			}, time.Minute, time.Second).Should(BeTrue())
+		})
+
+		It("the pod is able to reach the for hosts", func() {
+			fmt.Println("ZZZZ")
+			time.Sleep(4 * time.Minute)
 		})
 	})
 })
