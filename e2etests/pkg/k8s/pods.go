@@ -15,6 +15,35 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 )
 
+func CreateAgnhostPod(cs clientset.Interface, podName, namespace string) (*corev1.Pod, error) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: namespace,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:    "agnhost",
+					Image:   "k8s.gcr.io/e2e-test-images/agnhost:2.40",
+					Command: []string{"/agnhost"},
+					Args: []string{
+						"netexec",
+						"--http-port=8090",
+					},
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: 8090,
+						},
+					},
+				},
+			},
+		},
+	}
+	return cs.CoreV1().Pods(namespace).Create(context.Background(), pod, metav1.CreateOptions{})
+}
+
 func PodLogsSinceTime(cs clientset.Interface, pod *corev1.Pod,
 	speakerContainerName string, sinceTime *metav1.Time) (string, error) {
 	podLogOpt := corev1.PodLogOptions{
@@ -81,6 +110,15 @@ func SendFileToPod(filePath string, p *corev1.Pod) error {
 		return fmt.Errorf("failed to send file %s to pod %s:%s: %w", filePath, p.Namespace, p.Name, err)
 	}
 	return nil
+}
+
+func NodeSelectorForPod(pod *corev1.Pod) map[string]string {
+	if pod == nil {
+		return nil
+	}
+	return map[string]string{
+		"kubernetes.io/hostname": pod.Spec.NodeName,
+	}
 }
 
 // podConditionStatus returns the status of the condition for a given pod.
