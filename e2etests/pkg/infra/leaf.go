@@ -12,14 +12,21 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/frr"
 )
 
+const (
+	HostARedIP  = "192.168.20.2"
+	HostABlueIP = "192.168.21.2"
+	HostBRedIP  = "192.169.20.2"
+	HostBBlueIP = "192.169.21.2"
+)
+
 var (
 	LeafAConfig = Leaf{
-		VTEPIP:       "100.64.0.1",
+		VTEPIP:       "100.64.0.1/32",
 		SpineAddress: "192.168.1.0",
 		Container:    LeafAContainer,
 	}
 	LeafBConfig = Leaf{
-		VTEPIP:       "100.64.0.2",
+		VTEPIP:       "100.64.0.2/32",
 		SpineAddress: "192.168.1.2",
 		Container:    LeafBContainer,
 	}
@@ -32,8 +39,9 @@ type LeafConfiguration struct {
 }
 
 type Addresses struct {
-	IPV4 []string
-	IPV6 []string
+	RedistributeConnected bool
+	IPV4                  []string
+	IPV6                  []string
 }
 
 type Leaf struct {

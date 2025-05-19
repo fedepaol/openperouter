@@ -5,6 +5,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	frrk8sv1beta1 "github.com/metallb/frr-k8s/api/v1beta1"
@@ -109,12 +110,11 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		Eventually(func() error {
 			return openperouter.DaemonsetRolled(cs, routerPods)
 		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
-
-		removeLeafPrefixes(infra.LeafAConfig)
-		removeLeafPrefixes(infra.LeafBConfig)
 	})
 
 	BeforeEach(func() {
+		removeLeafPrefixes(infra.LeafAConfig)
+		removeLeafPrefixes(infra.LeafBConfig)
 		err := Updater.CleanButUnderlay()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -123,6 +123,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		dumpIfFails(cs)
 		err := Updater.CleanButUnderlay()
 		Expect(err).NotTo(HaveOccurred())
+		removeLeafPrefixes(infra.LeafAConfig)
+		removeLeafPrefixes(infra.LeafBConfig)
 	})
 
 	Context("with vnis", func() {
@@ -135,8 +137,6 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			removeLeafPrefixes(infra.LeafAConfig)
-			removeLeafPrefixes(infra.LeafBConfig)
 		})
 
 		It("receives type 5 routes from the fabric", func() {
@@ -291,9 +291,26 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		})
 	})
 
-	FContext("testing e2e integration between a pod and the blue / red hosts", func() {
+	Context("testing e2e integration between a pod and the blue / red hosts", func() {
 		const testNamespace = "test-namespace"
 		var testPod *corev1.Pod
+		var podNode *corev1.Node
+
+		redistributeConnectedForLeaf := func(leaf infra.Leaf) {
+			leafConfiguration := infra.LeafConfiguration{
+				Leaf: leaf,
+				Red: infra.Addresses{
+					RedistributeConnected: true,
+				},
+				Blue: infra.Addresses{
+					RedistributeConnected: true,
+				},
+			}
+			config, err := infra.LeafConfigToFRR(leafConfiguration)
+			Expect(err).NotTo(HaveOccurred())
+			err = leaf.ReloadConfig(config)
+			Expect(err).NotTo(HaveOccurred())
+		}
 
 		BeforeEach(func() {
 			By("Creating the test namespace")
@@ -323,12 +340,15 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 				return nil
 			}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
 
+			podNode, err = cs.CoreV1().Nodes().Get(context.Background(), testPod.Spec.NodeName, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
 			nodeSelector := k8s.NodeSelectorForPod(testPod)
 
 			By("Creating the frr-k8s configuration for the node where the test pod runs and advertising the pod ip")
-			frrK8sConfigRedForPod, err := frrk8s.ConfigFromVNI(vniRed, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP))
+			frrK8sConfigRedForPod, err := frrk8s.ConfigFromVNI(vniRed, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP+"/32"))
 			Expect(err).NotTo(HaveOccurred())
-			frrK8sConfigBlueForPod, err := frrk8s.ConfigFromVNI(vniBlue, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP))
+			frrK8sConfigBlueForPod, err := frrk8s.ConfigFromVNI(vniBlue, frrk8s.WithNodeSelector(nodeSelector), frrk8s.AdvertisePrefixes(testPod.Status.PodIP+"/32"))
 			Expect(err).NotTo(HaveOccurred())
 
 			err = Updater.Update(config.Resources{
@@ -346,6 +366,10 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			frrK8sPodOnNode, err := frrk8s.PodForNode(cs, testPod.Spec.NodeName)
 			validateFRRK8sSessionForVNI(vniRed, Established, frrK8sPodOnNode)
 			validateFRRK8sSessionForVNI(vniBlue, Established, frrK8sPodOnNode)
+
+			By("setting redistribute connected on leaves")
+			redistributeConnectedForLeaf(infra.LeafAConfig)
+			redistributeConnectedForLeaf(infra.LeafBConfig)
 		})
 
 		AfterEach(func() {
@@ -358,9 +382,55 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			}, time.Minute, time.Second).Should(BeTrue())
 		})
 
-		It("the pod is able to reach the for hosts", func() {
-			fmt.Println("ZZZZ")
-			time.Sleep(4 * time.Minute)
+		It("should be able to reach the hosts from the test pod and vice versa", func() {
+			tests := []struct {
+				vni      v1alpha1.VNI
+				hostName string
+				hostIP   string
+			}{
+				{vniRed, "hostA_red", infra.HostARedIP},
+				{vniRed, "hostB_red", infra.HostBRedIP},
+				{vniBlue, "hostA_blue", infra.HostABlueIP},
+				{vniBlue, "hostB_blue", infra.HostBBlueIP},
+			}
+			for _, test := range tests {
+				hostSide, err := openperouter.HostIPFromCIDRForNode(test.vni.Spec.LocalCIDR, podNode)
+				Expect(err).NotTo(HaveOccurred())
+
+				exec := executor.ForPod(testPod.Namespace, testPod.Name, "agnhost")
+				hostExecutor := executor.ForContainer("clab-kind-" + test.hostName)
+
+				Eventually(func() error {
+					By(fmt.Sprintf("trying to hit hosts %s on the %s network", test.hostIP, test.vni.Name))
+					url := fmt.Sprintf("http://%s:8090/clientip", test.hostIP)
+					res, err := exec.Exec("curl", "-sS", url)
+					if err != nil {
+						return fmt.Errorf("curl %s:8090 failed: %s", test.hostIP, res)
+					}
+					clientIP := strings.Split(res, ":")[0]
+					if clientIP != hostSide {
+						return fmt.Errorf("curl %s:8090 returned %s, expected %s", test.hostIP, clientIP, hostSide)
+					}
+
+					url = fmt.Sprintf("http://%s:8090/hostname", test.hostIP)
+					res, err = exec.Exec("curl", "-sS", url)
+					if err != nil {
+						return fmt.Errorf("curl %s:8090 failed: %s", test.hostIP, res)
+					}
+					if res != test.hostName {
+						return fmt.Errorf("curl %s:8090 returned %s, expected %s", test.hostIP, res, test.hostName)
+					}
+					res, err = hostExecutor.Exec("curl", "-sS", fmt.Sprintf("http://%s:8090/clientip", testPod.Status.PodIP))
+					if err != nil {
+						return fmt.Errorf("curl from %s to %s:8090 failed: %s", test.hostName, testPod.Status.PodIP, res)
+					}
+					hostClientIP := strings.Split(res, ":")[0]
+					if hostClientIP != test.hostIP {
+						return fmt.Errorf("curl from %s to %s:8090 returned %s, expected %s", test.hostName, testPod.Status.PodIP, clientIP, test.hostIP)
+					}
+					return nil
+				}, time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
+			}
 		})
 	})
 })
