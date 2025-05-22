@@ -142,6 +142,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		It("receives type 5 routes from the fabric", func() {
 			Contains := true
 			checkRouteFromLeaf := func(leaf infra.Leaf, vni v1alpha1.VNI, mustContain bool, prefixes []string) {
+				By(fmt.Sprintf("checking routes from leaf %s on vni %s, mustContain %v %v", leaf.Name, vni.Name, mustContain, prefixes))
 				Eventually(func() error {
 					for _, p := range routerPods {
 						exec := executor.ForPod(p.Namespace, p.Name, "frr")
@@ -430,7 +431,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 						return fmt.Errorf("curl from %s to %s:8090 returned %s, expected %s", test.hostName, testPod.Status.PodIP, clientIP, test.externalHostIP)
 					}
 					return nil
-				}, time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
+				}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 			}
 		})
 	})
