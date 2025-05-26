@@ -443,6 +443,24 @@ metadata:
   name: frr-startup
   namespace: openperouter-system
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openperouter-webhook-server-cert
+  namespace: openperouter-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-service
+  namespace: openperouter-system
+spec:
+  ports:
+  - port: 443
+    targetPort: webhook
+  selector:
+    control-plane: webhook-server
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -453,7 +471,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: nodemarker
     app.kubernetes.io/part-of: nodemarker
-    control-plane: nodemarker
+    component: nodemarker
   name: nodemarker
   namespace: openperouter-system
 spec:
@@ -476,6 +494,10 @@ spec:
         image: quay.io/openperouter/router:latest
         imagePullPolicy: IfNotPresent
         name: nodemarker
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         resources:
           limits:
             cpu: 500m
@@ -700,3 +722,29 @@ spec:
         name: frrsharedconfig
       - emptyDir: {}
         name: frrconfig
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: openperouter-system
+      path: /validate-frrk8s-metallb-io-v1beta1-frrconfiguration
+  failurePolicy: Fail
+  name: frrconfigurationsvalidationwebhook.metallb.io
+  rules:
+  - apiGroups:
+    - frrk8s.metallb.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - frrconfigurations
+  sideEffects: None

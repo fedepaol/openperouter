@@ -78,7 +78,7 @@ func main() {
 	flag.StringVar(&namespace, "namespace", "", "The namespace the controller runs in")
 	flag.StringVar(&logLevel, "loglevel", "info", "the verbosity of the process")
 	flag.IntVar(&webhookPort, "webhook-port", 9443, "the verbosity of the process")
-	flag.BoolVar(&enableWebhook, "enablewebhook", false, "enable the webhook server")
+	flag.BoolVar(&enableWebhook, "enablewebhook", true, "enable the webhook server")
 
 	flag.Parse()
 

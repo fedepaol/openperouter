@@ -40,8 +40,7 @@ func SetupUnderlay(mgr ctrl.Manager) error {
 	return nil
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-underlay,mutating=false,failurePolicy=fail,groups=openperouter.io,resources=underlays,versions=v1alpha1,name=underlayvalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
-
+// +kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-underlay,mutating=false,failurePolicy=fail,groups=openperouter.io,resources=underlays,versions=v1alpha1,name=underlayvalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
 func (v *UnderlayValidator) Handle(ctx context.Context, req admission.Request) (resp admission.Response) {
 	var underlay v1alpha1.Underlay
 	var oldUnderlay v1alpha1.Underlay

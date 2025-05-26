@@ -4,7 +4,7 @@ metadata:
   name: nodemarker
   namespace: system
   labels:
-    control-plane: nodemarker
+    component: nodemarker
     app.kubernetes.io/name: nodemarker
     app.kubernetes.io/instance: nodemarker
     app.kubernetes.io/component: nodemarker
@@ -31,6 +31,10 @@ spec:
         image: router:latest
         imagePullPolicy: IfNotPresent
         name: nodemarker
+        ports:
+          - containerPort: 9443
+            name: webhook-server
+            protocol: TCP
         resources:
           limits:
             cpu: 500m

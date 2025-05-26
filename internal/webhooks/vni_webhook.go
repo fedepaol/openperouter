@@ -40,8 +40,7 @@ func SetupVNI(mgr ctrl.Manager) error {
 	return nil
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-vni,mutating=false,failurePolicy=fail,groups=openperouter.io,resources=vnis,versions=v1alpha1,name=vnivalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
-
+// +kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-vni,mutating=false,failurePolicy=fail,groups=openperouter.io,resources=vnis,versions=v1alpha1,name=vnivalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
 func (v *VNIValidator) Handle(ctx context.Context, req admission.Request) (resp admission.Response) {
 	var vni v1alpha1.VNI
 	var oldVNI v1alpha1.VNI
