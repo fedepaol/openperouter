@@ -19,21 +19,28 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/go-logr/logr"
+	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/controller/nodeindex"
+	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/logging"
+	"github.com/openperouter/openperouter/internal/webhooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,15 +58,27 @@ func init() {
 
 func main() {
 	var (
-		nodeName  string
-		namespace string
-		logLevel  string
-		probeAddr string
+		nodeName                      string
+		namespace                     string
+		logLevel                      string
+		probeAddr                     string
+		enableWebhook                 bool
+		webhookPort                   int
+		disableCertRotation           bool
+		restartOnRotatorSecretRefresh bool
+		certDir                       string
+		certServiceName               string
 	)
+	flag.BoolVar(&disableCertRotation, "disable-cert-rotation", false, "disable automatic generation and rotation of webhook TLS certificates/keys")
+	flag.BoolVar(&restartOnRotatorSecretRefresh, "restart-on-rotator-secret-refresh", false, "Restart the pod when the rotator refreshes its cert.")
+	flag.StringVar(&certDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The directory where certs are stored")
+	flag.StringVar(&certServiceName, "cert-service-name", "frr-k8s-webhook-service", "The service name used to generate the TLS cert's hostname")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9081", "The address the probe endpoint binds to.")
 	flag.StringVar(&nodeName, "nodename", "", "The name of the node the controller runs on")
 	flag.StringVar(&namespace, "namespace", "", "The namespace the controller runs in")
 	flag.StringVar(&logLevel, "loglevel", "info", "the verbosity of the process")
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "the verbosity of the process")
+	flag.BoolVar(&enableWebhook, "enablewebhook", false, "enable the webhook server")
 
 	flag.Parse()
 
@@ -81,36 +100,127 @@ func main() {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		Cache:                  cache.Options{},
+		WebhookServer: webhook.NewServer(
+			webhook.Options{
+				Port: webhookPort,
+			},
+		),
 	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+
+	startListeners := make(chan struct{})
+	if enableWebhook && !disableCertRotation {
+		setupLog.Info("Starting certs generator")
+		err = setupCertRotation(startListeners, mgr, logger, namespace, certDir, certServiceName, restartOnRotatorSecretRefresh)
+		if err != nil {
+			setupLog.Error(err, "unable to set up cert rotator")
+			os.Exit(1)
+		}
+	} else {
+		close(startListeners)
 	}
 
 	signalHandlerContext := ctrl.SetupSignalHandler()
-	if err = (&nodeindex.NodesReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		LogLevel: logLevel,
-		Logger:   logger,
-	}).SetupWithManager(signalHandlerContext, mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NodeReconciler")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
+	go func() {
+		<-startListeners
 
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
+		if err = (&nodeindex.NodesReconciler{
+			Client:   mgr.GetClient(),
+			Scheme:   mgr.GetScheme(),
+			LogLevel: logLevel,
+			Logger:   logger,
+		}).SetupWithManager(signalHandlerContext, mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "NodeReconciler")
+			os.Exit(1)
+		}
+		// +kubebuilder:scaffold:builder
+
+		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+			setupLog.Error(err, "unable to set up health check")
+			os.Exit(1)
+		}
+		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+			setupLog.Error(err, "unable to set up ready check")
+			os.Exit(1)
+		}
+
+		if enableWebhook {
+			setupLog.Info("Starting webhooks")
+			err := setupWebhook(mgr, logger)
+			if err != nil {
+				setupLog.Error(err, "unable to create", "webhooks")
+				os.Exit(1)
+			}
+			return // We currently support only a onlywebhook mode
+		}
+
+		setupLog.Info("Starting controllers")
+
+	}()
 
 	setupLog.Info("starting manager")
+
 	if err := mgr.Start(signalHandlerContext); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+const (
+	caName         = "cert"
+	caOrganization = "openperouter.io" //nolint:gosec
+)
+
+var (
+	webhookName       = "openperouter-validating-webhook-configuration"
+	webhookSecretName = "openperouter-webhook-server-cert" //#nosec G101
+)
+
+func setupCertRotation(notifyFinished chan struct{}, mgr manager.Manager, logger *slog.Logger,
+	namespace, certDir, certServiceName string, restartOnSecretRefresh bool) error {
+	webhooks := []rotator.WebhookInfo{
+		{
+			Name: webhookName,
+			Type: rotator.Validating,
+		},
+	}
+
+	logger.Info("setting up cert rotation", "op", "startup")
+	err := rotator.AddRotator(mgr, &rotator.CertRotator{
+		SecretKey: types.NamespacedName{
+			Namespace: namespace,
+			Name:      webhookSecretName,
+		},
+		CertDir:                certDir,
+		CAName:                 caName,
+		CAOrganization:         caOrganization,
+		DNSName:                fmt.Sprintf("%s.%s.svc", certServiceName, namespace),
+		IsReady:                notifyFinished,
+		Webhooks:               webhooks,
+		FieldOwner:             "frr-k8s",
+		RestartOnSecretRefresh: restartOnSecretRefresh,
+	})
+	if err != nil {
+		logger.Error("unable to set up cert rotation", "error", err)
+		return err
+	}
+	return nil
+}
+
+func setupWebhook(mgr manager.Manager, logger *slog.Logger) error {
+	logger.Info("webhooks enabled")
+
+	webhooks.Logger = logger
+	webhooks.WebhookClient = mgr.GetAPIReader()
+	webhooks.ValidateVNIs = conversion.ValidateVNIs
+	webhooks.ValidateUnderlays = conversion.ValidateUnderlays
+
+	if err := webhooks.SetupVNI(mgr); err != nil {
+		logger.Error("unable to create the webook", "error", err, "webhook", "VNIs")
+		return err
+	}
+	if err := webhooks.SetupUnderlay(mgr); err != nil {
+		logger.Error("unable to create the webook", "error", err, "webhook", "Underlays")
+		return err
+	}
+	return nil
 }
