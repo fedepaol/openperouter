@@ -1,0 +1,108 @@
+{
+  "bgpTableVersion":1,
+  "bgpLocalRouterId":"192.168.1.1",
+  "defaultLocPrf":100,
+  "localAS":64520,
+  "192.168.20.1:2":{
+    "rd":"192.168.20.1:2",
+    "[5]:[0]:[24]:[192.168.20.0]":{
+      "prefix":"[5]:[0]:[24]:[192.168.20.0]",
+      "prefixLen":352,
+      "paths":[
+        {
+          "valid":true,
+          "bestpath":true,
+          "selectionReason":"First path received",
+          "pathFrom":"external",
+          "routeType":5,
+          "ethTag":0,
+          "ipLen":24,
+          "ip":"192.168.20.0",
+          "metric":0,
+          "weight":32768,
+          "peerId":"(unspec)",
+          "path":"64512",
+          "origin":"IGP",
+          "extendedCommunity":{
+            "string":"ET:8 RT:64512:100 Rmac:aa:bb:cc:00:00:65"
+          },
+          "nexthops":[
+            {
+              "ip":"100.64.0.1",
+              "hostname":"leafA",
+              "afi":"ipv4",
+              "used":true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "192.169.10.0:2":{
+    "rd":"192.169.10.0:2",
+    "[5]:[0]:[32]:[192.169.10.1]":{
+      "prefix":"[5]:[0]:[32]:[192.169.10.1]",
+      "prefixLen":352,
+      "paths":[
+        {
+          "valid":true,
+          "bestpath":true,
+          "selectionReason":"First path received",
+          "pathFrom":"external",
+          "routeType":5,
+          "ethTag":0,
+          "ipLen":32,
+          "ip":"192.169.10.1",
+          "weight":0,
+          "peerId":"192.168.1.0",
+          "path":"64612 64512 64514",
+          "origin":"IGP",
+          "extendedCommunity":{
+            "string":"RT:64514:100 ET:8 Rmac:fe:9e:c3:6c:b1:c1"
+          },
+          "nexthops":[
+            {
+              "ip":"100.65.0.0",
+              "hostname":"spine",
+              "afi":"ipv4",
+              "used":true
+            }
+          ]
+        }
+      ]
+    },
+    "[5]:[0]:[32]:[192.169.10.2]":{
+      "prefix":"[5]:[0]:[32]:[192.169.10.2]",
+      "prefixLen":352,
+      "paths":[
+        {
+          "valid":true,
+          "bestpath":true,
+          "selectionReason":"First path received",
+          "pathFrom":"external",
+          "routeType":5,
+          "ethTag":0,
+          "ipLen":32,
+          "ip":"192.169.10.2",
+          "weight":0,
+          "peerId":"192.168.1.0",
+          "path":"64612 64512 64514",
+          "origin":"IGP",
+          "extendedCommunity":{
+            "string":"RT:64514:100 ET:8 Rmac:06:0d:d9:01:00:87"
+          },
+          "nexthops":[
+            {
+              "ip":"100.65.0.1",
+              "hostname":"spine",
+              "afi":"ipv4",
+              "used":true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "numPrefix":3,
+  "totalPrefix":3
+}

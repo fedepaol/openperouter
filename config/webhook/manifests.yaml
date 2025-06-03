@@ -10,17 +10,37 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-frrk8s-metallb-io-v1beta1-frrconfiguration
+      path: /validate-openperouter-io-v1alpha1-underlay
   failurePolicy: Fail
-  name: frrconfigurationsvalidationwebhook.metallb.io
+  name: underlayvalidationwebhook.openperouter.io
   rules:
   - apiGroups:
-    - frrk8s.metallb.io
+    - openperouter.io
     apiVersions:
-    - v1beta1
+    - v1alpha1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - frrconfigurations
+    - underlays
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-openperouter-io-v1alpha1-vni
+  failurePolicy: Fail
+  name: vnivalidationwebhook.openperouter.io
+  rules:
+  - apiGroups:
+    - openperouter.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - vnis
   sideEffects: None
