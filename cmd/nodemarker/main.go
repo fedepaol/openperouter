@@ -72,7 +72,7 @@ func main() {
 	flag.BoolVar(&disableCertRotation, "disable-cert-rotation", false, "disable automatic generation and rotation of webhook TLS certificates/keys")
 	flag.BoolVar(&restartOnRotatorSecretRefresh, "restart-on-rotator-secret-refresh", false, "Restart the pod when the rotator refreshes its cert.")
 	flag.StringVar(&certDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The directory where certs are stored")
-	flag.StringVar(&certServiceName, "cert-service-name", "frr-k8s-webhook-service", "The service name used to generate the TLS cert's hostname")
+	flag.StringVar(&certServiceName, "cert-service-name", "openpe-webhook-service", "The service name used to generate the TLS cert's hostname")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9081", "The address the probe endpoint binds to.")
 	flag.StringVar(&nodeName, "nodename", "", "The name of the node the controller runs on")
 	flag.StringVar(&namespace, "namespace", "", "The namespace the controller runs in")
@@ -107,11 +107,19 @@ func main() {
 		),
 	})
 
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
 	startListeners := make(chan struct{})
 	if enableWebhook && !disableCertRotation {
 		setupLog.Info("Starting certs generator")
-		err = setupCertRotation(startListeners, mgr, logger, namespace, certDir, certServiceName, restartOnRotatorSecretRefresh)
-		if err != nil {
+		if err := setupCertRotation(startListeners, mgr, logger, namespace, certDir, certServiceName, restartOnRotatorSecretRefresh); err != nil {
 			setupLog.Error(err, "unable to set up cert rotator")
 			os.Exit(1)
 		}
@@ -133,15 +141,6 @@ func main() {
 			os.Exit(1)
 		}
 		// +kubebuilder:scaffold:builder
-
-		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-			setupLog.Error(err, "unable to set up health check")
-			os.Exit(1)
-		}
-		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-			setupLog.Error(err, "unable to set up ready check")
-			os.Exit(1)
-		}
 
 		if enableWebhook {
 			setupLog.Info("Starting webhooks")
@@ -171,8 +170,8 @@ const (
 )
 
 var (
-	webhookName       = "openperouter-validating-webhook-configuration"
-	webhookSecretName = "openperouter-webhook-server-cert" //#nosec G101
+	webhookName       = "openpe-validating-webhook-configuration"
+	webhookSecretName = "openpe-webhook-server-cert" //#nosec G101
 )
 
 func setupCertRotation(notifyFinished chan struct{}, mgr manager.Manager, logger *slog.Logger,
@@ -196,7 +195,7 @@ func setupCertRotation(notifyFinished chan struct{}, mgr manager.Manager, logger
 		DNSName:                fmt.Sprintf("%s.%s.svc", certServiceName, namespace),
 		IsReady:                notifyFinished,
 		Webhooks:               webhooks,
-		FieldOwner:             "frr-k8s",
+		FieldOwner:             "openpe",
 		RestartOnSecretRefresh: restartOnSecretRefresh,
 	})
 	if err != nil {

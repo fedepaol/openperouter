@@ -6,6 +6,6 @@ metadata:
 spec:
   ports:
     - port: 443
-      targetPort: webhook
+      targetPort: webhook-server
   selector:
-    control-plane: webhook-server
+    control-plane: nodemarker

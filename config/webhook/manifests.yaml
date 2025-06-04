@@ -15,7 +15,7 @@ webhooks:
   name: underlayvalidationwebhook.openperouter.io
   rules:
   - apiGroups:
-    - openperouter.io
+    - openpe.openperouter.github.io
     apiVersions:
     - v1alpha1
     operations:
@@ -35,7 +35,7 @@ webhooks:
   name: vnivalidationwebhook.openperouter.io
   rules:
   - apiGroups:
-    - openperouter.io
+    - openpe.openperouter.github.io
     apiVersions:
     - v1alpha1
     operations:
