@@ -37,6 +37,9 @@ func SetupUnderlay(mgr ctrl.Manager) error {
 		underlayValidationWebhookPath,
 		&webhook.Admission{Handler: validator})
 
+	if _, err := mgr.GetCache().GetInformer(context.Background(), &v1alpha1.Underlay{}); err != nil {
+		return fmt.Errorf("failed to get informer for Underlay: %w", err)
+	}
 	return nil
 }
 
@@ -102,12 +105,25 @@ func validateUnderlayDelete(_ *v1alpha1.Underlay) ([]string, error) {
 	return []string{}, nil
 }
 
-func validateUnderlay(vni *v1alpha1.Underlay) ([]string, error) {
+func validateUnderlay(underlay *v1alpha1.Underlay) ([]string, error) {
 	var warnings []string
 
 	existingUnderlays, err := getUnderlays()
 	if err != nil {
 		return warnings, err
+	}
+	toValidate := make([]v1alpha1.Underlay, 0, len(existingUnderlays.Items))
+	found := false
+	for _, existingUnderlay := range existingUnderlays.Items {
+		if existingUnderlay.Name == underlay.Name && existingUnderlay.Namespace == existingUnderlay.Namespace {
+			toValidate = append(toValidate, *underlay.DeepCopy())
+			found = true
+			continue
+		}
+		toValidate = append(toValidate, existingUnderlay)
+	}
+	if !found {
+		toValidate = append(toValidate, *underlay.DeepCopy())
 	}
 
 	if err := ValidateUnderlays(existingUnderlays.Items); err != nil {
@@ -117,10 +133,10 @@ func validateUnderlay(vni *v1alpha1.Underlay) ([]string, error) {
 }
 
 var getUnderlays = func() (*v1alpha1.UnderlayList, error) {
-	vniList := &v1alpha1.UnderlayList{}
-	err := WebhookClient.List(context.Background(), vniList, &client.ListOptions{})
+	underlayList := &v1alpha1.UnderlayList{}
+	err := WebhookClient.List(context.Background(), underlayList, &client.ListOptions{})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to get existing FRRConfiguration objects"))
 	}
-	return vniList, nil
+	return underlayList, nil
 }

@@ -35,6 +35,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
+	"github.com/openperouter/openperouter/api/v1alpha1"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/controller/nodeindex"
 	"github.com/openperouter/openperouter/internal/conversion"
@@ -208,6 +209,9 @@ func setupWebhook(mgr manager.Manager, logger *slog.Logger) error {
 	webhooks.ValidateVNIs = conversion.ValidateVNIs
 	webhooks.ValidateUnderlays = conversion.ValidateUnderlays
 
+	if err := v1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		logger.Error("unable to add v1alpha1 scheme", "error", err)
+	}
 	if err := webhooks.SetupVNI(mgr); err != nil {
 		logger.Error("unable to create the webook", "error", err, "webhook", "VNIs")
 		return err

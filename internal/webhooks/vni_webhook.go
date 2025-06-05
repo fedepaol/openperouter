@@ -37,6 +37,9 @@ func SetupVNI(mgr ctrl.Manager) error {
 		vniValidationWebhookPath,
 		&webhook.Admission{Handler: validator})
 
+	if _, err := mgr.GetCache().GetInformer(context.Background(), &v1alpha1.VNI{}); err != nil {
+		return fmt.Errorf("failed to get informer for Vni: %w", err)
+	}
 	return nil
 }
 
@@ -110,7 +113,22 @@ func validateVNI(vni *v1alpha1.VNI) ([]string, error) {
 		return warnings, err
 	}
 
-	if err := ValidateVNIs(existingVNIs.Items); err != nil {
+	toValidate := make([]v1alpha1.VNI, 0, len(existingVNIs.Items))
+	found := false
+	for _, existingVNI := range existingVNIs.Items {
+		if existingVNI.Name == vni.Name && existingVNI.Namespace == vni.Namespace {
+			toValidate = append(toValidate, *vni.DeepCopy())
+			found = true
+			continue
+		}
+		toValidate = append(toValidate, existingVNI)
+	}
+	if !found {
+		toValidate = append(toValidate, *vni.DeepCopy())
+	}
+
+	fmt.Println("Validating VNIs:", toValidate)
+	if err := ValidateVNIs(toValidate); err != nil {
 		return warnings, fmt.Errorf("validation failed: %w", err)
 	}
 	return warnings, nil
