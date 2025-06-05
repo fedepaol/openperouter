@@ -127,7 +127,6 @@ func validateVNI(vni *v1alpha1.VNI) ([]string, error) {
 		toValidate = append(toValidate, *vni.DeepCopy())
 	}
 
-	fmt.Println("Validating VNIs:", toValidate)
 	if err := ValidateVNIs(toValidate); err != nil {
 		return warnings, fmt.Errorf("validation failed: %w", err)
 	}

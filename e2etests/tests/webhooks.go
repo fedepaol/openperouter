@@ -28,9 +28,9 @@ var _ = Describe("Webhooks", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Context("when webhooks are enabled", func() {
-		FIt("should deny creation of two VNIs with the same VNI number", func() {
-			vni1 := &v1alpha1.VNI{
+	Context("when VNIs webhooks are enabled", func() {
+		BeforeEach(func() {
+			vni1 := v1alpha1.VNI{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "vni1",
 					Namespace: openperouter.Namespace,
@@ -40,15 +40,22 @@ var _ = Describe("Webhooks", func() {
 					LocalCIDR: "192.168.1.0/24",
 				},
 			}
-
 			By("creating the first VNI")
 			err := Updater.Update(config.Resources{
-				VNIs: []v1alpha1.VNI{*vni1},
+				VNIs: []v1alpha1.VNI{vni1},
 			})
 			Expect(err).NotTo(HaveOccurred())
+		})
 
-			By("creating the second VNI")
-			vni2 := &v1alpha1.VNI{
+		DescribeTable("the webhook should block",
+			func(vni v1alpha1.VNI, expectedError string) {
+				err := Updater.Update(config.Resources{
+					VNIs: []v1alpha1.VNI{vni},
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedError))
+			},
+			Entry("when trying to create a VNI with the same VNI as an existing one", v1alpha1.VNI{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "vni2",
 					Namespace: openperouter.Namespace,
@@ -57,12 +64,125 @@ var _ = Describe("Webhooks", func() {
 					VNI:       1001,
 					LocalCIDR: "192.168.2.0/24",
 				},
+			}, "duplicate vni"),
+			Entry("when trying to create a VNI with an invalid CIDR", v1alpha1.VNI{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vni2",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.VNISpec{
+					VNI:       1002,
+					LocalCIDR: "thisisnotacidr",
+				},
+			}, "invalid local CIDR"),
+			Entry("when updating a VNI with an invalid cidr", v1alpha1.VNI{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vni1",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.VNISpec{
+					VNI:       1001,
+					LocalCIDR: "thisisnotacidr",
+				},
+			}, "invalid local CIDR"),
+		)
+	})
+
+	Context("when Underlay webhooks are enabled", func() {
+		DescribeTable("the webhook should block",
+			func(underlay v1alpha1.Underlay, expectedError string) {
+				err := Updater.Update(config.Resources{
+					Underlays: []v1alpha1.Underlay{underlay},
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedError))
+			},
+			Entry("when trying to create an underlay with multiple nics", v1alpha1.Underlay{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "underlay",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.UnderlaySpec{
+					ASN:      65000,
+					Nics:     []string{"nic1", "nic2"},
+					VTEPCIDR: "192.168.1.0/24",
+				},
+			}, "can only have one nic"),
+			Entry("when trying to create an underlay with multiple nics", v1alpha1.Underlay{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "underlay",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.UnderlaySpec{
+					ASN:      65000,
+					Nics:     []string{"nic1"},
+					VTEPCIDR: "notacidr",
+				},
+			}, "invalid vtep CIDR"),
+		)
+	})
+
+	Context("when multiple underlay scenarios are tested", func() {
+		BeforeEach(func() {
+			underlay := v1alpha1.Underlay{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "underlay1",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.UnderlaySpec{
+					ASN:      65000,
+					Nics:     []string{"nic1"},
+					VTEPCIDR: "192.168.1.0/24",
+				},
 			}
-			err = Updater.Update(config.Resources{
-				VNIs: []v1alpha1.VNI{*vni2},
+			By("creating the first underlay")
+			err := Updater.Update(config.Resources{
+				Underlays: []v1alpha1.Underlay{underlay},
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		DescribeTable("the webhook should block (multi-underlay and invalid update cases)",
+			func(underlays []v1alpha1.Underlay, expectedError string) {
+				err := Updater.Update(config.Resources{
+					Underlays: underlays,
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedError))
+			},
+			Entry("when trying to create a second different underlay (should fail)",
+				[]v1alpha1.Underlay{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "underlay2",
+							Namespace: openperouter.Namespace,
+						},
+						Spec: v1alpha1.UnderlaySpec{
+							ASN:      65001,
+							Nics:     []string{"nic2"},
+							VTEPCIDR: "192.168.2.0/24",
+						},
+					},
+				},
+				"can't have more than one underlay",
+			),
+			Entry("when updating the existing underlay with an invalid CIDR (should fail)",
+				[]v1alpha1.Underlay{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "underlay1",
+							Namespace: openperouter.Namespace,
+						},
+						Spec: v1alpha1.UnderlaySpec{
+							ASN:      65000,
+							Nics:     []string{"nic1"},
+							VTEPCIDR: "notacidr",
+						},
+					},
+				},
+				"invalid vtep CIDR",
+			),
+		)
 	})
 
 })

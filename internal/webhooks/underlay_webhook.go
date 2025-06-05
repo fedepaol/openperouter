@@ -126,7 +126,7 @@ func validateUnderlay(underlay *v1alpha1.Underlay) ([]string, error) {
 		toValidate = append(toValidate, *underlay.DeepCopy())
 	}
 
-	if err := ValidateUnderlays(existingUnderlays.Items); err != nil {
+	if err := ValidateUnderlays(toValidate); err != nil {
 		return warnings, fmt.Errorf("validation failed: %w", err)
 	}
 	return warnings, nil
