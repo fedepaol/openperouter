@@ -6,11 +6,18 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-const healthPath = "/healthz"
+const (
+	healthPath = "/healthz"
+	readyPath  = "/readyz"
+)
 
 func SetupHealth(mgr ctrl.Manager) error {
 	mgr.GetWebhookServer().Register(
 		healthPath,
+		&healthHandler{})
+
+	mgr.GetWebhookServer().Register(
+		readyPath,
 		&healthHandler{})
 
 	return nil
