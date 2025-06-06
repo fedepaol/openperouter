@@ -22,13 +22,13 @@ type VNIParams struct {
 }
 
 type L3VNIParams struct {
-	VNIParams
+	VNIParams  `json:",inline"`
 	VethHostIP string `json:"vethhostip"`
 	VethNSIP   string `json:"vethnsip"`
 }
 
 type L2VNIParams struct {
-	VNIParams
+	VNIParams   `json:",inline"`
 	L2GatewayIP *string `json:"l2gatewayip"`
 	HostMaster  *string `json:"hostmaster"`
 }

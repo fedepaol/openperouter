@@ -68,8 +68,8 @@ type L2VNI struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   L2VNISpec   `json:"spec"`
-	Status L2VNIStatus `json:"status"`
+	Spec   L2VNISpec   `json:"spec,omitempty"`
+	Status L2VNIStatus `json:"status,omitempty"`
 }
 
 // VRFName returns the name to be used for the
