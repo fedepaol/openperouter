@@ -49,7 +49,7 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 
 	slog.InfoContext(ctx, "configure interface start", "namespace", targetNS)
 	defer slog.InfoContext(ctx, "configure interface end", "namespace", targetNS)
-	underlayParams, vnis, l2vnis, err := conversion.APItoHostConfig(config.NodeIndex, targetNS, config.Underlays, config.Vnis)
+	underlayParams, vnis, l2vnis, err := conversion.APItoHostConfig(config.NodeIndex, targetNS, config.Underlays, config.Vnis, config.L2Vnis)
 	if err != nil {
 		return fmt.Errorf("failed to convert config to host configuration: %w", err)
 	}
@@ -60,9 +60,6 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 	}
 	for _, vni := range vnis {
 		slog.InfoContext(ctx, "setting up VNI", "vni", vni.VRF)
-		if err := hostnetwork.SetupVNI(ctx, vni.VNIParams); err != nil {
-			return fmt.Errorf("failed to setup vni: %w", err)
-		}
 		if err := hostnetwork.SetupL3VNI(ctx, vni); err != nil {
 			return fmt.Errorf("failed to setup vni: %w", err)
 		}
@@ -70,9 +67,6 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 
 	for _, vni := range l2vnis {
 		slog.InfoContext(ctx, "setting up L2VNI", "vni", vni.VNI)
-		if err := hostnetwork.SetupVNI(ctx, vni.VNIParams); err != nil {
-			return fmt.Errorf("failed to setup vni: %w", err)
-		}
 		if err := hostnetwork.SetupL2VNI(ctx, vni); err != nil {
 			return fmt.Errorf("failed to setup vni: %w", err)
 		}

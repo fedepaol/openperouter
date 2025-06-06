@@ -40,6 +40,120 @@ const (
 	VethLinkType   = "veth"
 )
 
+func SetupL3VNI(ctx context.Context, params L3VNIParams) error {
+	if err := setupVNI(ctx, params.VNIParams); err != nil {
+		return fmt.Errorf("SetupL3VNI: failed to setup VNI: %w", err)
+	}
+	slog.DebugContext(ctx, "setting up l3 VNI", "params", params)
+	defer slog.DebugContext(ctx, "end setting up l3 VNI", "params", params)
+
+	ns, err := netns.GetFromName(params.TargetNS)
+	if err != nil {
+		return fmt.Errorf("SetupVNI: Failed to get network namespace %s: %w", params.TargetNS, err)
+	}
+	defer func() {
+		if err := ns.Close(); err != nil {
+			slog.Error("failed to close namespace", "namespace", params.TargetNS, "error", err)
+		}
+	}()
+
+	hostSide, peSide := vethNamesFromVRF(params.VRF)
+
+	hostVeth, err := netlink.LinkByName(hostSide)
+	if errors.As(err, &netlink.LinkNotFoundError{}) {
+		return fmt.Errorf("SetupL3VNI: host veth %s does not exist, cannot setup L3 VNI", hostSide)
+	}
+
+	err = assignIPToInterface(hostVeth, params.VethHostIP)
+	if err != nil {
+		return err
+	}
+
+	if err := inNamespace(ns, func() error {
+		peVeth, err := netlink.LinkByName(peSide)
+		if err != nil {
+			return fmt.Errorf("could not find peer veth %s in namespace %s: %w", peSide, params.TargetNS, err)
+		}
+		if err := assignIPToInterface(peVeth, params.VethNSIP); err != nil {
+			return err
+		}
+
+		vrf, err := netlink.LinkByName(params.VRF)
+		if err != nil {
+			return fmt.Errorf("could not find vrf %s in namespace %s: %w", params.VRF, params.TargetNS, err)
+		}
+
+		err = netlink.LinkSetMaster(peVeth, vrf)
+		if err != nil {
+			return fmt.Errorf("failed to set vrf %s as master of pe veth %s: %w", params.VRF, peVeth.Attrs().Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetupL2VNI(ctx context.Context, params L2VNIParams) error {
+	if err := setupVNI(ctx, params.VNIParams); err != nil {
+		return fmt.Errorf("SetupL2VNI: failed to setup VNI: %w", err)
+	}
+	slog.DebugContext(ctx, "setting up l2 VNI", "params", params)
+	defer slog.DebugContext(ctx, "end setting up l2 VNI", "params", params)
+
+	ns, err := netns.GetFromName(params.TargetNS)
+	if err != nil {
+		return fmt.Errorf("SetupVNI: Failed to get network namespace %s: %w", params.TargetNS, err)
+	}
+	defer func() {
+		if err := ns.Close(); err != nil {
+			slog.Error("failed to close namespace", "namespace", params.TargetNS, "error", err)
+		}
+	}()
+
+	hostSide, peSide := vethNamesFromVRF(params.VRF)
+
+	hostVeth, err := netlink.LinkByName(hostSide)
+	if errors.As(err, &netlink.LinkNotFoundError{}) {
+		return fmt.Errorf("SetupL3VNI: host veth %s does not exist, cannot setup L3 VNI", hostSide)
+	}
+
+	if params.HostMaster != nil {
+		hostMaster, err := netlink.LinkByName(*params.HostMaster)
+		if err != nil {
+			return fmt.Errorf("could not find host master %s in namespace %s: %w", *params.HostMaster, params.TargetNS, err)
+		}
+		if err := netlink.LinkSetMaster(hostVeth, hostMaster); err != nil {
+			return fmt.Errorf("failed to set host master %s as master of host veth %s: %w", *params.HostMaster, hostVeth.Attrs().Name, err)
+		}
+	}
+
+	if err := inNamespace(ns, func() error {
+		peVeth, err := netlink.LinkByName(peSide)
+		if err != nil {
+			return fmt.Errorf("could not find peer veth %s in namespace %s: %w", peSide, params.TargetNS, err)
+		}
+		name := bridgeName(params.VNI)
+		bridge, err := netlink.LinkByName(name)
+		if err != nil {
+			return fmt.Errorf("could not find bridge %s in namespace %s: %w", name, params.TargetNS, err)
+		}
+		if err := netlink.LinkSetMaster(peVeth, bridge); err != nil {
+			return fmt.Errorf("failed to set bridge %s as master of pe veth %s: %w", name, peVeth.Attrs().Name, err)
+		}
+		if params.L2GatewayIP != nil {
+			if err := assignIPToInterface(bridge, *params.L2GatewayIP); err != nil {
+				return fmt.Errorf("failed to assign L2 gateway IP %s to bridge %s: %w", *params.L2GatewayIP, name, err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetupVNI sets up all the configuration required by FRR to
 // serve a given VNI in the target namespace. This includes:
 // - a linux VRF
@@ -48,7 +162,7 @@ const (
 //
 // Additionally, it creates a veth pair and moves one leg in the target
 // namespace.
-func SetupVNI(ctx context.Context, params VNIParams) error {
+func setupVNI(ctx context.Context, params VNIParams) error {
 	slog.DebugContext(ctx, "setting up VNI", "params", params)
 	defer slog.DebugContext(ctx, "end setting up VNI", "params", params)
 	ns, err := netns.GetFromName(params.TargetNS)
@@ -110,114 +224,6 @@ func SetupVNI(ctx context.Context, params VNIParams) error {
 		return err
 	}
 
-	return nil
-}
-
-func SetupL3VNI(ctx context.Context, params L3VNIParams) error {
-	slog.DebugContext(ctx, "setting up l3 VNI", "params", params)
-	defer slog.DebugContext(ctx, "end setting up l3 VNI", "params", params)
-
-	ns, err := netns.GetFromName(params.TargetNS)
-	if err != nil {
-		return fmt.Errorf("SetupVNI: Failed to get network namespace %s: %w", params.TargetNS, err)
-	}
-	defer func() {
-		if err := ns.Close(); err != nil {
-			slog.Error("failed to close namespace", "namespace", params.TargetNS, "error", err)
-		}
-	}()
-
-	hostSide, peSide := vethNamesFromVRF(params.VRF)
-
-	hostVeth, err := netlink.LinkByName(hostSide)
-	if errors.As(err, &netlink.LinkNotFoundError{}) {
-		return fmt.Errorf("SetupL3VNI: host veth %s does not exist, cannot setup L3 VNI", hostSide)
-	}
-
-	err = assignIPToInterface(hostVeth, params.VethHostIP)
-	if err != nil {
-		return err
-	}
-
-	if err := inNamespace(ns, func() error {
-		peVeth, err := netlink.LinkByName(peSide)
-		if err != nil {
-			return fmt.Errorf("could not find peer veth %s in namespace %s: %w", peSide, params.TargetNS, err)
-		}
-		if err := assignIPToInterface(peVeth, params.VethNSIP); err != nil {
-			return err
-		}
-
-		vrf, err := netlink.LinkByName(params.VRF)
-		if err != nil {
-			return fmt.Errorf("could not find vrf %s in namespace %s: %w", params.VRF, params.TargetNS, err)
-		}
-
-		err = netlink.LinkSetMaster(peVeth, vrf)
-		if err != nil {
-			return fmt.Errorf("failed to set vrf %s as master of pe veth %s: %w", params.VRF, peVeth.Attrs().Name, err)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
-}
-
-func SetupL2VNI(ctx context.Context, params L2VNIParams) error {
-	slog.DebugContext(ctx, "setting up l2 VNI", "params", params)
-	defer slog.DebugContext(ctx, "end setting up l2 VNI", "params", params)
-
-	ns, err := netns.GetFromName(params.TargetNS)
-	if err != nil {
-		return fmt.Errorf("SetupVNI: Failed to get network namespace %s: %w", params.TargetNS, err)
-	}
-	defer func() {
-		if err := ns.Close(); err != nil {
-			slog.Error("failed to close namespace", "namespace", params.TargetNS, "error", err)
-		}
-	}()
-
-	hostSide, peSide := vethNamesFromVRF(params.VRF)
-
-	hostVeth, err := netlink.LinkByName(hostSide)
-	if errors.As(err, &netlink.LinkNotFoundError{}) {
-		return fmt.Errorf("SetupL3VNI: host veth %s does not exist, cannot setup L3 VNI", hostSide)
-	}
-
-	if params.HostMaster != nil {
-		hostMaster, err := netlink.LinkByName(*params.HostMaster)
-		if err != nil {
-			return fmt.Errorf("could not find host master %s in namespace %s: %w", *params.HostMaster, params.TargetNS, err)
-		}
-		if err := netlink.LinkSetMaster(hostVeth, hostMaster); err != nil {
-			return fmt.Errorf("failed to set host master %s as master of host veth %s: %w", *params.HostMaster, hostVeth.Attrs().Name, err)
-		}
-	}
-
-	if err := inNamespace(ns, func() error {
-		peVeth, err := netlink.LinkByName(peSide)
-		if err != nil {
-			return fmt.Errorf("could not find peer veth %s in namespace %s: %w", peSide, params.TargetNS, err)
-		}
-		name := bridgeName(params.VNI)
-		bridge, err := netlink.LinkByName(name)
-		if err != nil {
-			return fmt.Errorf("could not find bridge %s in namespace %s: %w", name, params.TargetNS, err)
-		}
-		if err := netlink.LinkSetMaster(peVeth, bridge); err != nil {
-			return fmt.Errorf("failed to set bridge %s as master of pe veth %s: %w", name, peVeth.Attrs().Name, err)
-		}
-		if params.L2GatewayIP != nil {
-			if err := assignIPToInterface(bridge, *params.L2GatewayIP); err != nil {
-				return fmt.Errorf("failed to assign L2 gateway IP %s to bridge %s: %w", *params.L2GatewayIP, name, err)
-			}
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
 	return nil
 }
 

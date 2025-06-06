@@ -18,7 +18,7 @@ import (
 
 const testNSName = "vnitestns"
 
-var _ = Describe("VNI configuration", func() {
+var _ = Describe("L3 VNI configuration", func() {
 	var testNS netns.NsHandle
 
 	BeforeEach(func() {
@@ -30,60 +30,65 @@ var _ = Describe("VNI configuration", func() {
 		cleanTest(testNSName)
 	})
 
-	It("should work with a single VNI", func() {
-		params := VNIParams{
-			VRF:        "testred",
-			TargetNS:   testNSName,
-			VTEPIP:     "192.170.0.9/32",
+	It("should work with a single L3VNI", func() {
+		params := L3VNIParams{
+			VNIParams: VNIParams{
+				VRF:       "testred",
+				TargetNS:  testNSName,
+				VTEPIP:    "192.170.0.9/32",
+				VNI:       100,
+				VXLanPort: 4789,
+			},
 			VethHostIP: "192.168.9.1/32",
 			VethNSIP:   "192.168.9.0/32",
-			VNI:        100,
-			VXLanPort:  4789,
 		}
 
-		err := SetupVNI(context.Background(), params)
+		err := SetupL3VNI(context.Background(), params)
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func(g Gomega) {
-			validateHostLeg(g, params)
+			validateL3HostLeg(g, params)
 
 			_ = inNamespace(testNS, func() error {
-				validateVNI(g, params)
+				validateL3VNI(g, params)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 	})
 
-	It("should work with multiple vnis + cleanup", func() {
-		params := []VNIParams{
+	It("should work with multiple L3VNIs + cleanup", func() {
+		params := []L3VNIParams{
 			{
-
-				VRF:        "testred",
-				TargetNS:   testNSName,
-				VTEPIP:     "192.170.0.9/32",
+				VNIParams: VNIParams{
+					VRF:       "testred",
+					TargetNS:  testNSName,
+					VTEPIP:    "192.170.0.9/32",
+					VNI:       100,
+					VXLanPort: 4789,
+				},
 				VethHostIP: "192.168.9.1/32",
 				VethNSIP:   "192.168.9.0/32",
-				VNI:        100,
-				VXLanPort:  4789,
 			},
 			{
-				VRF:        "testblue",
-				TargetNS:   testNSName,
-				VTEPIP:     "192.170.0.10/32",
+				VNIParams: VNIParams{
+					VRF:       "testblue",
+					TargetNS:  testNSName,
+					VTEPIP:    "192.170.0.10/32",
+					VNI:       101,
+					VXLanPort: 4789,
+				},
 				VethHostIP: "192.168.9.2/32",
 				VethNSIP:   "192.168.9.3/32",
-				VNI:        101,
-				VXLanPort:  4789,
 			},
 		}
 		for _, p := range params {
-			err := SetupVNI(context.Background(), p)
+			err := SetupL3VNI(context.Background(), p)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func(g Gomega) {
-				validateHostLeg(g, p)
+				validateL3HostLeg(g, p)
 				_ = inNamespace(testNS, func() error {
-					validateVNI(g, p)
+					validateL3VNI(g, p)
 					return nil
 				})
 			}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -92,49 +97,51 @@ var _ = Describe("VNI configuration", func() {
 		remaining := params[0]
 		toDelete := params[1]
 
-		By("removing non configured vnis")
-		err := RemoveNonConfiguredVNIs(testNSName, []VNIParams{remaining})
+		By("removing non configured L3VNIs")
+		err := RemoveNonConfiguredVNIs(testNSName, []VNIParams{remaining.VNIParams})
 		Expect(err).NotTo(HaveOccurred())
 
-		By("checking remaining vnis")
+		By("checking remaining L3VNIs")
 		Eventually(func(g Gomega) {
-			validateHostLeg(g, remaining)
+			validateL3HostLeg(g, remaining)
 			_ = inNamespace(testNS, func() error {
-				validateVNI(g, remaining)
+				validateL3VNI(g, remaining)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 
-		By("checking non needed vnis are removed")
-		hostSide, _ := vethNamesFromVRF(toDelete.VRF)
+		By("checking non needed L3VNIs are removed")
+		hostSide, _ := vethNamesFromVRF(toDelete.VNIParams.VRF)
 		Eventually(func(g Gomega) {
 			checkLinkdeleted(g, hostSide)
-			validateVNIIsNotConfigured(g, toDelete)
+			validateL3VNIIsNotConfigured(g, toDelete)
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 	})
 
 	It("should be idempotent", func() {
-		params := VNIParams{
-			VRF:        "testred",
-			TargetNS:   testNSName,
-			VTEPIP:     "192.170.0.9/32",
+		params := L3VNIParams{
+			VNIParams: VNIParams{
+				VRF:       "testred",
+				TargetNS:  testNSName,
+				VTEPIP:    "192.170.0.9/32",
+				VNI:       100,
+				VXLanPort: 4789,
+			},
 			VethHostIP: "192.168.9.1/32",
 			VethNSIP:   "192.168.9.0/32",
-			VNI:        100,
-			VXLanPort:  4789,
 		}
 
-		err := SetupVNI(context.Background(), params)
+		err := SetupL3VNI(context.Background(), params)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = SetupVNI(context.Background(), params)
+		err = SetupL3VNI(context.Background(), params)
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func(g Gomega) {
-			validateHostLeg(g, params)
+			validateL3HostLeg(g, params)
 
 			_ = inNamespace(testNS, func() error {
-				validateVNI(g, params)
+				validateL3VNI(g, params)
 				return nil
 			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
@@ -142,7 +149,7 @@ var _ = Describe("VNI configuration", func() {
 	})
 })
 
-func validateHostLeg(g Gomega, params VNIParams) {
+func validateL3HostLeg(g Gomega, params L3VNIParams) {
 	hostSide, _ := vethNamesFromVRF(params.VRF)
 	hostLegLink, err := netlink.LinkByName(hostSide)
 	g.Expect(err).NotTo(HaveOccurred(), "host side not found", hostSide)
@@ -153,7 +160,7 @@ func validateHostLeg(g Gomega, params VNIParams) {
 	g.Expect(hasIP).To(BeTrue(), "host leg does not have ip", params.VethHostIP)
 }
 
-func validateVNI(g Gomega, params VNIParams) {
+func validateL3VNI(g Gomega, params L3VNIParams) {
 	loopback, err := netlink.LinkByName(UnderlayLoopback)
 	g.Expect(err).NotTo(HaveOccurred(), "loopback not found", UnderlayLoopback)
 
@@ -183,7 +190,7 @@ func validateVNI(g Gomega, params VNIParams) {
 	addrGenModeNone = checkAddrGenModeNone(bridge)
 	g.Expect(addrGenModeNone).To(BeTrue())
 
-	err = checkVXLanConfigured(vxlan, bridge.Index, loopback.Attrs().Index, params)
+	err = checkVXLanConfigured(vxlan, bridge.Index, loopback.Attrs().Index, params.VNIParams)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	_, peSide := vethNamesFromVRF(params.VRF)
@@ -202,7 +209,7 @@ func checkLinkdeleted(g Gomega, name string) {
 	g.Expect(errors.As(err, &netlink.LinkNotFoundError{})).To(BeTrue(), "link not deleted", name, err)
 }
 
-func validateVNIIsNotConfigured(g Gomega, params VNIParams) {
+func validateL3VNIIsNotConfigured(g Gomega, params L3VNIParams) {
 
 	checkLinkdeleted(g, vxLanNameFromVNI(params.VNI))
 	checkLinkdeleted(g, params.VRF)
