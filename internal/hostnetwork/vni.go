@@ -121,7 +121,7 @@ func SetupL2VNI(ctx context.Context, params L2VNIParams) error {
 	if params.HostMaster != nil {
 		hostMaster, err := netlink.LinkByName(*params.HostMaster)
 		if err != nil {
-			return fmt.Errorf("could not find host master %s in namespace %s: %w", *params.HostMaster, params.TargetNS, err)
+			return fmt.Errorf("could not find host master %s: %w", *params.HostMaster, err)
 		}
 		if err := netlink.LinkSetMaster(hostVeth, hostMaster); err != nil {
 			return fmt.Errorf("failed to set host master %s as master of host veth %s: %w", *params.HostMaster, hostVeth.Attrs().Name, err)
