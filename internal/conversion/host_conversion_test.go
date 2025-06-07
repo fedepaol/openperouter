@@ -114,7 +114,7 @@ func TestAPItoHostConfig(t *testing.T) {
 				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
 			},
 			l2vnis: []v1alpha1.L2VNI{
-				{Spec: v1alpha1.L2VNISpec{VNI: 201, VXLanPort: 4789, HostMaster: "br0", L2GatewayIP: "192.168.100.1/24"}},
+				{Spec: v1alpha1.L2VNISpec{VNI: 201, VXLanPort: 4789, HostMaster: &v1alpha1.HostMaster{Name: "br0"}, L2GatewayIP: "192.168.100.1/24"}},
 			},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
@@ -131,7 +131,7 @@ func TestAPItoHostConfig(t *testing.T) {
 						VXLanPort: 4789,
 					},
 					L2GatewayIP: ptr.String("192.168.100.1/24"),
-					HostMaster:  ptr.String("br0"),
+					HostMaster:  &hostnetwork.HostMaster{Name: "br0"},
 				},
 			},
 			wantErr: false,

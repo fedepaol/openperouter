@@ -41,16 +41,29 @@ type L2VNISpec struct {
 	VXLanPort uint32 `json:"vxlanport,omitempty"`
 
 	// HostMaster is the interface on the host the veth should be enslaved to.
-	// Typically, this is a linux bridge. If not left, the veth will not be enslaved
-	// and some automation will be required to connect the veth to a svi interface.
-	// +kubebuilder:validation:Pattern=`^[a-zA-Z][a-zA-Z0-9_-]*$`
-	// +kubebuilder:validation:MaxLength=15
 	// +optional
-	HostMaster string `json:"hostmaster,omitempty"`
+	HostMaster *HostMaster `json:"hostmaster"`
 
 	// L2GatewayIP is the IP address to be used for the L2 gateway.
 	// +optional
 	L2GatewayIP string `json:"l2gatewayip,omitempty"`
+}
+
+// +kubebuilder:validation:Required
+// +kubebuilder:validation:XValidation:rule="self.name != '' || self.autocreate == true",message="Either name must be set or autocreate must be true."
+
+type HostMaster struct {
+	// Name of the host interface. Must match VRF name validation if set.
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z][a-zA-Z0-9_-]*$`
+	// +kubebuilder:validation:MaxLength=15
+	// +optional
+	Name string `json:"name,omitempty"`
+	// Type must be "bridge" if set.
+	// +kubebuilder:validation:Enum=bridge
+	Type string `json:"type,omitempty"`
+	// If true, the interface will be created automatically if not present.
+	// +kubebuilder:default:=false
+	AutoCreate bool `json:"autocreate,omitempty"`
 }
 
 // VNIStatus defines the observed state of VNI.

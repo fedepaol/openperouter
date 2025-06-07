@@ -67,9 +67,13 @@ func APItoHostConfig(nodeIndex int, targetNS string, underlays []v1alpha1.Underl
 		if l2vni.Spec.L2GatewayIP != "" {
 			vni.L2GatewayIP = &l2vni.Spec.L2GatewayIP
 		}
-		if l2vni.Spec.HostMaster != "" {
-			vni.HostMaster = &l2vni.Spec.HostMaster
+		if l2vni.Spec.HostMaster != nil {
+			vni.HostMaster = &hostnetwork.HostMaster{
+				Name:       l2vni.Spec.HostMaster.Name,
+				AutoCreate: l2vni.Spec.HostMaster.AutoCreate,
+			}
 		}
+
 		l2vniParams = append(l2vniParams, vni)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -29,8 +30,14 @@ type L3VNIParams struct {
 
 type L2VNIParams struct {
 	VNIParams   `json:",inline"`
-	L2GatewayIP *string `json:"l2gatewayip"`
-	HostMaster  *string `json:"hostmaster"`
+	L2GatewayIP *string     `json:"l2gatewayip"`
+	HostMaster  *HostMaster `json:"hostmaster"`
+}
+
+type HostMaster struct {
+	Name       string `json:"name,omitempty"`
+	Type       string `json:"type,omitempty"`
+	AutoCreate bool   `json:"autocreate,omitempty"`
 }
 
 const (
@@ -119,12 +126,12 @@ func SetupL2VNI(ctx context.Context, params L2VNIParams) error {
 	}
 
 	if params.HostMaster != nil {
-		hostMaster, err := netlink.LinkByName(*params.HostMaster)
+		master, err := hostMaster(params.VNI, *params.HostMaster)
 		if err != nil {
-			return fmt.Errorf("could not find host master %s: %w", *params.HostMaster, err)
+			return fmt.Errorf("SetupL2VNI: failed to get host master for VRF %s: %w", params.VRF, err)
 		}
-		if err := netlink.LinkSetMaster(hostVeth, hostMaster); err != nil {
-			return fmt.Errorf("failed to set host master %s as master of host veth %s: %w", *params.HostMaster, hostVeth.Attrs().Name, err)
+		if err := netlink.LinkSetMaster(hostVeth, master); err != nil {
+			return fmt.Errorf("failed to set host master %s as master of host veth %s: %w", master.Attrs().Name, hostVeth.Attrs().Name, err)
 		}
 	}
 
@@ -241,6 +248,11 @@ func RemoveNonConfiguredVNIs(targetNS string, params []VNIParams) error {
 		return fmt.Errorf("remove non configured vnis: failed to list links: %w", err)
 	}
 	failedDeletes := []error{}
+	if err := deleteLinksForType(BridgeLinkType, vnis, hostLinks, vniFromHostBridgeName); err != nil {
+		failedDeletes = append(failedDeletes, fmt.Errorf("remove bridge links: %w", err))
+		return err
+	}
+
 	for _, hl := range hostLinks {
 		if hl.Type() != VethLinkType {
 			continue
@@ -324,4 +336,59 @@ func deleteLinksForType(linkType string, vnis map[int]bool, links []netlink.Link
 	}
 
 	return errors.Join(deleteErrors...)
+}
+
+func hostMaster(vni int, m HostMaster) (netlink.Link, error) {
+	if !m.AutoCreate {
+		hostMaster, err := netlink.LinkByName(m.Name)
+		if err != nil {
+			return nil, fmt.Errorf("could not find host master %s: %w", m.Name, err)
+		}
+		return hostMaster, nil
+	}
+	bridge, err := createHostBridge(vni)
+	if err != nil {
+		return nil, fmt.Errorf("getHostMaster: failed to create host bridge %d: %w", vni, err)
+	}
+	return bridge, nil
+}
+
+func createHostBridge(vni int) (netlink.Link, error) {
+	name := hostBridgeName(vni)
+	bridge, err := netlink.LinkByName(name)
+	// link does not exist, let's create it
+	if errors.As(err, &netlink.LinkNotFoundError{}) {
+		toCreate := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
+		if err := netlink.LinkAdd(toCreate); err != nil {
+			return nil, fmt.Errorf("could not create host bridge %s: %w", name, err)
+		}
+	}
+	bridge, err = netlink.LinkByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("could not find host bridge %s: %w", name, err)
+	}
+	if err := netlink.LinkSetUp(bridge); err != nil {
+		return nil, fmt.Errorf("could not set host bridge %s up: %w", name, err)
+	}
+
+	slog.Debug("created host bridge", "name", name)
+	return bridge, nil
+}
+
+const vniBridgePrefix = "br-vni-"
+
+func hostBridgeName(vni int) string {
+	return fmt.Sprintf("%s%d", vniBridgePrefix, vni)
+}
+
+func vniFromHostBridgeName(name string) (int, error) {
+	if !strings.HasPrefix(name, vniBridgePrefix) {
+		return -1, nil
+	}
+	vni := strings.TrimPrefix(name, vniBridgePrefix)
+	res, err := strconv.Atoi(vni)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get vni for host bridge %s: %w", name, err)
+	}
+	return res, nil
 }

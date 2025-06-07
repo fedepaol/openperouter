@@ -115,7 +115,10 @@ var _ = Describe("L3 VNI configuration", func() {
 		hostSide, _ := vethNamesFromVRF(toDelete.VNIParams.VRF)
 		Eventually(func(g Gomega) {
 			checkLinkdeleted(g, hostSide)
-			validateVNIIsNotConfigured(g, toDelete.VNIParams)
+			_ = inNamespace(testNS, func() error {
+				validateVNIIsNotConfigured(g, toDelete.VNIParams)
+				return nil
+			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 	})
 
@@ -174,7 +177,9 @@ var _ = Describe("L2 VNI configuration", func() {
 				VXLanPort: 4789,
 			},
 			L2GatewayIP: ptr.String("192.168.1.0/24"),
-			HostMaster:  ptr.String(bridgeName),
+			HostMaster: &HostMaster{
+				Name: bridgeName,
+			},
 		}
 
 		err := SetupL2VNI(context.Background(), params)
@@ -201,7 +206,9 @@ var _ = Describe("L2 VNI configuration", func() {
 					VXLanPort: 4789,
 				},
 				L2GatewayIP: ptr.String("192.168.1.0/24"),
-				HostMaster:  ptr.String(bridgeName),
+				HostMaster: &HostMaster{
+					Name: bridgeName,
+				},
 			},
 			{
 				VNIParams: VNIParams{
@@ -212,7 +219,9 @@ var _ = Describe("L2 VNI configuration", func() {
 					VXLanPort: 4789,
 				},
 				L2GatewayIP: ptr.String("192.168.1.0/24"),
-				HostMaster:  ptr.String(bridgeName),
+				HostMaster: &HostMaster{
+					AutoCreate: true,
+				},
 			},
 		}
 		for _, p := range params {
@@ -248,7 +257,11 @@ var _ = Describe("L2 VNI configuration", func() {
 		hostSide, _ := vethNamesFromVRF(toDelete.VNIParams.VRF)
 		Eventually(func(g Gomega) {
 			checkLinkdeleted(g, hostSide)
-			validateVNIIsNotConfigured(g, toDelete.VNIParams)
+			checkHostBridgedeleted(g, toDelete)
+			_ = inNamespace(testNS, func() error {
+				validateVNIIsNotConfigured(g, toDelete.VNIParams)
+				return nil
+			})
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 	})
 
@@ -262,7 +275,9 @@ var _ = Describe("L2 VNI configuration", func() {
 				VXLanPort: 4789,
 			},
 			L2GatewayIP: ptr.String("192.168.1.0/24"),
-			HostMaster:  ptr.String(bridgeName),
+			HostMaster: &HostMaster{
+				Name: bridgeName,
+			},
 		}
 
 		err := SetupL2VNI(context.Background(), params)
@@ -302,7 +317,11 @@ func validateL2HostLeg(g Gomega, params L2VNIParams) {
 	hasNoIP, err := interfaceHasNoIP(hostLegLink)
 	g.Expect(hasNoIP).To(BeTrue(), "host leg does have ip")
 	if params.HostMaster != nil {
-		hostmaster, err := netlink.LinkByName(*params.HostMaster)
+		hostMasterName := params.HostMaster.Name
+		if params.HostMaster.AutoCreate {
+			hostMasterName = hostBridgeName(params.VNI)
+		}
+		hostmaster, err := netlink.LinkByName(hostMasterName)
 		g.Expect(err).NotTo(HaveOccurred(), "host master not found", *params.HostMaster)
 		g.Expect(hostLegLink.Attrs().MasterIndex).To(Equal(hostmaster.Attrs().Index),
 			"host leg is not attached to the bridge", params.HostMaster)
@@ -390,6 +409,15 @@ func validateVNI(g Gomega, params VNIParams) {
 	peLegLink, err := netlink.LinkByName(peSide)
 	g.Expect(err).NotTo(HaveOccurred(), "veth pe side not found", peSide)
 	g.Expect(peLegLink.Attrs().OperState).To(BeEquivalentTo(netlink.OperUp))
+}
+
+func checkHostBridgedeleted(g Gomega, params L2VNIParams) {
+	if params.HostMaster == nil || !params.HostMaster.AutoCreate {
+		return
+	}
+	hostBridge := hostBridgeName(params.VNI)
+	_, err := netlink.LinkByName(hostBridge)
+	g.Expect(errors.As(err, &netlink.LinkNotFoundError{})).To(BeTrue(), "host bridge not deleted", hostBridge, err)
 }
 
 func checkLinkdeleted(g Gomega, name string) {

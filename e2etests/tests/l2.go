@@ -5,11 +5,13 @@ package tests
 import (
 	"time"
 
+	nad "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	corev1 "k8s.io/api/core/v1"
@@ -41,8 +43,10 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			Namespace: openperouter.Namespace,
 		},
 		Spec: v1alpha1.L2VNISpec{
-			VRF: ptr.To("red"),
-			VNI: 100,
+			VRF:         ptr.To("red"),
+			VNI:         110,
+			L2GatewayIP: "192.171.24.1/24",
+			HostMaster:  "l2-bridge-110",
 		},
 	}
 
@@ -104,20 +108,39 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		dumpIfFails(cs)
 		err := Updater.CleanButUnderlay()
 		Expect(err).NotTo(HaveOccurred())
-		removeLeafPrefixes(infra.LeafAConfig)
-		removeLeafPrefixes(infra.LeafBConfig)
 	})
 
 	Context("with vnis", func() {
+		const testNamespace = "test-namespace"
+		var (
+			firstPod  *corev1.Pod
+			secondPod *corev1.Pod
+			l2bridge  = "l2-bridge-110"
+			nad       nad.NetworkAttachmentDefinition
+		)
+
 		BeforeEach(func() {
 			err := Updater.Update(config.Resources{
 				VNIs: []v1alpha1.VNI{
 					vniRed,
-					vniBlue,
+				},
+				L2VNIs: []v1alpha1.L2VNI{
+					l2VniRed,
 				},
 			})
 			Expect(err).NotTo(HaveOccurred())
 
+			nad, err = k8s.CreateMacvlanNad("110", testNamespace, l2bridge, "192.171.24.1/24")
+			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("should create two pods connected to the l2 overlay", func() {
+			var err error
+			firstPod, err = k8s.CreateAgnhostPod(cs, testNamespace, "pod1", k8s.WithNad(nad.Name, testNamespace, "192.171.24.2/24"))
+			Expect(err).NotTo(HaveOccurred())
+			secondPod, err = k8s.CreateAgnhostPod(cs, testNamespace, "pod2", k8s.WithNad(nad.Name, testNamespace, "192.171.24.3/24"))
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 	})
 })
