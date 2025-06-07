@@ -240,11 +240,14 @@ var _ = Describe("L2 VNI configuration", func() {
 		remaining := params[0]
 		toDelete := params[1]
 
+		fmt.Println("ZZZ")
+		time.Sleep(20 * time.Second)
 		By("removing non configured L2VNIs")
 		err := RemoveNonConfiguredVNIs(testNSName, []VNIParams{remaining.VNIParams})
 		Expect(err).NotTo(HaveOccurred())
 
 		By("checking remaining L2VNIs")
+
 		Eventually(func(g Gomega) {
 			validateL2HostLeg(g, remaining)
 			_ = inNamespace(testNS, func() error {

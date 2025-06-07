@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -46,6 +45,14 @@ const (
 	VXLanLinkType  = "vxlan"
 	VethLinkType   = "veth"
 )
+
+type NotRouterInterfaceError struct {
+	Name string
+}
+
+func (e NotRouterInterfaceError) Error() string {
+	return fmt.Sprintf("interface %s is not a router interface", e.Name)
+}
 
 func SetupL3VNI(ctx context.Context, params L3VNIParams) error {
 	if err := setupVNI(ctx, params.VNIParams); err != nil {
@@ -322,6 +329,10 @@ func deleteLinksForType(linkType string, vnis map[int]bool, links []netlink.Link
 			continue
 		}
 		vni, err := vniFromName(l.Attrs().Name)
+		if errors.As(err, &NotRouterInterfaceError{}) {
+			// not a router interface, skip
+			continue
+		}
 		if err != nil {
 			deleteErrors = append(deleteErrors, fmt.Errorf("remove non configured vnis: failed to get vni for %s %w", linkType, err))
 			continue
@@ -351,44 +362,4 @@ func hostMaster(vni int, m HostMaster) (netlink.Link, error) {
 		return nil, fmt.Errorf("getHostMaster: failed to create host bridge %d: %w", vni, err)
 	}
 	return bridge, nil
-}
-
-func createHostBridge(vni int) (netlink.Link, error) {
-	name := hostBridgeName(vni)
-	bridge, err := netlink.LinkByName(name)
-	// link does not exist, let's create it
-	if errors.As(err, &netlink.LinkNotFoundError{}) {
-		toCreate := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
-		if err := netlink.LinkAdd(toCreate); err != nil {
-			return nil, fmt.Errorf("could not create host bridge %s: %w", name, err)
-		}
-	}
-	bridge, err = netlink.LinkByName(name)
-	if err != nil {
-		return nil, fmt.Errorf("could not find host bridge %s: %w", name, err)
-	}
-	if err := netlink.LinkSetUp(bridge); err != nil {
-		return nil, fmt.Errorf("could not set host bridge %s up: %w", name, err)
-	}
-
-	slog.Debug("created host bridge", "name", name)
-	return bridge, nil
-}
-
-const vniBridgePrefix = "br-vni-"
-
-func hostBridgeName(vni int) string {
-	return fmt.Sprintf("%s%d", vniBridgePrefix, vni)
-}
-
-func vniFromHostBridgeName(name string) (int, error) {
-	if !strings.HasPrefix(name, vniBridgePrefix) {
-		return -1, nil
-	}
-	vni := strings.TrimPrefix(name, vniBridgePrefix)
-	res, err := strconv.Atoi(vni)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get vni for host bridge %s: %w", name, err)
-	}
-	return res, nil
 }

@@ -5,6 +5,7 @@ package hostnetwork
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -70,17 +71,61 @@ func createBridge(name string, vrfIndex int) (*netlink.Bridge, error) {
 	return toCreate, nil
 }
 
-const bridgePrefix = "br"
+const bridgePrefix = "br-pe"
 
 func bridgeName(vni int) string {
 	return fmt.Sprintf("%s%d", bridgePrefix, vni)
 }
 
 func vniFromBridgeName(name string) (int, error) {
+	if !strings.HasPrefix(name, bridgePrefix) {
+		return 0, NotRouterInterfaceError{Name: name}
+	}
+
 	vni := strings.TrimPrefix(name, bridgePrefix)
 	res, err := strconv.Atoi(vni)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get vni for bridge %s", name)
+	}
+	return res, nil
+}
+
+func createHostBridge(vni int) (netlink.Link, error) {
+	name := hostBridgeName(vni)
+	bridge, err := netlink.LinkByName(name)
+	// link does not exist, let's create it
+	if errors.As(err, &netlink.LinkNotFoundError{}) {
+		toCreate := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
+		if err := netlink.LinkAdd(toCreate); err != nil {
+			return nil, fmt.Errorf("could not create host bridge %s: %w", name, err)
+		}
+	}
+	bridge, err = netlink.LinkByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("could not find host bridge %s: %w", name, err)
+	}
+	if err := netlink.LinkSetUp(bridge); err != nil {
+		return nil, fmt.Errorf("could not set host bridge %s up: %w", name, err)
+	}
+
+	slog.Debug("created host bridge", "name", name)
+	return bridge, nil
+}
+
+const hostBridgePrefix = "br-hs-"
+
+func hostBridgeName(vni int) string {
+	return fmt.Sprintf("%s%d", hostBridgePrefix, vni)
+}
+
+func vniFromHostBridgeName(name string) (int, error) {
+	if !strings.HasPrefix(name, hostBridgePrefix) {
+		return 0, NotRouterInterfaceError{Name: name}
+	}
+	vni := strings.TrimPrefix(name, hostBridgePrefix)
+	res, err := strconv.Atoi(vni)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get vni for host bridge %s: %w", name, err)
 	}
 	return res, nil
 }
