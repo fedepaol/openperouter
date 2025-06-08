@@ -60,11 +60,12 @@ func CreateAgnhostPod(cs clientset.Interface, podName, namespace string, modifie
 }
 
 func WithNad(name, namespace, ip string) func(*corev1.Pod) {
+	annotation := fmt.Sprintf(`[{"name": "%s", "namespace": "%s", "ips": ["%s"]}]`, name, namespace, ip)
 	return func(p *corev1.Pod) {
 		if p.Annotations == nil {
 			p.Annotations = make(map[string]string)
 		}
-		p.Annotations["k8s.v1.cni.cncf.io/networks"] = fmt.Sprintf(`{"name": "%s", "namespace": "%s", "ips": ["%s"]}`, name, namespace, ip)
+		p.Annotations["k8s.v1.cni.cncf.io/networks"] = annotation
 	}
 }
 

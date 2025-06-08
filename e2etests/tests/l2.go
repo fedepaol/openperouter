@@ -3,6 +3,8 @@
 package tests
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	nad "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -10,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
+	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
@@ -46,7 +49,9 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			VRF:         ptr.To("red"),
 			VNI:         110,
 			L2GatewayIP: "192.171.24.1/24",
-			HostMaster:  "l2-bridge-110",
+			HostMaster: &v1alpha1.HostMaster{
+				AutoCreate: true,
+			},
 		},
 	}
 
@@ -95,6 +100,13 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
+	const testNamespace = "test-namespace"
+	var (
+		firstPod  *corev1.Pod
+		secondPod *corev1.Pod
+		nad       nad.NetworkAttachmentDefinition
+	)
+
 	BeforeEach(func() {
 		By("setting redistribute connected on leaves")
 		redistributeConnectedForLeaf(infra.LeafAConfig)
@@ -102,45 +114,79 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		err := Updater.CleanButUnderlay()
 		Expect(err).NotTo(HaveOccurred())
+
+		err = Updater.Update(config.Resources{
+			VNIs: []v1alpha1.VNI{
+				vniRed,
+			},
+			L2VNIs: []v1alpha1.L2VNI{
+				l2VniRed,
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = k8s.CreateNamespace(cs, testNamespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		nad, err = k8s.CreateMacvlanNad("110", testNamespace, "br-hs-110", "192.171.1.1")
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		dumpIfFails(cs)
 		err := Updater.CleanButUnderlay()
 		Expect(err).NotTo(HaveOccurred())
+		err = k8s.DeleteNamespace(cs, testNamespace)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Context("with vnis", func() {
-		const testNamespace = "test-namespace"
-		var (
-			firstPod  *corev1.Pod
-			secondPod *corev1.Pod
-			l2bridge  = "l2-bridge-110"
-			nad       nad.NetworkAttachmentDefinition
+	FIt("should create two pods connected to the l2 overlay", func() {
+		var err error
+		const (
+			firstPodIP  = "192.171.1.2"
+			secondPodIP = "192.171.1.3"
 		)
+		nodes, err := k8s.GetNodes(cs)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(nodes)).To(BeNumerically(">=", 2), "Expected at least 2 nodes, but got fewer")
 
-		BeforeEach(func() {
-			err := Updater.Update(config.Resources{
-				VNIs: []v1alpha1.VNI{
-					vniRed,
-				},
-				L2VNIs: []v1alpha1.L2VNI{
-					l2VniRed,
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
+		By("creating the pods")
+		firstPod, err = k8s.CreateAgnhostPod(cs, "pod1", testNamespace, k8s.WithNad(nad.Name, testNamespace, firstPodIP+"/24"), k8s.OnNode(nodes[0].Name))
+		Expect(err).NotTo(HaveOccurred())
+		secondPod, err = k8s.CreateAgnhostPod(cs, "pod2", testNamespace, k8s.WithNad(nad.Name, testNamespace, secondPodIP+"/24"), k8s.OnNode(nodes[1].Name))
+		Expect(err).NotTo(HaveOccurred())
 
-			nad, err = k8s.CreateMacvlanNad("110", testNamespace, l2bridge, "192.171.24.1/24")
-			Expect(err).NotTo(HaveOccurred())
-		})
+		podExecutor := executor.ForPod(firstPod.Namespace, firstPod.Name, "agnhost")
+		secondPodExecutor := executor.ForPod(secondPod.Namespace, secondPod.Name, "agnhost")
 
-		It("should create two pods connected to the l2 overlay", func() {
-			var err error
-			firstPod, err = k8s.CreateAgnhostPod(cs, testNamespace, "pod1", k8s.WithNad(nad.Name, testNamespace, "192.171.24.2/24"))
-			Expect(err).NotTo(HaveOccurred())
-			secondPod, err = k8s.CreateAgnhostPod(cs, testNamespace, "pod2", k8s.WithNad(nad.Name, testNamespace, "192.171.24.3/24"))
-			Expect(err).NotTo(HaveOccurred())
-		})
+		Eventually(func() error {
+			By(fmt.Sprintf("trying to hit second pod %s on the %s network", secondPodIP, l2VniRed.Name))
+			url := fmt.Sprintf("http://%s:8090/clientip", secondPodIP)
+			res, err := podExecutor.Exec("curl", "-sS", url)
+			if err != nil {
+				return fmt.Errorf("curl %s:8090 failed: %s", secondPodIP, res)
+			}
+			clientIP := strings.Split(res, ":")[0]
+			if clientIP != firstPodIP {
+				return fmt.Errorf("curl %s:8090 returned %s, expected %s", secondPodIP, clientIP, firstPodIP)
+			}
 
+			return nil
+		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
+
+		Eventually(func() error {
+			By(fmt.Sprintf("trying to hit second pod %s on the %s network", firstPodIP, l2VniRed.Name))
+			url := fmt.Sprintf("http://%s:8090/clientip", firstPodIP)
+			res, err := secondPodExecutor.Exec("curl", "-sS", url)
+			if err != nil {
+				return fmt.Errorf("curl %s:8090 failed: %s", firstPodIP, res)
+			}
+			clientIP := strings.Split(res, ":")[0]
+			if clientIP != secondPodIP {
+				return fmt.Errorf("curl %s:8090 returned %s, expected %s", firstPodIP, clientIP, secondPodIP)
+			}
+
+			return nil
+		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 	})
 })

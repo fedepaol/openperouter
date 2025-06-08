@@ -21,7 +21,6 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -324,13 +323,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			redistributeConnectedForLeaf(infra.LeafBConfig)
 
 			By("Creating the test namespace")
-			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNamespace}}
-			_, err := cs.CoreV1().Namespaces().Create(context.Background(), &ns, metav1.CreateOptions{})
+			_, err := k8s.CreateNamespace(cs, testNamespace)
 			Expect(err).NotTo(HaveOccurred())
-			Eventually(func() error {
-				_, err := cs.CoreV1().Namespaces().Get(context.Background(), testNamespace, metav1.GetOptions{})
-				return err
-			}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
 
 			By("Creating the test pod")
 			testPod, err = k8s.CreateAgnhostPod(cs, "test-pod", testNamespace)
@@ -367,12 +361,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		AfterEach(func() {
 			By("Deleting the test namespace")
-			err := cs.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
+			err := k8s.DeleteNamespace(cs, testNamespace)
 			Expect(err).NotTo(HaveOccurred())
-			Eventually(func() bool {
-				_, err := cs.CoreV1().Namespaces().Get(context.Background(), testNamespace, metav1.GetOptions{})
-				return errors.IsNotFound(err)
-			}, time.Minute, time.Second).Should(BeTrue())
 		})
 
 		It("should be able to reach the hosts from the test pod and vice versa", func() {

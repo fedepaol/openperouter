@@ -37,7 +37,7 @@ const (
 	l2VNIDeletedTestSelector    = "EXTERNAL.*l2vni.*deleted"
 )
 
-var _ = ginkgo.FDescribe("Router Host configuration", func() {
+var _ = ginkgo.Describe("Router Host configuration", func() {
 	underlay := v1alpha1.Underlay{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "underlay",
