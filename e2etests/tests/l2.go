@@ -128,7 +128,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		_, err = k8s.CreateNamespace(cs, testNamespace)
 		Expect(err).NotTo(HaveOccurred())
 
-		nad, err = k8s.CreateMacvlanNad("110", testNamespace, "br-hs-110", "192.171.1.1")
+		nad, err = k8s.CreateMacvlanNad("110", testNamespace, "br-hs-110", "192.171.24.1")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -143,8 +143,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 	FIt("should create two pods connected to the l2 overlay", func() {
 		var err error
 		const (
-			firstPodIP  = "192.171.1.2"
-			secondPodIP = "192.171.1.3"
+			firstPodIP  = "192.171.24.2"
+			secondPodIP = "192.171.24.3"
 		)
 		nodes, err := k8s.GetNodes(cs)
 		Expect(err).NotTo(HaveOccurred())
