@@ -58,8 +58,6 @@ type HostMaster struct {
 	// +kubebuilder:validation:MaxLength=15
 	// +optional
 	Name string `json:"name,omitempty"`
-	// Type must be "bridge" if set.
-	// +kubebuilder:validation:Enum=bridge
 	Type string `json:"type,omitempty"`
 	// If true, the interface will be created automatically if not present.
 	// +kubebuilder:default:=false

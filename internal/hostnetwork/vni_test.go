@@ -112,7 +112,7 @@ var _ = Describe("L3 VNI configuration", func() {
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 
 		By("checking non needed L3VNIs are removed")
-		hostSide, _ := vethNamesFromVRF(toDelete.VNIParams.VRF)
+		hostSide, _ := vethNamesFromVNI(toDelete.VNIParams.VNI)
 		Eventually(func(g Gomega) {
 			checkLinkdeleted(g, hostSide)
 			_ = inNamespace(testNS, func() error {
@@ -240,8 +240,6 @@ var _ = Describe("L2 VNI configuration", func() {
 		remaining := params[0]
 		toDelete := params[1]
 
-		fmt.Println("ZZZ")
-		time.Sleep(20 * time.Second)
 		By("removing non configured L2VNIs")
 		err := RemoveNonConfiguredVNIs(testNSName, []VNIParams{remaining.VNIParams})
 		Expect(err).NotTo(HaveOccurred())
@@ -257,7 +255,7 @@ var _ = Describe("L2 VNI configuration", func() {
 		}, 30*time.Second, 1*time.Second).Should(Succeed())
 
 		By("checking non needed L2VNIs are removed")
-		hostSide, _ := vethNamesFromVRF(toDelete.VNIParams.VRF)
+		hostSide, _ := vethNamesFromVNI(toDelete.VNIParams.VNI)
 		Eventually(func(g Gomega) {
 			checkLinkdeleted(g, hostSide)
 			checkHostBridgedeleted(g, toDelete)
@@ -301,7 +299,7 @@ var _ = Describe("L2 VNI configuration", func() {
 })
 
 func validateL3HostLeg(g Gomega, params L3VNIParams) {
-	hostSide, _ := vethNamesFromVRF(params.VRF)
+	hostSide, _ := vethNamesFromVNI(params.VNI)
 	hostLegLink, err := netlink.LinkByName(hostSide)
 	g.Expect(err).NotTo(HaveOccurred(), "host side not found", hostSide)
 
@@ -312,7 +310,7 @@ func validateL3HostLeg(g Gomega, params L3VNIParams) {
 }
 
 func validateL2HostLeg(g Gomega, params L2VNIParams) {
-	hostSide, _ := vethNamesFromVRF(params.VRF)
+	hostSide, _ := vethNamesFromVNI(params.VNI)
 	hostLegLink, err := netlink.LinkByName(hostSide)
 	g.Expect(err).NotTo(HaveOccurred(), "host side not found", hostSide)
 
@@ -336,7 +334,7 @@ func validateL2HostLeg(g Gomega, params L2VNIParams) {
 func validateL3VNI(g Gomega, params L3VNIParams) {
 	validateVNI(g, params.VNIParams)
 
-	_, peSide := vethNamesFromVRF(params.VRF)
+	_, peSide := vethNamesFromVNI(params.VNI)
 	peLegLink, err := netlink.LinkByName(peSide)
 	g.Expect(err).NotTo(HaveOccurred(), "veth pe side not found", peSide)
 	g.Expect(peLegLink.Attrs().OperState).To(BeEquivalentTo(netlink.OperUp))
@@ -353,7 +351,7 @@ func validateL3VNI(g Gomega, params L3VNIParams) {
 func validateL2VNI(g Gomega, params L2VNIParams) {
 	validateVNI(g, params.VNIParams)
 
-	_, peSide := vethNamesFromVRF(params.VRF)
+	_, peSide := vethNamesFromVNI(params.VNI)
 	peLegLink, err := netlink.LinkByName(peSide)
 	g.Expect(err).NotTo(HaveOccurred(), "veth pe side not found", peSide)
 	g.Expect(peLegLink.Attrs().OperState).To(BeEquivalentTo(netlink.OperUp))
@@ -408,7 +406,7 @@ func validateVNI(g Gomega, params VNIParams) {
 	err = checkVXLanConfigured(vxlan, bridge.Index, loopback.Attrs().Index, params)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	_, peSide := vethNamesFromVRF(params.VRF)
+	_, peSide := vethNamesFromVNI(params.VNI)
 	peLegLink, err := netlink.LinkByName(peSide)
 	g.Expect(err).NotTo(HaveOccurred(), "veth pe side not found", peSide)
 	g.Expect(peLegLink.Attrs().OperState).To(BeEquivalentTo(netlink.OperUp))
@@ -433,7 +431,7 @@ func validateVNIIsNotConfigured(g Gomega, params VNIParams) {
 	checkLinkdeleted(g, params.VRF)
 	checkLinkdeleted(g, bridgeName(params.VNI))
 
-	_, peSide := vethNamesFromVRF(params.VRF)
+	_, peSide := vethNamesFromVNI(params.VNI)
 	checkLinkdeleted(g, peSide)
 }
 

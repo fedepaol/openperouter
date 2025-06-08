@@ -42,7 +42,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 	l2VniRed := v1alpha1.L2VNI{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "red",
+			Name:      "red110",
 			Namespace: openperouter.Namespace,
 		},
 		Spec: v1alpha1.L2VNISpec{
@@ -175,7 +175,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 
 		Eventually(func() error {
-			By(fmt.Sprintf("trying to hit second pod %s on the %s network", firstPodIP, l2VniRed.Name))
+			By(fmt.Sprintf("trying to hit first pod %s on the %s network", firstPodIP, l2VniRed.Name))
 			url := fmt.Sprintf("http://%s:8090/clientip", firstPodIP)
 			res, err := secondPodExecutor.Exec("curl", "-sS", url)
 			if err != nil {
@@ -188,5 +188,8 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 			return nil
 		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
+
+		fmt.Println("ZZ")
+		time.Sleep(20 * time.Second) // Wait for the pods to be ready and stable
 	})
 })

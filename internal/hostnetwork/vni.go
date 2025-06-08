@@ -71,7 +71,7 @@ func SetupL3VNI(ctx context.Context, params L3VNIParams) error {
 		}
 	}()
 
-	hostSide, peSide := vethNamesFromVRF(params.VRF)
+	hostSide, peSide := vethNamesFromVNI(params.VNI)
 
 	hostVeth, err := netlink.LinkByName(hostSide)
 	if errors.As(err, &netlink.LinkNotFoundError{}) {
@@ -125,7 +125,7 @@ func SetupL2VNI(ctx context.Context, params L2VNIParams) error {
 		}
 	}()
 
-	hostSide, peSide := vethNamesFromVRF(params.VRF)
+	hostSide, peSide := vethNamesFromVNI(params.VNI)
 
 	hostVeth, err := netlink.LinkByName(hostSide)
 	if errors.As(err, &netlink.LinkNotFoundError{}) {
@@ -189,7 +189,7 @@ func setupVNI(ctx context.Context, params VNIParams) error {
 		}
 	}()
 
-	hostVeth, err := setupVeth(ctx, params.VRF, ns)
+	hostVeth, err := setupVeth(ctx, params.VNI, ns)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func setupVNI(ctx context.Context, params VNIParams) error {
 	}
 
 	if err := inNamespace(ns, func() error {
-		_, peSideName := vethNamesFromVRF(params.VRF)
+		_, peSideName := vethNamesFromVNI(params.VNI)
 		peVeth, err := netlink.LinkByName(peSideName)
 		if err != nil {
 			return fmt.Errorf("could not find peer veth %s in namespace %s: %w", peSideName, params.TargetNS, err)
@@ -267,8 +267,12 @@ func RemoveNonConfiguredVNIs(targetNS string, params []VNIParams) error {
 		if !strings.HasPrefix(hl.Attrs().Name, HostVethPrefix) {
 			continue
 		}
-		vrf := vrfFromHostVeth(hl.Attrs().Name)
-		if vrfs[vrf] {
+		vni, err := vniFromHostVeth(hl.Attrs().Name)
+		if err != nil {
+			failedDeletes = append(failedDeletes, fmt.Errorf("remove host leg: %s %w", hl.Attrs().Name, err))
+			continue
+		}
+		if vnis[vni] {
 			continue
 		}
 		if err := netlink.LinkDel(hl); err != nil {

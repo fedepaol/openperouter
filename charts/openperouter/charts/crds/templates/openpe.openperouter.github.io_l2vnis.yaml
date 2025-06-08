@@ -42,13 +42,29 @@ spec:
             description: L2VNISpec defines the desired state of VNI.
             properties:
               hostmaster:
-                description: |-
-                  HostMaster is the interface on the host the veth should be enslaved to.
-                  Typically, this is a linux bridge. If not left, the veth will not be enslaved
-                  and some automation will be required to connect the veth to a svi interface.
-                maxLength: 15
-                pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
-                type: string
+                description: HostMaster is the interface on the host the veth should
+                  be enslaved to.
+                properties:
+                  autocreate:
+                    default: false
+                    description: If true, the interface will be created automatically
+                      if not present.
+                    type: boolean
+                  name:
+                    description: Name of the host interface. Must match VRF name validation
+                      if set.
+                    maxLength: 15
+                    pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
+                    type: string
+                  type:
+                    description: Type must be "bridge" if set.
+                    enum:
+                    - bridge
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: Either name must be set or autocreate must be true.
+                  rule: self.name != '' || self.autocreate == true
               l2gatewayip:
                 description: L2GatewayIP is the IP address to be used for the L2 gateway.
                 type: string

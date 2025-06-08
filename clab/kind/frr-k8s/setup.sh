@@ -11,6 +11,7 @@ kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-c
 
 TEMP_GOBIN=$(mktemp -d)
 GOBIN=$TEMP_GOBIN go install github.com/containernetworking/plugins/plugins/main/macvlan@${MVLAN_VERSION}
+GOBIN=$TEMP_GOBIN go install github.com/containernetworking/plugins/plugins/ipam/static@${MVLAN_VERSION}
 
 CNI_PATH="/opt/cni/bin"
 
@@ -18,5 +19,6 @@ KIND_NODES=$(kind get nodes --name pe-kind)
 
 for NODE in $KIND_NODES; do
   docker cp $TEMP_GOBIN/macvlan $NODE:$CNI_PATH/
+  docker cp $TEMP_GOBIN/static $NODE:$CNI_PATH/
 done
 
