@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Examples on OpenPERouter official docs</title><link>https://openperouter.github.io/docs/examples/</link><description>Recent content in Examples on OpenPERouter official docs</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sun, 15 Jun 2025 15:03:22 +0200</lastBuildDate><atom:link href="https://openperouter.github.io/docs/examples/index.xml" rel="self" type="application/rss+xml"/><item><title>MetalLB Integration</title><link>https://openperouter.github.io/docs/examples/metallb/</link><pubDate>Sun, 15 Jun 2025 15:03:22 +0200</pubDate><guid>https://openperouter.github.io/docs/examples/metallb/</guid><description>&lt;p>This example demonstrates how to integrate OpenPERouter with MetalLB to advertise LoadBalancer services across the EVPN fabric, enabling external access to Kubernetes services.&lt;/p>
+&lt;h2 id="overview">
+ Overview
+ &lt;a class="anchor" href="#overview">#&lt;/a>
+&lt;/h2>
+&lt;p>MetalLB provides load balancing for Kubernetes services by advertising service IPs via BGP. When integrated with OpenPERouter, these BGP routes are automatically converted to EVPN Type 5 routes, making the services reachable across the entire fabric.&lt;/p>
+&lt;h3 id="example-setup">
+ Example Setup
+ &lt;a class="anchor" href="#example-setup">#&lt;/a>
+&lt;/h3>
+&lt;p>The full example can be found in the &lt;a href="https://github.com/openperouter/openperouter/examples/metallb">project repository&lt;/a> and can be deployed by running&lt;/p></description></item><item><title>Calico Integration</title><link>https://openperouter.github.io/docs/examples/calico/</link><pubDate>Sun, 15 Jun 2025 15:03:22 +0200</pubDate><guid>https://openperouter.github.io/docs/examples/calico/</guid><description>&lt;p>This example demonstrates how to integrate OpenPERouter with Calico to advertise the pod network via an L3 EVPN and to allow pod-to-pod traffic via a VXLAN overlay.&lt;/p>
+&lt;h2 id="overview">
+ Overview
+ &lt;a class="anchor" href="#overview">#&lt;/a>
+&lt;/h2>
+&lt;p>Calico allows each node to establish a BGP session with a router to advertise the pod network of each node and to allow pod-to-pod traffic to flow. Here we leverage OpenPERouter to provide a seamless integration with the EVPN fabric.&lt;/p></description></item><item><title>Layer 2 Integration</title><link>https://openperouter.github.io/docs/examples/layer2/</link><pubDate>Sun, 15 Jun 2025 15:03:22 +0200</pubDate><guid>https://openperouter.github.io/docs/examples/layer2/</guid><description>&lt;p>This example demonstrates how to integrate OpenPERouter with Multus to have a pod&amp;rsquo;s secondary interface connected to a layer 2 overlay.&lt;/p>
+&lt;h2 id="overview">
+ Overview
+ &lt;a class="anchor" href="#overview">#&lt;/a>
+&lt;/h2>
+&lt;p>A layer 2 VNI is created, exposing a layer 2 domain on the host. On each node, a pod is created with a macvlan interface enslaved to that domain via a Linux bridge.&lt;/p>
+&lt;h3 id="example-setup">
+ Example Setup
+ &lt;a class="anchor" href="#example-setup">#&lt;/a>
+&lt;/h3>
+&lt;p>The full example can be found in the &lt;a href="https://github.com/openperouter/openperouter/examples/layer2">project repository&lt;/a> and can be deployed by running:&lt;/p></description></item></channel></rss>
