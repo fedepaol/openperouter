@@ -207,14 +207,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:      "l3 vni without hostsession",
+			name:      "l3vni without host session",
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
 				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
 			},
 			vnis: []v1alpha1.L3VNI{
-				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), VNI: 100, VXLanPort: 4789}},
+				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: nil, VNI: 100, VXLanPort: 4789}},
 			},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",

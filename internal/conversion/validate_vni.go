@@ -29,8 +29,7 @@ func ValidateL3VNIs(l3Vnis []v1alpha1.L3VNI) error {
 			continue
 		}
 		if vni.Spec.HostSession.HostASN == vni.Spec.HostSession.ASN {
-			return fmt.Errorf("l3vni %s local ASN %d must be different from remote ASN %d", vni.Name,
-				vni.Spec.HostSession.HostASN, vni.Spec.HostSession.ASN)
+			return fmt.Errorf("l3vni %s local ASN %d must be different from remote ASN %d", vni.Name, vni.Spec.HostSession.HostASN, vni.Spec.HostSession.ASN)
 		}
 		if vni.Spec.HostSession.LocalCIDR.IPv4 != "" {
 			if err := validateCIDRForVNI(vni, vni.Spec.HostSession.LocalCIDR.IPv4, existingCIDRsV4); err != nil {
