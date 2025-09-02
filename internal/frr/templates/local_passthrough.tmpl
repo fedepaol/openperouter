@@ -1,0 +1,19 @@
+{{ define "localpassthrough"}}
+
+{{- if .Underlay.Passthrough.LocalNeighbor }}
+{{- template "neighborsession" dict "neighbor" .Underlay.Passthrough.LocalNeighbor "routerASN" $.Underlay.MyASN -}}
+{{- template "neighborenableipfamily" .Underlay.Passthrough.LocalNeighbor }}
+{{- end }}
+
+  address-family ipv4 unicast
+{{- range $a := .Underlay.Passthrough.ToAdvertiseIPv4 }}
+    network {{ $a }}
+{{- end }}
+  exit-address-family
+
+  address-family ipv6 unicast
+{{- range $a := .Underlay.Passthrough.ToAdvertiseIPv6 }}
+    network {{ $a }}
+{{- end }}
+  exit-address-family
+{{ end }}

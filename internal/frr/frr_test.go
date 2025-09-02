@@ -28,8 +28,10 @@ func TestBasic(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -69,8 +71,10 @@ func TestDualStack(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -113,8 +117,10 @@ func TestIPv6Only(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -166,8 +172,10 @@ func TestNoVNIs(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -191,8 +199,10 @@ func TestBFDEnabled(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -217,8 +227,10 @@ func TestBFDProfile(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -234,6 +246,64 @@ func TestBFDProfile(t *testing.T) {
 			{
 				Name:            "foo",
 				ReceiveInterval: ptr.To(uint32(43)),
+			},
+		},
+	}
+	if err := ApplyConfig(context.TODO(), &config, updater); err != nil {
+		t.Fatalf("Failed to apply config: %s", err)
+	}
+
+	testCheckConfigFile(t)
+}
+
+func TestPassthrough(t *testing.T) {
+	configFile := testSetup(t)
+	updater := testUpdater(configFile)
+
+	config := Config{
+		Underlay: UnderlayConfig{
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
+			RouterID: "10.0.0.1",
+			Neighbors: []NeighborConfig{
+				{
+					ASN:      64512,
+					Addr:     "192.168.1.2",
+					IPFamily: ipfamily.IPv4,
+				},
+			},
+			Passthrough: &PassthroughConfig{
+				LocalNeighbor: NeighborConfig{
+					ASN:      64512,
+					Addr:     "192.168.1.3",
+					IPFamily: ipfamily.IPv4,
+				},
+				ToAdvertiseIPv4: []string{
+					"192.169.20.0/24",
+					"192.169.21.0/24",
+				},
+				ToAdvertiseIPv6: []string{
+					"2001:db8:20::/64",
+					"2001:db8:21::/64",
+				},
+			},
+		},
+		VNIs: []L3VNIConfig{
+			{
+				VRF:      "red",
+				ASN:      64512,
+				VNI:      100,
+				RouterID: "10.0.0.1",
+				LocalNeighbor: &NeighborConfig{
+					ASN:      64512,
+					Addr:     "192.168.1.2",
+					IPFamily: ipfamily.IPv4,
+				},
+				ToAdvertiseIPv4: []string{
+					"192.169.10.2/24",
+				},
 			},
 		},
 	}
