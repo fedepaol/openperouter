@@ -5,6 +5,7 @@ package conversion
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
+
+const defaultRouterIDCidr = "10.0.0.0/24"
 
 type FRREmptyConfigError string
 
@@ -49,14 +52,21 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 			bfdProfiles = append(bfdProfiles, *bfdProfile)
 		}
 	}
+
+	routerID, err := routerIDFromUnderlay(underlay, nodeIndex)
+	if err != nil {
+		return frr.Config{}, fmt.Errorf("failed to get routerID: %w", err)
+	}
+
 	underlayConfig := frr.UnderlayConfig{
 		MyASN:     underlay.Spec.ASN,
 		VTEP:      vtepIP.String(),
+		RouterID:  routerID,
 		Neighbors: underlayNeighbors,
 	}
 	vniConfigs := []frr.L3VNIConfig{}
 	for _, vni := range vnis {
-		frrVNI, err := l3vniToFRR(vni, underlay.Spec.ASN, nodeIndex)
+		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Spec.ASN, nodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate vni to frr: %w, vni %v", err, vni)
 		}
@@ -71,13 +81,14 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 	}, nil
 }
 
-func l3vniToFRR(vni v1alpha1.L3VNI, underlayASN uint32, nodeIndex int) ([]frr.L3VNIConfig, error) {
+func l3vniToFRR(vni v1alpha1.L3VNI, routerID string, underlayASN uint32, nodeIndex int) ([]frr.L3VNIConfig, error) {
 	if vni.Spec.HostSession == nil { // no neighbor, just the vni / vrf
 		return []frr.L3VNIConfig{
 			{
-				VNI: int(vni.Spec.VNI),
-				VRF: vni.VRFName(),
-				ASN: underlayASN, // Since there is no session, the ASN is arbitrary
+				VNI:      int(vni.Spec.VNI),
+				VRF:      vni.VRFName(),
+				ASN:      underlayASN, // Since there is no session, the ASN is arbitrary
+				RouterID: routerID,
 			},
 		}, nil
 	}
@@ -91,13 +102,13 @@ func l3vniToFRR(vni v1alpha1.L3VNI, underlayASN uint32, nodeIndex int) ([]frr.L3
 
 	// Create IPv4 neighbor if IPv4 IP is available
 	if veths.Ipv4.HostSide.IP != nil {
-		config := createVNIConfig(vni, veths.Ipv4.HostSide.IP, net.CIDRMask(32, 32))
+		config := createVNIConfig(vni, veths.Ipv4.HostSide.IP, net.CIDRMask(32, 32), routerID)
 		configs = append(configs, config)
 	}
 
 	// Create IPv6 neighbor if IPv6 IP is available
 	if veths.Ipv6.HostSide.IP != nil {
-		config := createVNIConfig(vni, veths.Ipv6.HostSide.IP, net.CIDRMask(128, 128))
+		config := createVNIConfig(vni, veths.Ipv6.HostSide.IP, net.CIDRMask(128, 128), routerID)
 		configs = append(configs, config)
 	}
 
@@ -109,7 +120,7 @@ func l3vniToFRR(vni v1alpha1.L3VNI, underlayASN uint32, nodeIndex int) ([]frr.L3
 }
 
 // createVNIConfig creates a VNI configuration for a specific IP family
-func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask) frr.L3VNIConfig {
+func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask, routerID string) frr.L3VNIConfig {
 	vniNeighbor := &frr.NeighborConfig{
 		Addr: hostIP.String(),
 	}
@@ -127,6 +138,7 @@ func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask) frr.L3V
 		ASN:           vni.Spec.HostSession.ASN,
 		VNI:           int(vni.Spec.VNI),
 		VRF:           vni.VRFName(),
+		RouterID:      routerID,
 		LocalNeighbor: vniNeighbor,
 	}
 
@@ -258,4 +270,17 @@ func durationToUint64(value time.Duration) (uint64, error) {
 		return 0, fmt.Errorf("cannot convert negative value to uint64: %d", value)
 	}
 	return uint64(value), nil // #nosec G115
+}
+
+func routerIDFromUnderlay(underlay v1alpha1.Underlay, nodeIndex int) (string, error) {
+	routerIDCidr := underlay.Spec.RouterIDCIDR
+	if underlay.Spec.RouterIDCIDR == "" {
+		routerIDCidr = defaultRouterIDCidr
+		slog.Info("empty routerid cidr, using the default one", "underlay", underlay.Name, "default cidr", defaultRouterIDCidr)
+	}
+	routerID, err := ipam.RouterID(routerIDCidr, nodeIndex)
+	if err != nil {
+		return "", fmt.Errorf("failed to get router id, cidr %s, nodeIndex %d: %w", underlay.Spec.RouterIDCIDR, nodeIndex, err)
+	}
+	return routerID, nil
 }
