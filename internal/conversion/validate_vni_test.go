@@ -22,7 +22,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni1"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1001,
+						VNI: 1001,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65001,
 							HostASN:   65002,
@@ -34,7 +34,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni2"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1002,
+						VNI: 1002,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65003,
 							HostASN:   65004,
@@ -52,7 +52,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni1"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1001,
+						VNI: 1001,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65001,
 							HostASN:   65002,
@@ -64,7 +64,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni2"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1002,
+						VNI: 1002,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65003,
 							HostASN:   65004,
@@ -82,7 +82,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni1"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1001,
+						VNI: 1001,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65001,
 							HostASN:   65002,
@@ -94,7 +94,7 @@ func TestValidateVNIs(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "vni2"},
 					Spec: v1alpha1.L3VNISpec{
-						VNI:         1002,
+						VNI: 1002,
 						HostSession: &v1alpha1.HostSession{
 							ASN:       65003,
 							HostASN:   65004,
