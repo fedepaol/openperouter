@@ -275,7 +275,7 @@ func TestPassthrough(t *testing.T) {
 				},
 			},
 			Passthrough: &PassthroughConfig{
-				LocalNeighbor: NeighborConfig{
+				LocalNeighbor: &NeighborConfig{
 					ASN:      64512,
 					Addr:     "192.168.1.3",
 					IPFamily: ipfamily.IPv4,

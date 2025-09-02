@@ -35,7 +35,7 @@ func TestValidateUnderlay(t *testing.T) {
 					ASN:  65001,
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "invalid VTEP CIDR",
@@ -90,16 +90,6 @@ func TestValidateUnderlay(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing EVPN configuration",
-			underlay: v1alpha1.Underlay{
-				Spec: v1alpha1.UnderlaySpec{
-					Nics: []string{"eth0"},
-					ASN:  65001,
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "valid underlay with no nics",
 			underlay: v1alpha1.Underlay{
 				Spec: v1alpha1.UnderlaySpec{
@@ -111,16 +101,6 @@ func TestValidateUnderlay(t *testing.T) {
 				},
 			},
 			wantErr: false,
-		},
-		{
-			name: "missing EVPN configuration",
-			underlay: v1alpha1.Underlay{
-				Spec: v1alpha1.UnderlaySpec{
-					Nics: []string{"eth0"},
-					ASN:  65001,
-				},
-			},
-			wantErr: true,
 		},
 		{
 			name: "more than one nic",
