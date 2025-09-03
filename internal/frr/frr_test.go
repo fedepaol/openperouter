@@ -256,14 +256,16 @@ func TestBFDProfile(t *testing.T) {
 	testCheckConfigFile(t)
 }
 
-func TestL3VNIWithoutLocalNeighborAndAdvertise(t *testing.T) {
+func TestPassthroughV4(t *testing.T) {
 	configFile := testSetup(t)
 	updater := testUpdater(configFile)
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -272,13 +274,79 @@ func TestL3VNIWithoutLocalNeighborAndAdvertise(t *testing.T) {
 					IPFamily: ipfamily.IPv4,
 				},
 			},
+			Passthrough: &PassthroughConfig{
+				LocalNeighborV4: &NeighborConfig{
+					ASN:      64512,
+					Addr:     "192.168.1.3",
+					IPFamily: ipfamily.IPv4,
+				},
+				ToAdvertiseIPv4: []string{
+					"192.169.20.0/24",
+					"192.169.21.0/24",
+				},
+			},
+		},
+	}
+	if err := ApplyConfig(context.TODO(), &config, updater); err != nil {
+		t.Fatalf("Failed to apply config: %s", err)
+	}
+
+	testCheckConfigFile(t)
+}
+
+func TestPassthroughDual(t *testing.T) {
+	configFile := testSetup(t)
+	updater := testUpdater(configFile)
+
+	config := Config{
+		Underlay: UnderlayConfig{
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
+			RouterID: "10.0.0.1",
+			Neighbors: []NeighborConfig{
+				{
+					ASN:      64512,
+					Addr:     "192.168.1.2",
+					IPFamily: ipfamily.IPv4,
+				},
+			},
+			Passthrough: &PassthroughConfig{
+				LocalNeighborV4: &NeighborConfig{
+					ASN:      64512,
+					Addr:     "192.168.1.3",
+					IPFamily: ipfamily.IPv4,
+				},
+				LocalNeighborV6: &NeighborConfig{
+					ASN:      64512,
+					Addr:     "2001:db8:20::2",
+					IPFamily: ipfamily.IPv6,
+				},
+				ToAdvertiseIPv4: []string{
+					"192.169.20.0/24",
+					"192.169.21.0/24",
+				},
+				ToAdvertiseIPv6: []string{
+					"2001:db8:20::/64",
+					"2001:db8:21::/64",
+				},
+			},
 		},
 		VNIs: []L3VNIConfig{
 			{
-				RouterID: "10.0.0.1",
 				VRF:      "red",
-				VNI:      100,
 				ASN:      64512,
+				VNI:      100,
+				RouterID: "10.0.0.1",
+				LocalNeighbor: &NeighborConfig{
+					ASN:      64512,
+					Addr:     "192.168.1.2",
+					IPFamily: ipfamily.IPv4,
+				},
+				ToAdvertiseIPv4: []string{
+					"192.169.10.2/24",
+				},
 			},
 		},
 	}
