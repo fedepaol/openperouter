@@ -60,6 +60,9 @@ type requestKey string
 // +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=underlays,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=underlays/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=underlays/finalizers,verbs=update
+// +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=l3passthroughs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=l3passthroughs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=openpe.openperouter.github.io,resources=l3passthroughs/finalizers,verbs=update
 
 func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Logger.With("controller", "RouterConfiguration", "request", req.String())
@@ -112,19 +115,26 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	var l3passthrough v1alpha1.L3PassthroughList
+	if err := r.List(ctx, &l3passthrough); err != nil {
+		slog.Error("failed to list l3passthrough", "error", err)
+		return ctrl.Result{}, err
+	}
+
 	logger.Debug("using config", "l3vnis", l3vnis.Items, "l2vnis", l2vnis.Items, "underlays", underlays.Items)
 	if err := conversion.ValidateL2VNIs(l2vnis.Items); err != nil {
 		slog.Error("failed to validate l2vnis", "error", err)
 		return ctrl.Result{}, nil
 	}
 	if err := configureFRR(ctx, frrConfigData{
-		configFile: r.FRRConfig,
-		address:    routerPod.Status.PodIP,
-		port:       r.ReloadPort,
-		nodeIndex:  nodeIndex,
-		underlays:  underlays.Items,
-		logLevel:   r.LogLevel,
-		l3vnis:     l3vnis.Items,
+		configFile:    r.FRRConfig,
+		address:       routerPod.Status.PodIP,
+		port:          r.ReloadPort,
+		nodeIndex:     nodeIndex,
+		underlays:     underlays.Items,
+		logLevel:      r.LogLevel,
+		l3vnis:        l3vnis.Items,
+		l3passthrough: l3passthrough.Items,
 	}); err != nil {
 		slog.Error("failed to reload frr config", "error", err)
 		return ctrl.Result{}, err
@@ -137,6 +147,7 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		Underlays:     underlays.Items,
 		L3Vnis:        l3vnis.Items,
 		L2Vnis:        l2vnis.Items,
+		L3Passthrough: l3passthrough.Items,
 	})
 
 	if nonRecoverableHostError(err) {

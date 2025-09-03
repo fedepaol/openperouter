@@ -15,18 +15,26 @@ import (
 )
 
 type frrConfigData struct {
-	configFile string
-	address    string
-	port       int
-	nodeIndex  int
-	logLevel   string
-	underlays  []v1alpha1.Underlay
-	l3vnis     []v1alpha1.L3VNI
+	configFile    string
+	address       string
+	port          int
+	nodeIndex     int
+	logLevel      string
+	underlays     []v1alpha1.Underlay
+	l3vnis        []v1alpha1.L3VNI
+	l3passthrough []v1alpha1.L3Passthrough
 }
 
 func configureFRR(ctx context.Context, data frrConfigData) error {
 	slog.DebugContext(ctx, "reloading FRR config", "config", data)
-	frrConfig, err := conversion.APItoFRR(data.nodeIndex, data.underlays, data.l3vnis, data.logLevel)
+	apiConfig := conversion.ApiConfigData{
+		NodeIndex:     data.nodeIndex,
+		Underlays:     data.underlays,
+		L3VNIs:        data.l3vnis,
+		L3Passthrough: data.l3passthrough,
+		LogLevel:      data.logLevel,
+	}
+	frrConfig, err := conversion.APItoFRR(data.nodeIndex, apiConfig, data.logLevel)
 	emptyConfig := conversion.FRREmptyConfigError("")
 	if errors.As(err, &emptyConfig) {
 		slog.InfoContext(ctx, "reloading FRR config", "empty config", data, "event", "cleaning the frr configuration")
