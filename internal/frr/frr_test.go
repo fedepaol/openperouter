@@ -28,8 +28,10 @@ func TestBasic(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -69,8 +71,10 @@ func TestDualStack(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -113,8 +117,10 @@ func TestIPv6Only(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -166,8 +172,10 @@ func TestNoVNIs(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -191,8 +199,10 @@ func TestBFDEnabled(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{
@@ -217,8 +227,10 @@ func TestBFDProfile(t *testing.T) {
 
 	config := Config{
 		Underlay: UnderlayConfig{
-			MyASN:    64512,
-			VTEP:     "100.64.0.1/32",
+			MyASN: 64512,
+			EVPN: &UnderlayEvpn{
+				VTEP: "100.64.0.1/32",
+			},
 			RouterID: "10.0.0.1",
 			Neighbors: []NeighborConfig{
 				{

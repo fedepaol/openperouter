@@ -38,8 +38,8 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth1"}, VTEPCIDR: "10.0.1.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth1"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.1.0/24"}}},
 			},
 			vnis:         []v1alpha1.L3VNI{},
 			wantUnderlay: hostnetwork.UnderlayParams{},
@@ -50,7 +50,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			vnis: []v1alpha1.L3VNI{
 				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: "10.1.0.0/24"}}, VNI: 100, VXLanPort: 4789}},
@@ -58,7 +58,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{
 				{
@@ -83,7 +85,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			vnis: []v1alpha1.L3VNI{
 				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv6: "2001:db8::/64"}}, VNI: 100, VXLanPort: 4789}},
@@ -91,7 +93,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{
 				{
@@ -116,7 +120,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			vnis: []v1alpha1.L3VNI{
 				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: "10.1.0.0/24", IPv6: "2001:db8::/64"}}, VNI: 100, VXLanPort: 4789}},
@@ -124,7 +128,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{
 				{
@@ -151,7 +157,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			l2vnis: []v1alpha1.L2VNI{
 				{Spec: v1alpha1.L2VNISpec{VNI: 200, VXLanPort: 4789}},
@@ -159,7 +165,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{},
 			wantL2VNIParams: []hostnetwork.L2VNIParams{
@@ -181,7 +189,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			l2vnis: []v1alpha1.L2VNI{
 				{Spec: v1alpha1.L2VNISpec{VNI: 201, VXLanPort: 4789, HostMaster: &v1alpha1.HostMaster{Name: "br0"}, L2GatewayIP: "192.168.100.1/24"}},
@@ -189,7 +197,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{},
 			wantL2VNIParams: []hostnetwork.L2VNIParams{
@@ -211,7 +221,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			nodeIndex: 0,
 			targetNS:  "namespace",
 			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, VTEPCIDR: "10.0.0.0/24"}},
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
 			},
 			vnis: []v1alpha1.L3VNI{
 				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), VNI: 100, VXLanPort: 4789}},
@@ -219,7 +229,9 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
-				VtepIP:            "10.0.0.0/32",
+				EVPN: &hostnetwork.UnderlayEVPNParams{
+					VtepIP: "10.0.0.0/32",
+				},
 			},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{
 				{
@@ -234,6 +246,23 @@ func TestAPItoHostConfig(t *testing.T) {
 				},
 			},
 			wantL2VNIParams: []hostnetwork.L2VNIParams{},
+			wantErr:         false,
+		},
+		{
+			name:      "underlay without evpn",
+			nodeIndex: 0,
+			targetNS:  "namespace",
+			underlays: []v1alpha1.Underlay{
+				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}}},
+			},
+			vnis:   []v1alpha1.L3VNI{},
+			l2vnis: []v1alpha1.L2VNI{},
+			wantUnderlay: hostnetwork.UnderlayParams{
+				UnderlayInterface: "eth0",
+				TargetNS:          "namespace",
+			},
+			wantL3VNIParams: nil,
+			wantL2VNIParams: nil,
 			wantErr:         false,
 		},
 	}

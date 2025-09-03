@@ -21,21 +21,30 @@ func APItoHostConfig(nodeIndex int, targetNS string, underlays []v1alpha1.Underl
 
 	underlay := underlays[0]
 
-	vtepIP, err := ipam.VTEPIp(underlay.Spec.VTEPCIDR, nodeIndex)
-	if err != nil {
-		return hostnetwork.UnderlayParams{}, nil, nil, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Spec.VTEPCIDR, nodeIndex)
-	}
-
 	underlayParams := hostnetwork.UnderlayParams{
 		UnderlayInterface: underlay.Spec.Nics[0],
 		TargetNS:          targetNS,
-		VtepIP:            vtepIP.String(),
+	}
+
+	if underlay.Spec.EVPN == nil && (len(vnis) > 0 || len(l2vnis) > 0) {
+		return hostnetwork.UnderlayParams{}, nil, nil, fmt.Errorf("underlay EVPN configuration is required when L3 or L2 VNIs are defined")
+	}
+
+	if underlay.Spec.EVPN == nil {
+		return underlayParams, nil, nil, nil
+	}
+
+	vtepIP, err := ipam.VTEPIp(underlay.Spec.EVPN.VTEPCIDR, nodeIndex)
+	if err != nil {
+		return hostnetwork.UnderlayParams{}, nil, nil, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Spec.EVPN.VTEPCIDR, nodeIndex)
+	}
+	underlayParams.EVPN = &hostnetwork.UnderlayEVPNParams{
+		VtepIP: vtepIP.String(),
 	}
 
 	l3vniParams := []hostnetwork.L3VNIParams{}
 
 	for _, vni := range vnis {
-
 		v := hostnetwork.L3VNIParams{
 			VNIParams: hostnetwork.VNIParams{
 				VRF:       vni.VRFName(),

@@ -34,10 +34,7 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 	}
 
 	underlay := underlays[0]
-	vtepIP, err := ipam.VTEPIp(underlay.Spec.VTEPCIDR, nodeIndex)
-	if err != nil {
-		return frr.Config{}, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Spec.VTEPCIDR, nodeIndex)
-	}
+
 	underlayNeighbors := []frr.NeighborConfig{}
 	bfdProfiles := []frr.BFDProfile{}
 	for _, n := range underlay.Spec.Neighbors {
@@ -60,10 +57,30 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 
 	underlayConfig := frr.UnderlayConfig{
 		MyASN:     underlay.Spec.ASN,
-		VTEP:      vtepIP.String(),
 		RouterID:  routerID,
 		Neighbors: underlayNeighbors,
 	}
+
+	if len(vnis) > 0 && underlay.Spec.EVPN == nil {
+		return frr.Config{}, fmt.Errorf("EVPN configuration is required when L3 VNIs are defined")
+	}
+	if underlay.Spec.EVPN == nil {
+		return frr.Config{
+			Underlay:    underlayConfig,
+			BFDProfiles: bfdProfiles,
+			Loglevel:    logLevel,
+			VNIs:        []frr.L3VNIConfig{},
+		}, nil
+	}
+
+	vtepIP, err := ipam.VTEPIp(underlay.Spec.EVPN.VTEPCIDR, nodeIndex)
+	if err != nil {
+		return frr.Config{}, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Spec.EVPN.VTEPCIDR, nodeIndex)
+	}
+	underlayConfig.EVPN = &frr.UnderlayEvpn{
+		VTEP: vtepIP.String(),
+	}
+
 	vniConfigs := []frr.L3VNIConfig{}
 	for _, vni := range vnis {
 		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Spec.ASN, nodeIndex)

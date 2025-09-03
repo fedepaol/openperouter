@@ -29,9 +29,13 @@ type Config struct {
 
 type UnderlayConfig struct {
 	MyASN     uint32
-	VTEP      string
 	RouterID  string
 	Neighbors []NeighborConfig
+	EVPN      *UnderlayEvpn
+}
+
+type UnderlayEvpn struct {
+	VTEP string
 }
 
 type L3VNIConfig struct {
