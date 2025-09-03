@@ -71,11 +71,8 @@ func setupNamespacedVeth(ctx context.Context, vethNames VethNames, namespace str
 		return fmt.Errorf("could not find peer veth for %s: %w", vethNames.HostSide, err)
 	}
 	nsSide, err := netlink.LinkByIndex(peerIndex)
-	if errors.As(err, &netlink.LinkNotFoundError{}) {
-		return fmt.Errorf("peer veth not found by index for %s: %w", vethNames.HostSide, err)
-	}
 
-	if err != nil {
+	if err != nil && !errors.As(err, &netlink.LinkNotFoundError{}) { // real error
 		return fmt.Errorf("could not find peer by index for %s: %w", vethNames.HostSide, err)
 	}
 
