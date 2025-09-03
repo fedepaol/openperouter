@@ -25,15 +25,18 @@ func (e FRREmptyConfigError) Error() string {
 	return string(e)
 }
 
-func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VNI, logLevel string) (frr.Config, error) {
-	if len(underlays) > 1 {
+func APItoFRR(nodeIndex int, apiConfig ApiConfigData, logLevel string) (frr.Config, error) {
+	if len(apiConfig.Underlays) > 1 {
 		return frr.Config{}, errors.New("multiple underlays defined")
 	}
-	if len(underlays) == 0 {
+	if len(apiConfig.Underlays) == 0 {
 		return frr.Config{}, FRREmptyConfigError("no underlays provided")
 	}
+	if len(apiConfig.L3Passthrough) > 1 {
+		return frr.Config{}, errors.New("multiple passthrough defined, can have only one")
+	}
 
-	underlay := underlays[0]
+	underlay := apiConfig.Underlays[0]
 
 	underlayNeighbors := []frr.NeighborConfig{}
 	bfdProfiles := []frr.BFDProfile{}
@@ -61,7 +64,15 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 		Neighbors: underlayNeighbors,
 	}
 
-	if len(vnis) > 0 && underlay.Spec.EVPN == nil {
+	if len(apiConfig.L3Passthrough) > 0 {
+		passthrough, err := passthroughToFRR(apiConfig.L3Passthrough[0], nodeIndex)
+		if err != nil {
+			return frr.Config{}, fmt.Errorf("failed to translate passthrough to frr: %w", err)
+		}
+		underlayConfig.Passthrough = passthrough
+	}
+
+	if len(apiConfig.L3VNIs) > 0 && underlay.Spec.EVPN == nil {
 		return frr.Config{}, fmt.Errorf("EVPN configuration is required when L3 VNIs are defined")
 	}
 	if underlay.Spec.EVPN == nil {
@@ -82,7 +93,7 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 	}
 
 	vniConfigs := []frr.L3VNIConfig{}
-	for _, vni := range vnis {
+	for _, vni := range apiConfig.L3VNIs {
 		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Spec.ASN, nodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate vni to frr: %w, vni %v", err, vni)
@@ -96,6 +107,39 @@ func APItoFRR(nodeIndex int, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VN
 		BFDProfiles: bfdProfiles,
 		Loglevel:    logLevel,
 	}, nil
+}
+
+func passthroughToFRR(passthrough v1alpha1.L3Passthrough, nodeIndex int) (*frr.PassthroughConfig, error) {
+	if passthrough.Spec.HostSession == nil {
+		return nil, fmt.Errorf("host session is required for passthrough")
+	}
+
+	vethIPs, err := ipam.VethIPsFromPool(passthrough.Spec.HostSession.LocalCIDR.IPv4, passthrough.Spec.HostSession.LocalCIDR.IPv6, nodeIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get veth ips, cidr %v, nodeIndex %d", passthrough.Spec.HostSession.LocalCIDR, nodeIndex)
+	}
+
+	res := &frr.PassthroughConfig{
+		ToAdvertiseIPv4: []string{},
+		ToAdvertiseIPv6: []string{},
+	}
+
+	if vethIPs.Ipv4.HostSide.IP != nil {
+		res.LocalNeighborV4 = &frr.NeighborConfig{
+			ASN:  passthrough.Spec.HostSession.ASN,
+			Addr: vethIPs.Ipv4.HostSide.IP.String(),
+		}
+		res.ToAdvertiseIPv4 = append(res.ToAdvertiseIPv4, vethIPs.Ipv4.HostSide.IP.String())
+	}
+	if vethIPs.Ipv6.HostSide.IP != nil {
+		res.LocalNeighborV6 = &frr.NeighborConfig{
+			ASN:  passthrough.Spec.HostSession.ASN,
+			Addr: vethIPs.Ipv6.HostSide.IP.String(),
+		}
+		res.ToAdvertiseIPv6 = append(res.ToAdvertiseIPv6, vethIPs.Ipv6.HostSide.IP.String())
+	}
+
+	return res, nil
 }
 
 func l3vniToFRR(vni v1alpha1.L3VNI, routerID string, underlayASN uint32, nodeIndex int) ([]frr.L3VNIConfig, error) {
