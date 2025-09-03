@@ -130,6 +130,9 @@ func validateL3VNI(l3vni *v1alpha1.L3VNI) error {
 	if err := ValidateL3VNIs(toValidate); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
+	if err := validateHostSessions(); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
 	return nil
 }
 

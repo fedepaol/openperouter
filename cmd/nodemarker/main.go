@@ -243,5 +243,9 @@ func setupWebhook(mgr manager.Manager, logger *slog.Logger) error {
 		logger.Error("unable to create the webook", "error", err, "webhook", "Underlays")
 		return err
 	}
+	if err := webhooks.SetupL3Passthrough(mgr); err != nil {
+		logger.Error("unable to create the webook", "error", err, "webhook", "L3Passthroughs")
+		return err
+	}
 	return nil
 }
