@@ -271,9 +271,11 @@ var _ = Describe("Underlay BFD Configuration", Ordered, func() {
 					Namespace: openperouter.Namespace,
 				},
 				Spec: v1alpha1.UnderlaySpec{
-					ASN:      64514,
-					VTEPCIDR: "100.65.0.0/24",
-					Nics:     []string{"toswitch"},
+					ASN:  64514,
+					Nics: []string{"toswitch"},
+					EVPN: &v1alpha1.EVPNConfig{
+						VTEPCIDR: "100.65.0.0/24",
+					},
 					Neighbors: []v1alpha1.Neighbor{
 						{
 							ASN:     64512,
@@ -290,9 +292,11 @@ var _ = Describe("Underlay BFD Configuration", Ordered, func() {
 					Namespace: openperouter.Namespace,
 				},
 				Spec: v1alpha1.UnderlaySpec{
-					ASN:      64514,
-					VTEPCIDR: "100.65.0.0/24",
-					Nics:     []string{"toswitch"},
+					ASN:  64514,
+					Nics: []string{"toswitch"},
+					EVPN: &v1alpha1.EVPNConfig{
+						VTEPCIDR: "100.65.0.0/24",
+					},
 					Neighbors: []v1alpha1.Neighbor{
 						{
 							ASN:     64512,

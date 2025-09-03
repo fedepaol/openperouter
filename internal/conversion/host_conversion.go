@@ -11,6 +11,19 @@ import (
 	"github.com/openperouter/openperouter/internal/ipam"
 )
 
+type APIConfig struct {
+	Underlays   []v1alpha1.Underlay
+	VNIs        []v1alpha1.L3VNI
+	L2VNIs      []v1alpha1.L2VNI
+	Passthrough []v1alpha1.L3Passthrough
+}
+
+type HostConfig struct {
+	UnderlayParams hostnetwork.UnderlayParams
+	L3VNIParams    []hostnetwork.L3VNIParams
+	L2VNIParams    []hostnetwork.L2VNIParams
+}
+
 func APItoHostConfig(nodeIndex int, targetNS string, underlays []v1alpha1.Underlay, vnis []v1alpha1.L3VNI, l2vnis []v1alpha1.L2VNI) (hostnetwork.UnderlayParams, []hostnetwork.L3VNIParams, []hostnetwork.L2VNIParams, error) {
 	if len(underlays) > 1 {
 		return hostnetwork.UnderlayParams{}, nil, nil, fmt.Errorf("can't have more than one underlay")

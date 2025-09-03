@@ -120,7 +120,8 @@ func SetupL3VNI(ctx context.Context, params L3VNIParams) error {
 		if err != nil {
 			return fmt.Errorf("failed to set vrf %s as master of pe veth %s: %w", params.VRF, peVeth.Attrs().Name, err)
 		}
-
+		// Note: since the ipv6 address is removed after enslaving the veth to the vrf, this has to
+		// be performed after the veth is enslaved to the vrf.
 		err = assignIPsToInterface(peVeth, params.HostVeth.NSIPv4, params.HostVeth.NSIPv6)
 		if err != nil {
 			return fmt.Errorf("failed to assign IPs to PE veth: %w", err)
