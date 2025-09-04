@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	HostARedIPv4  = "192.168.20.2"
-	HostABlueIPv4 = "192.168.21.2"
-	HostBRedIPv4  = "192.169.20.2"
-	HostBBlueIPv4 = "192.169.21.2"
+	HostARedIPv4     = "192.168.20.2"
+	HostABlueIPv4    = "192.168.21.2"
+	HostADefaultIPv4 = "192.168.22.2"
+	HostBRedIPv4     = "192.169.20.2"
+	HostBBlueIPv4    = "192.169.21.2"
 
 	HostARedIPv6  = "2001:db8:20::2"
 	HostABlueIPv6 = "2001:db8:21::2"
@@ -43,8 +44,9 @@ var (
 
 type LeafConfiguration struct {
 	Leaf
-	Red  Addresses
-	Blue Addresses
+	Red     Addresses
+	Blue    Addresses
+	Default Addresses
 }
 
 type LeafKindConfiguration struct {
