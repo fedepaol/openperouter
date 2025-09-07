@@ -32,6 +32,13 @@ topology:
         - frrcommon/vtysh.conf:/etc/frr/vtysh.conf
         - spine/frr.conf:/etc/frr/frr.conf
 
+    hostA_default:
+      kind: linux
+      image: "k8s.gcr.io/e2e-test-images/agnhost:2.40"
+      binds:
+        - hostA_default/setup.sh:/setup.sh
+      cmd: netexec --http-port=8090    
+
     hostA_red:
       kind: linux
       image: "k8s.gcr.io/e2e-test-images/agnhost:2.40"
@@ -78,6 +85,7 @@ topology:
     - endpoints: ["leafB:eth1", "spine:eth2"]
     - endpoints: ["leafkind:eth1", "spine:eth3"]
     - endpoints: ["leafA:ethred", "hostA_red:eth1"]
+    - endpoints: ["leafA:ethdefault", "hostA_default:eth1"]
     - endpoints: ["leafA:ethblue", "hostA_blue:eth1"]
     - endpoints: ["leafB:ethred", "hostB_red:eth1"]
     - endpoints: ["leafB:ethblue", "hostB_blue:eth1"]

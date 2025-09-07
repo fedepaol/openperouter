@@ -14,7 +14,7 @@ generate_leaf_configs() {
     # Build the command with redistribute parameter (disabled by default)
     REDISTRIBUTE_FLAG=""
     if [[ "${DEMO_MODE:-false}" == "true" ]]; then
-        REDISTRIBUTE_FLAG="-redistribute-connected-from-vrfs"
+        REDISTRIBUTE_FLAG="-redistribute-connected-from-vrfs -redistribute-connected-from-default"
         echo "Enabling redistribute connected from VRFs (demo mode)"
     else
         echo "Disabling redistribute connected from VRFs (default)"
@@ -125,6 +125,7 @@ ${CONTAINER_ENGINE_CLI} exec clab-kind-leafA /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-leafB /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-hostA_red /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-hostA_blue /setup.sh
+${CONTAINER_ENGINE_CLI} exec clab-kind-hostA_default /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-hostB_red /setup.sh
 ${CONTAINER_ENGINE_CLI} exec clab-kind-hostB_blue /setup.sh
 
