@@ -358,22 +358,25 @@ build-website: hugo-download api-docs ## Build the website with API documentatio
 publish-website: ## Build and publish the website to gh-pages branch
 	hack/publish-website.sh
 
-.PHONY: demo-metallb
+.PHONY: demo-metallb-evpn
 demo-metallb:
-	examples/metallb/prepare.sh
+	examples/evpn/metallb/prepare.sh
 	
-.PHONY: demo-l2
+.PHONY: demo-l2-evpn
 demo-l2:
-	examples/layer2/prepare.sh
+	examples/evpn/layer2/prepare.sh
 
-.PHONY: demo-calico
+.PHONY: demo-calico-evpn
 demo-calico:
-	examples/calico/prepare.sh
+	examples/evpn/calico/prepare.sh
 
-.PHONY: demo-kubevirt
+.PHONY: demo-kubevirt-evpn
 demo-kubevirt:
-	examples/kubevirt/prepare.sh
+	examples/evpn/kubevirt/prepare.sh
 
+.PHONY: demo-metallb-passthrough
+demo-metallb-passthrough:
+	examples/passthrough/metallb/prepare.sh
 #
 # Operator specifics, copied from a Makefile generated on a clean folder by operator-sdk, then modified.
 #

@@ -18,6 +18,7 @@ Package v1alpha1 contains API Schema definitions for the openpe v1alpha1 API gro
 
 ### Resource Types
 - [L2VNI](#l2vni)
+- [L3Passthrough](#l3passthrough)
 - [L3VNI](#l3vni)
 - [Underlay](#underlay)
 
@@ -45,6 +46,22 @@ _Appears in:_
 | `minimumTtl` _integer_ | For multi hop sessions only: configure the minimum<br />expected TTL for an incoming BFD control packet. |  | Maximum: 254 <br />Minimum: 1 <br /> |
 
 
+#### EVPNConfig
+
+
+
+
+
+
+
+_Appears in:_
+- [UnderlaySpec](#underlayspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `vtepcidr` _string_ | VTEPCIDR is CIDR to be used to assign IPs to the local VTEP on each node. |  |  |
+
+
 #### HostMaster
 
 
@@ -67,16 +84,18 @@ _Appears in:_
 
 
 
-
+Host Session represent the leg between the router and the host.
+A BGP session is established over this leg.
 
 
 
 _Appears in:_
+- [L3PassthroughSpec](#l3passthroughspec)
 - [L3VNISpec](#l3vnispec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `asn` _integer_ | ASN is the local AS number to use to establish a BGP session with<br />the default namespace. The ASN must be different from the ASN of the neighbors. |  | Maximum: 4.294967295e+09 <br />Minimum: 1 <br /> |
+| `asn` _integer_ | ASN is the local AS number to use to establish a BGP session with<br />the default namespace. |  | Maximum: 4.294967295e+09 <br />Minimum: 1 <br /> |
 | `hostasn` _integer_ | ASN is the expected AS number for a BGP speaking component running in<br />the default network namespace. If not set, the ASN field is going to be used. |  | Maximum: 4.294967295e+09 <br />Minimum: 0 <br /> |
 | `localcidr` _[LocalCIDRConfig](#localcidrconfig)_ | LocalCIDR is the CIDR configuration for the veth pair<br />to connect with the default namespace. The interface under<br />the PERouter side is going to use the first IP of the cidr on all the nodes.<br />At least one of IPv4 or IPv6 must be provided. |  |  |
 
@@ -131,6 +150,55 @@ VNIStatus defines the observed state of VNI.
 
 _Appears in:_
 - [L2VNI](#l2vni)
+
+
+
+#### L3Passthrough
+
+
+
+L3Passthrough represents a session with the host which is not encapsulated and
+takes part to the bgp fabric.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `openpe.openperouter.github.io/v1alpha1` | | |
+| `kind` _string_ | `L3Passthrough` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[L3PassthroughSpec](#l3passthroughspec)_ |  |  |  |
+| `status` _[L3PassthroughStatus](#l3passthroughstatus)_ |  |  |  |
+
+
+#### L3PassthroughSpec
+
+
+
+
+
+
+
+_Appears in:_
+- [L3Passthrough](#l3passthrough)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `hostsession` _[HostSession](#hostsession)_ | HostSession is the configuration for the host session. |  |  |
+
+
+#### L3PassthroughStatus
+
+
+
+L3PassthroughStatus defines the observed state of L3Passthrough.
+
+
+
+_Appears in:_
+- [L3Passthrough](#l3passthrough)
 
 
 
@@ -261,10 +329,11 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `asn` _integer_ | ASN is the local AS number to use for the session with the TOR switch.<br />The ASN must be different from the ASN of the neighbors. |  | Maximum: 4.294967295e+09 <br />Minimum: 1 <br /> |
-| `vtepcidr` _string_ | VTEPCIDR is CIDR to be used to assign IPs to the local VTEP on each node. |  |  |
+| `asn` _integer_ | ASN is the local AS number to use for the session with the TOR switch. |  | Maximum: 4.294967295e+09 <br />Minimum: 1 <br /> |
+| `routeridcidr` _string_ | RouterIDCIDR is the ipv4 cidr to be used to assign a different routerID on each node. | 10.0.0.0/24 |  |
 | `neighbors` _[Neighbor](#neighbor) array_ | Neighbors is the list of external neighbors to peer with. |  | MinItems: 1 <br /> |
 | `nics` _string array_ | Nics is the list of physical nics to move under the PERouter namespace to connect<br />to external routers. This field is optional when using Multus networks for TOR connectivity. |  |  |
+| `evpn` _[EVPNConfig](#evpnconfig)_ |  |  |  |
 
 
 #### UnderlayStatus

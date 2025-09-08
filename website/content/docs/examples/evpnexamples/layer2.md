@@ -16,7 +16,7 @@ A layer 2 VNI is created, exposing a layer 2 domain on the host. On each node, a
 
 ### Example Setup
 
-The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/layer2) and can be deployed by running:
+The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/evpn/layer2) and can be deployed by running:
 
 ```bash
 make docker-build demo-l2

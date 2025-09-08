@@ -4,6 +4,11 @@ metadata:
   name: red
   namespace: openperouter-system
 spec:
+  hostsession:
+    asn: 64514
+    hostasn: 64515
+    localcidr:
+      ipv4: 192.169.10.0/24
   vni: 100
 ---
 apiVersion: openpe.openperouter.github.io/v1alpha1
@@ -26,7 +31,8 @@ metadata:
   namespace: openperouter-system
 spec:
   asn: 64514
-  vtepcidr:  100.65.0.0/24
+  evpn:
+    vtepcidr:  100.65.0.0/24
   nics:
     - toswitch
   neighbors:

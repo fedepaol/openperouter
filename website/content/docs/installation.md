@@ -138,8 +138,8 @@ You should see pods for:
 
 After successful installation:
 
-1. Configure the [underlay connection]({{< ref "configuration#underlay-configuration" >}}) to your external router
-2. Set up [VNI configurations]({{< ref "configuration#l3-vni-configuration" >}}) for your EVPN overlays
+1. Configure the [underlay connection]({{< ref "configuration/#underlay-configuration" >}}) to your external router
+2. Set up [VNI configurations]({{< ref "configuration/#l3-vni-configuration" >}}) for your EVPN overlays
 3. Test the integration with [BGP-speaking components]({{< ref "examples" >}})
 
 For troubleshooting, check the [contributing guide]({{< ref "contributing" >}}) for development environment setup and debugging information.

@@ -37,7 +37,7 @@ The setup creates both Layer 2 and Layer 3 VNIs, with OpenPERouter automatically
 > sysctl -w fs.inotify.max_user_instances=1024
 > ```
 
-The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/kubevirt) and can be deployed by running:
+The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/evpn/kubevirt) and can be deployed by running:
 
 ```bash
 make docker-build demo-kubevirt

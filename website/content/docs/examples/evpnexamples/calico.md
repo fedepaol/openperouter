@@ -16,7 +16,7 @@ Calico allows each node to establish a BGP session with a router to advertise th
 
 ### Example Setup
 
-The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/calico) and can be deployed by running deployed by running:
+The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/evpn/calico) and can be deployed by running deployed by running:
 
 ```bash
 make docker-build demo-calico

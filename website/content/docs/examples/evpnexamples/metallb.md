@@ -16,7 +16,7 @@ MetalLB provides load balancing for Kubernetes services by advertising service I
 
 ### Example Setup
 
-The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/metallb) and can be deployed by running
+The full example can be found in the [project repository](https://github.com/openperouter/openperouter/examples/evpn/metallb) and can be deployed by running
 
 ```bash
 make docker-build demo-metallb

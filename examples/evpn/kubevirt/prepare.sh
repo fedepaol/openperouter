@@ -3,7 +3,7 @@ set -euo pipefail
 set -x
 CURRENT_PATH=$(dirname "$0")
 
-source "${CURRENT_PATH}/../common.sh"
+source "${CURRENT_PATH}/../../common.sh"
 
 DEMO_MODE=true make deploy
 export KUBECONFIG=$(pwd)/bin/kubeconfig

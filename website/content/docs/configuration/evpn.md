@@ -1,6 +1,6 @@
 ---
 weight: 40
-title: "Configuration"
+title: "EVPN Configuration"
 description: "How to configure OpenPERouter"
 icon: "article"
 date: "2025-06-15T15:03:22+02:00"
@@ -8,13 +8,9 @@ lastmod: "2025-06-15T15:03:22+02:00"
 toc: true
 ---
 
-OpenPERouter requires two main configuration components: the **Underlay** configuration for external router connectivity and **VNI** configurations for EVPN overlays.
-
-All Custom Resources (CRs) must be created in the same namespace where OpenPERouter is deployed (typically `openperouter-system`).
-
 ## Underlay Configuration
 
-The underlay configuration establishes BGP sessions with external routers (typically Top-of-Rack switches) and defines the VTEP IP allocation strategy.
+In addition to the configuration described in the [underlay configuration section]({{< ref "configuration/#underlay-configuration" >}}), the VTEP IP allocation strategy must be provided (**Note the evpn field**).
 
 ### Basic Underlay Configuration
 
@@ -26,7 +22,8 @@ metadata:
   namespace: openperouter-system
 spec:
   asn: 64514
-  vtepcidr: 100.65.0.0/24
+  evpn:
+    vtepcidr: 100.65.0.0/24
   nics:
     - toswitch
   neighbors:
@@ -39,60 +36,18 @@ spec:
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | `asn` | integer | Local ASN for BGP sessions | Yes |
-| `vtepcidr` | string | CIDR block for VTEP IP allocation | Yes |
+| `evpn.vtepcidr` | string | CIDR block for VTEP IP allocation | Yes |
 | `nics` | array | List of network interface names to move to router namespace | Yes |
 | `neighbors` | array | List of BGP neighbors to peer with | Yes |
 
 ### VTEP IP Allocation
 
-The `vtepcidr` field defines the IP range used for VTEP (Virtual Tunnel End Point) addresses. OpenPERouter automatically assigns a unique VTEP IP to each node from this range. For example, with `100.65.0.0/24`:
+The `evpn.vtepcidr` field defines the IP range used for VTEP (Virtual Tunnel End Point) addresses. OpenPERouter automatically assigns a unique VTEP IP to each node from this range. For example, with `100.65.0.0/24`:
 
 - Node 1: `100.65.0.1`
 - Node 2: `100.65.0.2`
 - Node 3: `100.65.0.3`
 - etc.
-
-### Alternative: Multus Network for Top of Rack Connectivity
-
-Instead of declaring physical network interfaces in the underlay configuration, you can use Multus networks to provide connectivity to top of rack switches. In this case, the `nics` field in the underlay configuration can be omitted.
-
-When using this approach, ensure that the router pods are configured with the appropriate Multus network annotation to connect to your top of rack switches.
-
-#### Using Helm Values
-
-You can specify the Multus network annotation using Helm values:
-
-```yaml
-# values.yaml
-openperouter:
-  multusNetworkAnnotation: "macvlan-conf"
-```
-
-Or when installing with Helm:
-
-```bash
-helm install openperouter ./charts/openperouter \
-  --set openperouter.multusNetworkAnnotation="macvlan-conf"
-```
-
-This will add the annotation `k8s.v1.cni.cncf.io/networks: macvlan-conf` to the router pods.
-
-#### Using Kustomize
-
-Alternatively, you can use kustomize to add the annotation to the router pod:
-
-```yaml
-# kustomization.yaml
-patches:
-- target:
-    kind: DaemonSet
-    name: router
-  patch: |-
-    - op: add
-      path: /spec/template/metadata/annotations
-      value:
-        k8s.v1.cni.cncf.io/networks: macvlan-conf
-```
 
 ## L3 VNI Configuration
 
