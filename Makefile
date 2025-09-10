@@ -62,6 +62,14 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: grpc-gen
+grpc-gen: protoc ## Generate gRPC Go code from proto files
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	$(PROTOC) --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		api/grpc/openperouter.proto
+
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -142,6 +150,7 @@ KUBECONFIG_PATH ?= $(LOCALBIN)/kubeconfig
 VALIDATOR_PATH ?= $(LOCALBIN)/validatehost
 APIDOCSGEN ?= $(LOCALBIN)/crd-ref-docs
 HUGO ?= $(LOCALBIN)/hugo
+PROTOC ?= $(LOCALBIN)/protoc
 export KUBECONFIG=$(KUBECONFIG_PATH)
 
 ## Tool Versions
@@ -155,6 +164,7 @@ HELM_VERSION ?= v3.12.3
 HELM_DOCS_VERSION ?= v1.10.0
 APIDOCSGEN_VERSION ?= v0.0.12
 HUGO_VERSION ?= v0.147.8
+PROTOC_VERSION ?= 28.3
 
 .PHONY: install
 install: kubectl manifests kustomize ## Install CRDs into the K8s cluster specified in $KUBECONFIG_PATH.
@@ -511,4 +521,20 @@ deploy-olm: operator-sdk ## deploys OLM on the cluster
 	fi
 
 build-and-push-bundle-images: bundle-build bundle-push catalog-build catalog-push
+
+.PHONY: protoc
+protoc: $(PROTOC) ## Download protoc locally if necessary.
+$(PROTOC): $(LOCALBIN)
+	@if [ ! -x $(PROTOC) ]; then \
+		set -e ;\
+		mkdir -p $(dir $(PROTOC)) ;\
+		OS=$$(go env GOOS) && ARCH=$$(go env GOARCH) ;\
+		if [ "$$ARCH" = "amd64" ]; then ARCH="x86_64"; fi ;\
+		if [ "$$OS" = "darwin" ]; then OS="osx"; fi ;\
+		curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-$${OS}-$${ARCH}.zip" -o /tmp/protoc.zip ;\
+		unzip -o /tmp/protoc.zip -d /tmp/protoc ;\
+		mv /tmp/protoc/bin/protoc $(PROTOC) ;\
+		rm -rf /tmp/protoc /tmp/protoc.zip ;\
+		chmod +x $(PROTOC) ;\
+	fi
 
