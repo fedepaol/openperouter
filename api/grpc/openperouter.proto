@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package openperouter.v1alpha1;
+
+option go_package = "github.com/openperouter/openperouter/api/grpc";
+
+message HostMaster {
+  string name = 1;
+  string type = 2;
+  bool auto_create = 3;
+}
+
+message LocalCIDRConfig {
+  string ipv4 = 1;
+  string ipv6 = 2;
+}
+
+message HostSession {
+  uint32 asn = 1;
+  uint32 host_asn = 2;
+  LocalCIDRConfig local_cidr = 3;
+}
+
+message BFDSettings {
+  uint32 receive_interval = 1;
+  uint32 transmit_interval = 2;
+  uint32 detect_multiplier = 3;
+  uint32 echo_interval = 4;
+  bool echo_mode = 5;
+  bool passive_mode = 6;
+  uint32 minimum_ttl = 7;
+}
+
+message Neighbor {
+  uint32 asn = 1;
+  uint32 host_asn = 2;
+  string address = 3;
+  uint32 port = 4;
+  string password = 5;
+  string password_secret = 6;
+  int64 hold_time = 7;
+  int64 keepalive_time = 8;
+  int64 connect_time = 9;
+  bool ebgp_multi_hop = 10;
+  BFDSettings bfd = 11;
+}
+
+message EVPNConfig {
+  string vtep_cidr = 1;
+}
+
+message L2VNI {
+  string vrf = 1;
+  uint32 vni = 2;
+  uint32 vxlan_port = 3;
+  HostMaster host_master = 4;
+  string l2_gateway_ip = 5;
+}
+
+message L3VNI {
+  string vrf = 1;
+  uint32 vni = 2;
+  uint32 vxlan_port = 3;
+  HostSession host_session = 4;
+}
+
+message L3Passthrough {
+  HostSession host_session = 1;
+}
+
+message Underlay {
+  uint32 asn = 1;
+  string router_id_cidr = 2;
+  repeated Neighbor neighbors = 3;
+  repeated string nics = 4;
+  EVPNConfig evpn = 5;
+}
+
+service OpenPERouterService {
+  rpc UpdateAll(UpdateAllRequest) returns (UpdateAllResponse);
+}
+
+// Resource with name
+message NamedL2VNI {
+  string name = 1;
+  L2VNI spec = 2;
+}
+
+message NamedL3VNI {
+  string name = 1;
+  L3VNI spec = 2;
+}
+
+message NamedL3Passthrough {
+  string name = 1;
+  L3Passthrough spec = 2;
+}
+
+message NamedUnderlay {
+  string name = 1;
+  Underlay spec = 2;
+}
+
+// UpdateAll messages
+message UpdateAllRequest {
+  repeated NamedL2VNI l2vnis = 1;
+  repeated NamedL3VNI l3vnis = 2;
+  repeated NamedL3Passthrough l3passthroughs = 3;
+  repeated NamedUnderlay underlays = 4;
+}
+
+message UpdateAllResponse {}
