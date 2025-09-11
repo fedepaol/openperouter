@@ -3,16 +3,16 @@
 package conversion
 
 import (
-	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/hostnetwork"
 )
 
 type ApiConfigData struct {
 	NodeIndex     int
-	Underlays     []v1alpha1.Underlay
-	L3VNIs        []v1alpha1.L3VNI
-	L2VNIs        []v1alpha1.L2VNI
-	L3Passthrough []v1alpha1.L3Passthrough
+	Underlays     []grpc.Underlay
+	L3VNIs        []grpc.L3VNI
+	L2VNIs        []grpc.L2VNI
+	L3Passthrough []grpc.L3Passthrough
 	LogLevel      string
 }
 

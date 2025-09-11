@@ -71,7 +71,7 @@ type NeighborConfig struct {
 	Name          string
 	ASN           uint32
 	Addr          string
-	Port          *uint16
+	Port          *uint32
 	HoldTime      *uint64
 	KeepaliveTime *uint64
 	ConnectTime   *uint64

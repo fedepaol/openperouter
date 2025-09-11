@@ -6,8 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/smithy-go/ptr"
-	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/hostnetwork"
 )
 
@@ -16,10 +15,10 @@ func TestAPItoHostConfig(t *testing.T) {
 		name            string
 		nodeIndex       int
 		targetNS        string
-		underlays       []v1alpha1.Underlay
-		vnis            []v1alpha1.L3VNI
-		l2vnis          []v1alpha1.L2VNI
-		l3Passthrough   []v1alpha1.L3Passthrough
+		underlays       []grpc.Underlay
+		vnis            []grpc.L3VNI
+		l2vnis          []grpc.L2VNI
+		l3Passthrough   []grpc.L3Passthrough
 		wantUnderlay    hostnetwork.UnderlayParams
 		wantL2VNIParams []hostnetwork.L2VNIParams
 		wantL3VNIParams []hostnetwork.L3VNIParams
@@ -30,10 +29,10 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:            "no underlays",
 			nodeIndex:       0,
 			targetNS:        "namespace",
-			underlays:       []v1alpha1.Underlay{},
-			vnis:            []v1alpha1.L3VNI{},
-			l2vnis:          []v1alpha1.L2VNI{},
-			l3Passthrough:   []v1alpha1.L3Passthrough{},
+			underlays:       []grpc.Underlay{},
+			vnis:            []grpc.L3VNI{},
+			l2vnis:          []grpc.L2VNI{},
+			l3Passthrough:   []grpc.L3Passthrough{},
 			wantUnderlay:    hostnetwork.UnderlayParams{},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{},
 			wantL2VNIParams: []hostnetwork.L2VNIParams{},
@@ -44,13 +43,13 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "multiple underlays",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth1"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.1.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
+				{Nics: []string{"eth1"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.1.0/24"}},
 			},
-			vnis:            []v1alpha1.L3VNI{},
-			l2vnis:          []v1alpha1.L2VNI{},
-			l3Passthrough:   []v1alpha1.L3Passthrough{},
+			vnis:            []grpc.L3VNI{},
+			l2vnis:          []grpc.L2VNI{},
+			l3Passthrough:   []grpc.L3Passthrough{},
 			wantUnderlay:    hostnetwork.UnderlayParams{},
 			wantL3VNIParams: []hostnetwork.L3VNIParams{},
 			wantL2VNIParams: []hostnetwork.L2VNIParams{},
@@ -61,14 +60,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "ipv4 only",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{
-				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: "10.1.0.0/24"}}, VNI: 100, VXLanPort: 4789}},
+			vnis: []grpc.L3VNI{
+				{Vrf: "red", HostSession: &grpc.HostSession{LocalCidr: &grpc.LocalCIDRConfig{Ipv4: "10.1.0.0/24"}}, Vni: 100, VxlanPort: 4789},
 			},
-			l2vnis:        []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l2vnis:        []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -99,14 +98,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "ipv6 only",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{
-				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv6: "2001:db8::/64"}}, VNI: 100, VXLanPort: 4789}},
+			vnis: []grpc.L3VNI{
+				{Vrf: "red", HostSession: &grpc.HostSession{LocalCidr: &grpc.LocalCIDRConfig{Ipv6: "2001:db8::/64"}}, Vni: 100, VxlanPort: 4789},
 			},
-			l2vnis:        []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l2vnis:        []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -137,14 +136,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "dual stack",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{
-				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), HostSession: &v1alpha1.HostSession{LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: "10.1.0.0/24", IPv6: "2001:db8::/64"}}, VNI: 100, VXLanPort: 4789}},
+			vnis: []grpc.L3VNI{
+				{Vrf: "red", HostSession: &grpc.HostSession{LocalCidr: &grpc.LocalCIDRConfig{Ipv4: "10.1.0.0/24", Ipv6: "2001:db8::/64"}}, Vni: 100, VxlanPort: 4789},
 			},
-			l2vnis:        []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l2vnis:        []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -177,14 +176,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "l2 vni input",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{},
-			l2vnis: []v1alpha1.L2VNI{
-				{Spec: v1alpha1.L2VNISpec{VNI: 200, VXLanPort: 4789}},
+			vnis: []grpc.L3VNI{},
+			l2vnis: []grpc.L2VNI{
+				{Vni: 200, VxlanPort: 4789},
 			},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -196,6 +195,7 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantL2VNIParams: []hostnetwork.L2VNIParams{
 				{
 					VNIParams: hostnetwork.VNIParams{
+						VRF:       "l2vni-200",
 						TargetNS:  "namespace",
 						VTEPIP:    "10.0.0.0/32",
 						VNI:       200,
@@ -212,14 +212,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "l2 vni with hostmaster and l2gatewayip",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{},
-			l2vnis: []v1alpha1.L2VNI{
-				{Spec: v1alpha1.L2VNISpec{VNI: 201, VXLanPort: 4789, HostMaster: &v1alpha1.HostMaster{Name: "br0"}, L2GatewayIP: "192.168.100.1/24"}},
+			vnis: []grpc.L3VNI{},
+			l2vnis: []grpc.L2VNI{
+				{Vni: 201, VxlanPort: 4789, HostMaster: &grpc.HostMaster{Name: "br0"}, L2GatewayIp: "192.168.100.1/24"},
 			},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -231,12 +231,13 @@ func TestAPItoHostConfig(t *testing.T) {
 			wantL2VNIParams: []hostnetwork.L2VNIParams{
 				{
 					VNIParams: hostnetwork.VNIParams{
+						VRF:       "l2vni-201",
 						TargetNS:  "namespace",
 						VTEPIP:    "10.0.0.0/32",
 						VNI:       201,
 						VXLanPort: 4789,
 					},
-					L2GatewayIP: ptr.String("192.168.100.1/24"),
+					L2GatewayIP: func() *string { s := "192.168.100.1/24"; return &s }(),
 					HostMaster:  &hostnetwork.HostMaster{Name: "br0"},
 				},
 			},
@@ -247,14 +248,14 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "l3 vni without hostsession",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}, EVPN: &v1alpha1.EVPNConfig{VTEPCIDR: "10.0.0.0/24"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}, Evpn: &grpc.EVPNConfig{VtepCidr: "10.0.0.0/24"}},
 			},
-			vnis: []v1alpha1.L3VNI{
-				{Spec: v1alpha1.L3VNISpec{VRF: ptr.String("red"), VNI: 100, VXLanPort: 4789}},
+			vnis: []grpc.L3VNI{
+				{Vrf: "red", Vni: 100, VxlanPort: 4789},
 			},
-			l2vnis:        []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			l2vnis:        []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -282,12 +283,12 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "underlay without evpn",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}},
 			},
-			vnis:          []v1alpha1.L3VNI{},
-			l2vnis:        []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{},
+			vnis:          []grpc.L3VNI{},
+			l2vnis:        []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{},
 			wantUnderlay: hostnetwork.UnderlayParams{
 				UnderlayInterface: "eth0",
 				TargetNS:          "namespace",
@@ -301,20 +302,18 @@ func TestAPItoHostConfig(t *testing.T) {
 			name:      "L3 passthrough dual stack",
 			nodeIndex: 0,
 			targetNS:  "namespace",
-			underlays: []v1alpha1.Underlay{
-				{Spec: v1alpha1.UnderlaySpec{Nics: []string{"eth0"}}},
+			underlays: []grpc.Underlay{
+				{Nics: []string{"eth0"}},
 			},
-			vnis:   []v1alpha1.L3VNI{},
-			l2vnis: []v1alpha1.L2VNI{},
-			l3Passthrough: []v1alpha1.L3Passthrough{
+			vnis:   []grpc.L3VNI{},
+			l2vnis: []grpc.L2VNI{},
+			l3Passthrough: []grpc.L3Passthrough{
 				{
-					Spec: v1alpha1.L3PassthroughSpec{
-						HostSession: v1alpha1.HostSession{
-							ASN: 65000,
-							LocalCIDR: v1alpha1.LocalCIDRConfig{
-								IPv4: "192.168.2.0/24",
-								IPv6: "2001:db8::/64",
-							},
+					HostSession: &grpc.HostSession{
+						Asn: 65000,
+						LocalCidr: &grpc.LocalCIDRConfig{
+							Ipv4: "192.168.2.0/24",
+							Ipv6: "2001:db8::/64",
 						},
 					},
 				},

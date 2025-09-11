@@ -9,11 +9,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/frr"
 	"github.com/openperouter/openperouter/internal/ipam"
 	"github.com/openperouter/openperouter/internal/ipfamily"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -36,11 +35,11 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 		return frr.Config{}, errors.New("multiple passthrough defined, can have only one")
 	}
 
-	underlay := config.Underlays[0]
+	underlay := &config.Underlays[0]
 
 	underlayNeighbors := []frr.NeighborConfig{}
 	bfdProfiles := []frr.BFDProfile{}
-	for _, n := range underlay.Spec.Neighbors {
+	for _, n := range underlay.Neighbors {
 		frrNeigh, err := neighborToFRR(n)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate underlay neighbor %s to frr, err: %w", neighborName(n), err)
@@ -59,23 +58,23 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 	}
 
 	underlayConfig := frr.UnderlayConfig{
-		MyASN:     underlay.Spec.ASN,
+		MyASN:     underlay.Asn,
 		RouterID:  routerID,
 		Neighbors: underlayNeighbors,
 	}
 
 	if len(config.L3Passthrough) > 0 {
-		passthrough, err := passthroughToFRR(config.L3Passthrough[0], config.NodeIndex)
+		passthrough, err := passthroughToFRR(&config.L3Passthrough[0], config.NodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate passthrough to frr: %w", err)
 		}
 		underlayConfig.Passthrough = passthrough
 	}
 
-	if len(config.L3VNIs) > 0 && underlay.Spec.EVPN == nil {
+	if len(config.L3VNIs) > 0 && underlay.Evpn == nil {
 		return frr.Config{}, fmt.Errorf("EVPN configuration is required when L3 VNIs are defined")
 	}
-	if underlay.Spec.EVPN == nil {
+	if underlay.Evpn == nil {
 		return frr.Config{
 			Underlay:    underlayConfig,
 			BFDProfiles: bfdProfiles,
@@ -84,17 +83,18 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 		}, nil
 	}
 
-	vtepIP, err := ipam.VTEPIp(underlay.Spec.EVPN.VTEPCIDR, config.NodeIndex)
+	vtepIP, err := ipam.VTEPIp(underlay.Evpn.VtepCidr, config.NodeIndex)
 	if err != nil {
-		return frr.Config{}, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Spec.EVPN.VTEPCIDR, config.NodeIndex)
+		return frr.Config{}, fmt.Errorf("failed to get vtep ip, cidr %s, nodeIntex %d", underlay.Evpn.VtepCidr, config.NodeIndex)
 	}
 	underlayConfig.EVPN = &frr.UnderlayEvpn{
 		VTEP: vtepIP.String(),
 	}
 
 	vniConfigs := []frr.L3VNIConfig{}
-	for _, vni := range config.L3VNIs {
-		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Spec.ASN, config.NodeIndex)
+	for i := range config.L3VNIs {
+		vni := &config.L3VNIs[i]
+		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Asn, config.NodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate vni to frr: %w, vni %v", err, vni)
 		}
@@ -109,10 +109,10 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 	}, nil
 }
 
-func passthroughToFRR(passthrough v1alpha1.L3Passthrough, nodeIndex int) (*frr.PassthroughConfig, error) {
-	vethIPs, err := ipam.VethIPsFromPool(passthrough.Spec.HostSession.LocalCIDR.IPv4, passthrough.Spec.HostSession.LocalCIDR.IPv6, nodeIndex)
+func passthroughToFRR(passthrough *grpc.L3Passthrough, nodeIndex int) (*frr.PassthroughConfig, error) {
+	vethIPs, err := ipam.VethIPsFromPool(passthrough.HostSession.LocalCidr.Ipv4, passthrough.HostSession.LocalCidr.Ipv6, nodeIndex)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get veth ips, cidr %v, nodeIndex %d", passthrough.Spec.HostSession.LocalCIDR, nodeIndex)
+		return nil, fmt.Errorf("failed to get veth ips, cidr %v, nodeIndex %d", passthrough.HostSession.LocalCidr, nodeIndex)
 	}
 
 	res := &frr.PassthroughConfig{
@@ -122,7 +122,7 @@ func passthroughToFRR(passthrough v1alpha1.L3Passthrough, nodeIndex int) (*frr.P
 
 	if vethIPs.Ipv4.HostSide.IP != nil {
 		res.LocalNeighborV4 = &frr.NeighborConfig{
-			ASN:  passthrough.Spec.HostSession.HostASN,
+			ASN:  passthrough.HostSession.HostAsn,
 			Addr: vethIPs.Ipv4.HostSide.IP.String(),
 		}
 		ipnet := net.IPNet{
@@ -134,7 +134,7 @@ func passthroughToFRR(passthrough v1alpha1.L3Passthrough, nodeIndex int) (*frr.P
 	}
 	if vethIPs.Ipv6.HostSide.IP != nil {
 		res.LocalNeighborV6 = &frr.NeighborConfig{
-			ASN:  passthrough.Spec.HostSession.HostASN,
+			ASN:  passthrough.HostSession.HostAsn,
 			Addr: vethIPs.Ipv6.HostSide.IP.String(),
 		}
 
@@ -148,11 +148,11 @@ func passthroughToFRR(passthrough v1alpha1.L3Passthrough, nodeIndex int) (*frr.P
 	return res, nil
 }
 
-func l3vniToFRR(vni v1alpha1.L3VNI, routerID string, underlayASN uint32, nodeIndex int) ([]frr.L3VNIConfig, error) {
-	if vni.Spec.HostSession == nil { // no neighbor, just the vni / vrf
+func l3vniToFRR(vni *grpc.L3VNI, routerID string, underlayASN uint32, nodeIndex int) ([]frr.L3VNIConfig, error) {
+	if vni.HostSession == nil { // no neighbor, just the vni / vrf
 		return []frr.L3VNIConfig{
 			{
-				VNI:      int(vni.Spec.VNI),
+				VNI:      int(vni.Vni),
 				VRF:      vni.VRFName(),
 				ASN:      underlayASN, // Since there is no session, the ASN is arbitrary
 				RouterID: routerID,
@@ -160,9 +160,9 @@ func l3vniToFRR(vni v1alpha1.L3VNI, routerID string, underlayASN uint32, nodeInd
 		}, nil
 	}
 
-	veths, err := ipam.VethIPsFromPool(vni.Spec.HostSession.LocalCIDR.IPv4, vni.Spec.HostSession.LocalCIDR.IPv6, nodeIndex)
+	veths, err := ipam.VethIPsFromPool(vni.HostSession.LocalCidr.Ipv4, vni.HostSession.LocalCidr.Ipv6, nodeIndex)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get veths ips for vni %s: %w", vni.Name, err)
+		return nil, fmt.Errorf("failed to get veths ips for vni: %w", err)
 	}
 
 	var configs []frr.L3VNIConfig
@@ -180,20 +180,20 @@ func l3vniToFRR(vni v1alpha1.L3VNI, routerID string, underlayASN uint32, nodeInd
 	}
 
 	if len(configs) == 0 {
-		return nil, fmt.Errorf("no valid host side IP found for vni %s", vni.Name)
+		return nil, fmt.Errorf("no valid host side IP found for vni %s", vni.Key())
 	}
 
 	return configs, nil
 }
 
 // createVNIConfig creates a VNI configuration for a specific IP family
-func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask, routerID string) frr.L3VNIConfig {
+func createVNIConfig(vni *grpc.L3VNI, hostIP net.IP, mask net.IPMask, routerID string) frr.L3VNIConfig {
 	vniNeighbor := &frr.NeighborConfig{
 		Addr: hostIP.String(),
 	}
-	vniNeighbor.ASN = vni.Spec.HostSession.ASN
-	if vni.Spec.HostSession.HostASN != 0 {
-		vniNeighbor.ASN = vni.Spec.HostSession.HostASN
+	vniNeighbor.ASN = vni.HostSession.Asn
+	if vni.HostSession.HostAsn != 0 {
+		vniNeighbor.ASN = vni.HostSession.HostAsn
 	}
 
 	ipnet := net.IPNet{
@@ -202,8 +202,8 @@ func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask, routerI
 	}
 
 	config := frr.L3VNIConfig{
-		ASN:           vni.Spec.HostSession.ASN,
-		VNI:           int(vni.Spec.VNI),
+		ASN:           vni.HostSession.Asn,
+		VNI:           int(vni.Vni),
 		VRF:           vni.VRFName(),
 		RouterID:      routerID,
 		LocalNeighbor: vniNeighbor,
@@ -223,43 +223,45 @@ func createVNIConfig(vni v1alpha1.L3VNI, hostIP net.IP, mask net.IPMask, routerI
 	return config
 }
 
-func neighborToFRR(n v1alpha1.Neighbor) (*frr.NeighborConfig, error) {
+func neighborToFRR(n *grpc.Neighbor) (*frr.NeighborConfig, error) {
 	neighborFamily, err := ipfamily.ForAddresses(n.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find ipfamily for %s, %w", n.Address, err)
 	}
 
-	if n.ASN == 0 {
+	if n.Asn == 0 {
 		return nil, fmt.Errorf("neighbor %s does not have ASN", n.Address)
 	}
 
 	res := &frr.NeighborConfig{
 		Name:         neighborName(n),
-		ASN:          n.ASN,
+		ASN:          n.Asn,
 		Addr:         n.Address,
-		Port:         n.Port,
 		IPFamily:     neighborFamily,
-		EBGPMultiHop: n.EBGPMultiHop,
+		EBGPMultiHop: n.EbgpMultiHop,
+	}
+	if n.Port != 0 {
+		res.Port = ptr.To(n.Port)
 	}
 	res.HoldTime, res.KeepaliveTime, err = parseTimers(n.HoldTime, n.KeepaliveTime)
 	if err != nil {
 		return nil, fmt.Errorf("invalid timers for neighbor %s, err: %w", neighborName(n), err)
 	}
 
-	if n.ConnectTime != nil {
-		connectSecond, err := durationToUint64(n.ConnectTime.Duration / time.Second)
+	if n.ConnectTime != 0 {
+		connectSecond, err := durationToUint64(time.Duration(n.ConnectTime) * time.Second)
 		if err != nil {
-			return nil, fmt.Errorf("invalid connecttime %v: %w", n.ConnectTime.Duration, err)
+			return nil, fmt.Errorf("invalid connecttime %v: %w", time.Duration(n.ConnectTime)*time.Second, err)
 		}
 		res.ConnectTime = ptr.To(connectSecond)
 	}
 
-	if n.BFD == nil {
+	if n.Bfd == nil {
 		return res, nil
 	}
 
 	res.BFDEnabled = true
-	if ptr.AllPtrFieldsNil(n.BFD) {
+	if n.Bfd.IsEmpty() {
 		return res, nil
 	}
 	res.BFDProfile = bfdProfileNameForNeighbor(n)
@@ -267,57 +269,61 @@ func neighborToFRR(n v1alpha1.Neighbor) (*frr.NeighborConfig, error) {
 	return res, nil
 }
 
-func bfdProfileForNeighbor(n v1alpha1.Neighbor) *frr.BFDProfile {
-	if n.BFD == nil {
+func bfdProfileForNeighbor(n *grpc.Neighbor) *frr.BFDProfile {
+	if n.Bfd == nil {
 		return nil
 	}
 
-	if ptr.AllPtrFieldsNil(n.BFD) {
+	if n.Bfd.IsEmpty() {
 		return nil
 	}
 
 	profileName := bfdProfileNameForNeighbor(n)
 	bfdProfile := &frr.BFDProfile{
 		Name:             profileName,
-		ReceiveInterval:  n.BFD.ReceiveInterval,
-		TransmitInterval: n.BFD.TransmitInterval,
-		DetectMultiplier: n.BFD.DetectMultiplier,
-		EchoInterval:     n.BFD.EchoInterval,
-		EchoMode:         ptr.Deref(n.BFD.EchoMode, false),
-		PassiveMode:      ptr.Deref(n.BFD.PassiveMode, false),
-		MinimumTTL:       n.BFD.MinimumTTL,
+		ReceiveInterval:  &n.Bfd.ReceiveInterval,
+		TransmitInterval: &n.Bfd.TransmitInterval,
+		DetectMultiplier: &n.Bfd.DetectMultiplier,
+		EchoMode:         n.Bfd.EchoMode,
+		PassiveMode:      n.Bfd.PassiveMode,
+	}
+
+	if n.Bfd.EchoInterval != 0 {
+		bfdProfile.EchoInterval = &n.Bfd.EchoInterval
+	}
+	if n.Bfd.MinimumTtl != 0 {
+		bfdProfile.MinimumTTL = &n.Bfd.MinimumTtl
 	}
 
 	return bfdProfile
 }
 
-func bfdProfileNameForNeighbor(n v1alpha1.Neighbor) string {
+func bfdProfileNameForNeighbor(n *grpc.Neighbor) string {
 	return fmt.Sprintf("neighbor-%s", n.Address)
 }
 
-func neighborName(n v1alpha1.Neighbor) string {
-	return fmt.Sprintf("%d@%s", n.ASN, n.Address)
+func neighborName(n *grpc.Neighbor) string {
+	return fmt.Sprintf("%d@%s", n.Asn, n.Address)
 }
 
-func parseTimers(ht, ka *metav1.Duration) (*uint64, *uint64, error) {
-	if ht == nil && ka != nil || ht != nil && ka == nil {
+func parseTimers(ht, ka int64) (*uint64, *uint64, error) {
+	if ht == 0 && ka != 0 || ht != 0 && ka == 0 {
 		return nil, nil, fmt.Errorf("one of KeepaliveTime/HoldTime specified, both must be set or none")
 	}
 
-	if ht == nil && ka == nil {
+	if ht == 0 && ka == 0 {
 		return nil, nil, nil
 	}
 
-	holdTime := ht.Duration
-	keepaliveTime := ka.Duration
+	holdTime := time.Duration(ht) * time.Second
+	keepaliveTime := time.Duration(ka) * time.Second
 
-	rounded := time.Duration(int(ht.Seconds())) * time.Second
-	if rounded != 0 && rounded < 3*time.Second {
-		return nil, nil, fmt.Errorf("invalid hold time %q: must be 0 or >=3s", ht)
+	if holdTime != 0 && holdTime < 3*time.Second {
+		return nil, nil, fmt.Errorf("invalid hold time %v: must be 0 or >=3s", holdTime)
 	}
 
 	if keepaliveTime > holdTime {
-		return nil, nil, fmt.Errorf("invalid keepaliveTime %q, must be lower than holdTime %q", ka, ht)
+		return nil, nil, fmt.Errorf("invalid keepaliveTime %v, must be lower than holdTime %v", keepaliveTime, holdTime)
 	}
 
 	htSeconds, err := durationToUint64(holdTime / time.Second)
@@ -326,7 +332,7 @@ func parseTimers(ht, ka *metav1.Duration) (*uint64, *uint64, error) {
 	}
 	kaSeconds, err := durationToUint64(keepaliveTime / time.Second)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid keepalive time %v: %w", holdTime, err)
+		return nil, nil, fmt.Errorf("invalid keepalive time %v: %w", keepaliveTime, err)
 	}
 
 	return &htSeconds, &kaSeconds, nil
@@ -339,15 +345,15 @@ func durationToUint64(value time.Duration) (uint64, error) {
 	return uint64(value), nil // #nosec G115
 }
 
-func routerIDFromUnderlay(underlay v1alpha1.Underlay, nodeIndex int) (string, error) {
-	routerIDCidr := underlay.Spec.RouterIDCIDR
-	if underlay.Spec.RouterIDCIDR == "" {
+func routerIDFromUnderlay(underlay *grpc.Underlay, nodeIndex int) (string, error) {
+	routerIDCidr := underlay.RouterIdCidr
+	if underlay.RouterIdCidr == "" {
 		routerIDCidr = defaultRouterIDCidr
-		slog.Info("empty routerid cidr, using the default one", "underlay", underlay.Name, "default cidr", defaultRouterIDCidr)
+		slog.Info("empty routerid cidr, using the default one", "underlay", underlay.Key(), "default cidr", defaultRouterIDCidr)
 	}
 	routerID, err := ipam.RouterID(routerIDCidr, nodeIndex)
 	if err != nil {
-		return "", fmt.Errorf("failed to get router id, cidr %s, nodeIndex %d: %w", underlay.Spec.RouterIDCIDR, nodeIndex, err)
+		return "", fmt.Errorf("failed to get router id, cidr %s, nodeIndex %d: %w", underlay.RouterIdCidr, nodeIndex, err)
 	}
 	return routerID, nil
 }
