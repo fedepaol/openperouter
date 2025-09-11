@@ -928,13 +928,15 @@ func (x *NamedUnderlay) GetSpec() *Underlay {
 
 // UpdateAll messages
 type UpdateAllRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	L2Vnis         []*NamedL2VNI          `protobuf:"bytes,1,rep,name=l2vnis,proto3" json:"l2vnis,omitempty"`
-	L3Vnis         []*NamedL3VNI          `protobuf:"bytes,2,rep,name=l3vnis,proto3" json:"l3vnis,omitempty"`
-	L3Passthroughs []*NamedL3Passthrough  `protobuf:"bytes,3,rep,name=l3passthroughs,proto3" json:"l3passthroughs,omitempty"`
-	Underlays      []*NamedUnderlay       `protobuf:"bytes,4,rep,name=underlays,proto3" json:"underlays,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	NodeIndex       *uint32                `protobuf:"varint,1,opt,name=nodeIndex,proto3,oneof" json:"nodeIndex,omitempty"`
+	TargetNamespace *string                `protobuf:"bytes,2,opt,name=targetNamespace,proto3,oneof" json:"targetNamespace,omitempty"`
+	L2Vnis          []*NamedL2VNI          `protobuf:"bytes,3,rep,name=l2vnis,proto3" json:"l2vnis,omitempty"`
+	L3Vnis          []*NamedL3VNI          `protobuf:"bytes,4,rep,name=l3vnis,proto3" json:"l3vnis,omitempty"`
+	L3Passthroughs  []*NamedL3Passthrough  `protobuf:"bytes,5,rep,name=l3passthroughs,proto3" json:"l3passthroughs,omitempty"`
+	Underlays       []*NamedUnderlay       `protobuf:"bytes,6,rep,name=underlays,proto3" json:"underlays,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateAllRequest) Reset() {
@@ -965,6 +967,20 @@ func (x *UpdateAllRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateAllRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAllRequest) Descriptor() ([]byte, []int) {
 	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdateAllRequest) GetNodeIndex() uint32 {
+	if x != nil && x.NodeIndex != nil {
+		return *x.NodeIndex
+	}
+	return 0
+}
+
+func (x *UpdateAllRequest) GetTargetNamespace() string {
+	if x != nil && x.TargetNamespace != nil {
+		return *x.TargetNamespace
+	}
+	return ""
 }
 
 func (x *UpdateAllRequest) GetL2Vnis() []*NamedL2VNI {
@@ -1110,12 +1126,17 @@ const file_api_grpc_openperouter_proto_rawDesc = "" +
 	"\x04spec\x18\x02 \x01(\v2$.openperouter.v1alpha1.L3PassthroughR\x04spec\"X\n" +
 	"\rNamedUnderlay\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x123\n" +
-	"\x04spec\x18\x02 \x01(\v2\x1f.openperouter.v1alpha1.UnderlayR\x04spec\"\x9f\x02\n" +
-	"\x10UpdateAllRequest\x129\n" +
-	"\x06l2vnis\x18\x01 \x03(\v2!.openperouter.v1alpha1.NamedL2VNIR\x06l2vnis\x129\n" +
-	"\x06l3vnis\x18\x02 \x03(\v2!.openperouter.v1alpha1.NamedL3VNIR\x06l3vnis\x12Q\n" +
-	"\x0el3passthroughs\x18\x03 \x03(\v2).openperouter.v1alpha1.NamedL3PassthroughR\x0el3passthroughs\x12B\n" +
-	"\tunderlays\x18\x04 \x03(\v2$.openperouter.v1alpha1.NamedUnderlayR\tunderlays\"\x13\n" +
+	"\x04spec\x18\x02 \x01(\v2\x1f.openperouter.v1alpha1.UnderlayR\x04spec\"\x93\x03\n" +
+	"\x10UpdateAllRequest\x12!\n" +
+	"\tnodeIndex\x18\x01 \x01(\rH\x00R\tnodeIndex\x88\x01\x01\x12-\n" +
+	"\x0ftargetNamespace\x18\x02 \x01(\tH\x01R\x0ftargetNamespace\x88\x01\x01\x129\n" +
+	"\x06l2vnis\x18\x03 \x03(\v2!.openperouter.v1alpha1.NamedL2VNIR\x06l2vnis\x129\n" +
+	"\x06l3vnis\x18\x04 \x03(\v2!.openperouter.v1alpha1.NamedL3VNIR\x06l3vnis\x12Q\n" +
+	"\x0el3passthroughs\x18\x05 \x03(\v2).openperouter.v1alpha1.NamedL3PassthroughR\x0el3passthroughs\x12B\n" +
+	"\tunderlays\x18\x06 \x03(\v2$.openperouter.v1alpha1.NamedUnderlayR\tunderlaysB\f\n" +
+	"\n" +
+	"_nodeIndexB\x12\n" +
+	"\x10_targetNamespace\"\x13\n" +
 	"\x11UpdateAllResponse2u\n" +
 	"\x13OpenPERouterService\x12^\n" +
 	"\tUpdateAll\x12'.openperouter.v1alpha1.UpdateAllRequest\x1a(.openperouter.v1alpha1.UpdateAllResponseB/Z-github.com/openperouter/openperouter/api/grpcb\x06proto3"
@@ -1181,6 +1202,7 @@ func file_api_grpc_openperouter_proto_init() {
 	if File_api_grpc_openperouter_proto != nil {
 		return
 	}
+	file_api_grpc_openperouter_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

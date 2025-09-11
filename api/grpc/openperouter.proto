@@ -103,10 +103,12 @@ message NamedUnderlay {
 
 // UpdateAll messages
 message UpdateAllRequest {
-  repeated NamedL2VNI l2vnis = 1;
-  repeated NamedL3VNI l3vnis = 2;
-  repeated NamedL3Passthrough l3passthroughs = 3;
-  repeated NamedUnderlay underlays = 4;
+  optional uint32 nodeIndex = 1;
+  optional string targetNamespace = 2;
+  repeated NamedL2VNI l2vnis = 3;
+  repeated NamedL3VNI l3vnis = 4;
+  repeated NamedL3Passthrough l3passthroughs = 5;
+  repeated NamedUnderlay underlays = 6;
 }
 
 message UpdateAllResponse {}
