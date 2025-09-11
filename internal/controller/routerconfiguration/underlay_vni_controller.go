@@ -150,6 +150,11 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	targetNS, err := r.PodRuntime.NetworkNamespace(ctx, string(routerPod.UID))
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to retrieve namespace for pod %s: %w", routerPod.UID, err)
+	}
+
 	err = configureInterfaces(ctx, interfacesConfiguration{
 		RouterPodUUID: string(routerPod.UID),
 		PodRuntime:    *r.PodRuntime,

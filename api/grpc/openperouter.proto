@@ -78,6 +78,8 @@ message Underlay {
 
 service OpenPERouterService {
   rpc UpdateAll(UpdateAllRequest) returns (UpdateAllResponse);
+  rpc UpdateNodeIndex(UpdateNodeIndexRequest) returns (UpdateNodeIndexResponse);
+  rpc UpdateTargetNamespace(UpdateTargetNamespaceRequest) returns (UpdateTargetNamespaceResponse);
 }
 
 // Resource with name
@@ -103,12 +105,46 @@ message NamedUnderlay {
 
 // UpdateAll messages
 message UpdateAllRequest {
-  optional uint32 nodeIndex = 1;
-  optional string targetNamespace = 2;
-  repeated NamedL2VNI l2vnis = 3;
-  repeated NamedL3VNI l3vnis = 4;
-  repeated NamedL3Passthrough l3passthroughs = 5;
-  repeated NamedUnderlay underlays = 6;
+  repeated NamedL2VNI l2vnis = 1;
+  repeated NamedL3VNI l3vnis = 2;
+  repeated NamedL3Passthrough l3passthroughs = 3;
+  repeated NamedUnderlay underlays = 4;
 }
 
-message UpdateAllResponse {}
+message UpdateAllResponse {
+  enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+    NON_RECOVERABLE_FAILURE = 2;
+  }
+  Status status = 1;
+  repeated string errors = 2;
+}
+
+// UpdateNodeIndex messages
+message UpdateNodeIndexRequest {
+  uint32 node_index = 1;
+}
+
+message UpdateNodeIndexResponse {
+  enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+  }
+  Status status = 1;
+  optional string error = 2;
+}
+
+// UpdateTargetNamespace messages
+message UpdateTargetNamespaceRequest {
+  string target_namespace = 1;
+}
+
+message UpdateTargetNamespaceResponse {
+  enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+  }
+  Status status = 1;
+  optional string error = 2;
+}

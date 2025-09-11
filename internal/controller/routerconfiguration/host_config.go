@@ -10,14 +10,7 @@ import (
 
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/hostnetwork"
-	"github.com/openperouter/openperouter/internal/pods"
 )
-
-type interfacesConfiguration struct {
-	RouterPodUUID string `json:"routerPodUUID,omitempty"`
-	PodRuntime    pods.Runtime
-	conversion.ApiConfigData
-}
 
 type UnderlayRemovedError struct{}
 
@@ -25,16 +18,8 @@ func (n UnderlayRemovedError) Error() string {
 	return "no underlays configured"
 }
 
-func configureInterfaces(ctx context.Context, config interfacesConfiguration) error {
-	targetNS, err := config.PodRuntime.NetworkNamespace(ctx, config.RouterPodUUID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve namespace for pod %s: %w", config.RouterPodUUID, err)
-	}
-
+func configureInterfaces(ctx context.Context, config conversion.ApiConfigData, targetNS string) error {
 	hasAlreadyUnderlay, err := hostnetwork.HasUnderlayInterface(targetNS)
-	if err != nil {
-		return fmt.Errorf("failed to check if target namespace %s for pod %s has underlay: %w", targetNS, config.RouterPodUUID, err)
-	}
 	if hasAlreadyUnderlay && len(config.Underlays) == 0 {
 		return UnderlayRemovedError{}
 	}

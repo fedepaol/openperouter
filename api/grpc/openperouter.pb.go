@@ -21,6 +21,147 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type UpdateAllResponse_Status int32
+
+const (
+	UpdateAllResponse_SUCCESS                 UpdateAllResponse_Status = 0
+	UpdateAllResponse_FAILURE                 UpdateAllResponse_Status = 1
+	UpdateAllResponse_NON_RECOVERABLE_FAILURE UpdateAllResponse_Status = 2
+)
+
+// Enum value maps for UpdateAllResponse_Status.
+var (
+	UpdateAllResponse_Status_name = map[int32]string{
+		0: "SUCCESS",
+		1: "FAILURE",
+		2: "NON_RECOVERABLE_FAILURE",
+	}
+	UpdateAllResponse_Status_value = map[string]int32{
+		"SUCCESS":                 0,
+		"FAILURE":                 1,
+		"NON_RECOVERABLE_FAILURE": 2,
+	}
+)
+
+func (x UpdateAllResponse_Status) Enum() *UpdateAllResponse_Status {
+	p := new(UpdateAllResponse_Status)
+	*p = x
+	return p
+}
+
+func (x UpdateAllResponse_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UpdateAllResponse_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_grpc_openperouter_proto_enumTypes[0].Descriptor()
+}
+
+func (UpdateAllResponse_Status) Type() protoreflect.EnumType {
+	return &file_api_grpc_openperouter_proto_enumTypes[0]
+}
+
+func (x UpdateAllResponse_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UpdateAllResponse_Status.Descriptor instead.
+func (UpdateAllResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{15, 0}
+}
+
+type UpdateNodeIndexResponse_Status int32
+
+const (
+	UpdateNodeIndexResponse_SUCCESS UpdateNodeIndexResponse_Status = 0
+	UpdateNodeIndexResponse_FAILURE UpdateNodeIndexResponse_Status = 1
+)
+
+// Enum value maps for UpdateNodeIndexResponse_Status.
+var (
+	UpdateNodeIndexResponse_Status_name = map[int32]string{
+		0: "SUCCESS",
+		1: "FAILURE",
+	}
+	UpdateNodeIndexResponse_Status_value = map[string]int32{
+		"SUCCESS": 0,
+		"FAILURE": 1,
+	}
+)
+
+func (x UpdateNodeIndexResponse_Status) Enum() *UpdateNodeIndexResponse_Status {
+	p := new(UpdateNodeIndexResponse_Status)
+	*p = x
+	return p
+}
+
+func (x UpdateNodeIndexResponse_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UpdateNodeIndexResponse_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_grpc_openperouter_proto_enumTypes[1].Descriptor()
+}
+
+func (UpdateNodeIndexResponse_Status) Type() protoreflect.EnumType {
+	return &file_api_grpc_openperouter_proto_enumTypes[1]
+}
+
+func (x UpdateNodeIndexResponse_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UpdateNodeIndexResponse_Status.Descriptor instead.
+func (UpdateNodeIndexResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{17, 0}
+}
+
+type UpdateTargetNamespaceResponse_Status int32
+
+const (
+	UpdateTargetNamespaceResponse_SUCCESS UpdateTargetNamespaceResponse_Status = 0
+	UpdateTargetNamespaceResponse_FAILURE UpdateTargetNamespaceResponse_Status = 1
+)
+
+// Enum value maps for UpdateTargetNamespaceResponse_Status.
+var (
+	UpdateTargetNamespaceResponse_Status_name = map[int32]string{
+		0: "SUCCESS",
+		1: "FAILURE",
+	}
+	UpdateTargetNamespaceResponse_Status_value = map[string]int32{
+		"SUCCESS": 0,
+		"FAILURE": 1,
+	}
+)
+
+func (x UpdateTargetNamespaceResponse_Status) Enum() *UpdateTargetNamespaceResponse_Status {
+	p := new(UpdateTargetNamespaceResponse_Status)
+	*p = x
+	return p
+}
+
+func (x UpdateTargetNamespaceResponse_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UpdateTargetNamespaceResponse_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_grpc_openperouter_proto_enumTypes[2].Descriptor()
+}
+
+func (UpdateTargetNamespaceResponse_Status) Type() protoreflect.EnumType {
+	return &file_api_grpc_openperouter_proto_enumTypes[2]
+}
+
+func (x UpdateTargetNamespaceResponse_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UpdateTargetNamespaceResponse_Status.Descriptor instead.
+func (UpdateTargetNamespaceResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{19, 0}
+}
+
 type HostMaster struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -928,15 +1069,13 @@ func (x *NamedUnderlay) GetSpec() *Underlay {
 
 // UpdateAll messages
 type UpdateAllRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	NodeIndex       *uint32                `protobuf:"varint,1,opt,name=nodeIndex,proto3,oneof" json:"nodeIndex,omitempty"`
-	TargetNamespace *string                `protobuf:"bytes,2,opt,name=targetNamespace,proto3,oneof" json:"targetNamespace,omitempty"`
-	L2Vnis          []*NamedL2VNI          `protobuf:"bytes,3,rep,name=l2vnis,proto3" json:"l2vnis,omitempty"`
-	L3Vnis          []*NamedL3VNI          `protobuf:"bytes,4,rep,name=l3vnis,proto3" json:"l3vnis,omitempty"`
-	L3Passthroughs  []*NamedL3Passthrough  `protobuf:"bytes,5,rep,name=l3passthroughs,proto3" json:"l3passthroughs,omitempty"`
-	Underlays       []*NamedUnderlay       `protobuf:"bytes,6,rep,name=underlays,proto3" json:"underlays,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	L2Vnis         []*NamedL2VNI          `protobuf:"bytes,1,rep,name=l2vnis,proto3" json:"l2vnis,omitempty"`
+	L3Vnis         []*NamedL3VNI          `protobuf:"bytes,2,rep,name=l3vnis,proto3" json:"l3vnis,omitempty"`
+	L3Passthroughs []*NamedL3Passthrough  `protobuf:"bytes,3,rep,name=l3passthroughs,proto3" json:"l3passthroughs,omitempty"`
+	Underlays      []*NamedUnderlay       `protobuf:"bytes,4,rep,name=underlays,proto3" json:"underlays,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateAllRequest) Reset() {
@@ -969,20 +1108,6 @@ func (*UpdateAllRequest) Descriptor() ([]byte, []int) {
 	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *UpdateAllRequest) GetNodeIndex() uint32 {
-	if x != nil && x.NodeIndex != nil {
-		return *x.NodeIndex
-	}
-	return 0
-}
-
-func (x *UpdateAllRequest) GetTargetNamespace() string {
-	if x != nil && x.TargetNamespace != nil {
-		return *x.TargetNamespace
-	}
-	return ""
-}
-
 func (x *UpdateAllRequest) GetL2Vnis() []*NamedL2VNI {
 	if x != nil {
 		return x.L2Vnis
@@ -1012,7 +1137,9 @@ func (x *UpdateAllRequest) GetUnderlays() []*NamedUnderlay {
 }
 
 type UpdateAllResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Status        UpdateAllResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=openperouter.v1alpha1.UpdateAllResponse_Status" json:"status,omitempty"`
+	Errors        []string                 `protobuf:"bytes,2,rep,name=errors,proto3" json:"errors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1045,6 +1172,214 @@ func (x *UpdateAllResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateAllResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAllResponse) Descriptor() ([]byte, []int) {
 	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UpdateAllResponse) GetStatus() UpdateAllResponse_Status {
+	if x != nil {
+		return x.Status
+	}
+	return UpdateAllResponse_SUCCESS
+}
+
+func (x *UpdateAllResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+// UpdateNodeIndex messages
+type UpdateNodeIndexRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeIndex     uint32                 `protobuf:"varint,1,opt,name=node_index,json=nodeIndex,proto3" json:"node_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNodeIndexRequest) Reset() {
+	*x = UpdateNodeIndexRequest{}
+	mi := &file_api_grpc_openperouter_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNodeIndexRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNodeIndexRequest) ProtoMessage() {}
+
+func (x *UpdateNodeIndexRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_grpc_openperouter_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNodeIndexRequest.ProtoReflect.Descriptor instead.
+func (*UpdateNodeIndexRequest) Descriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UpdateNodeIndexRequest) GetNodeIndex() uint32 {
+	if x != nil {
+		return x.NodeIndex
+	}
+	return 0
+}
+
+type UpdateNodeIndexResponse struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Status        UpdateNodeIndexResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=openperouter.v1alpha1.UpdateNodeIndexResponse_Status" json:"status,omitempty"`
+	Error         *string                        `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNodeIndexResponse) Reset() {
+	*x = UpdateNodeIndexResponse{}
+	mi := &file_api_grpc_openperouter_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNodeIndexResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNodeIndexResponse) ProtoMessage() {}
+
+func (x *UpdateNodeIndexResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_grpc_openperouter_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNodeIndexResponse.ProtoReflect.Descriptor instead.
+func (*UpdateNodeIndexResponse) Descriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpdateNodeIndexResponse) GetStatus() UpdateNodeIndexResponse_Status {
+	if x != nil {
+		return x.Status
+	}
+	return UpdateNodeIndexResponse_SUCCESS
+}
+
+func (x *UpdateNodeIndexResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+// UpdateTargetNamespace messages
+type UpdateTargetNamespaceRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TargetNamespace string                 `protobuf:"bytes,1,opt,name=target_namespace,json=targetNamespace,proto3" json:"target_namespace,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdateTargetNamespaceRequest) Reset() {
+	*x = UpdateTargetNamespaceRequest{}
+	mi := &file_api_grpc_openperouter_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateTargetNamespaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateTargetNamespaceRequest) ProtoMessage() {}
+
+func (x *UpdateTargetNamespaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_grpc_openperouter_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateTargetNamespaceRequest.ProtoReflect.Descriptor instead.
+func (*UpdateTargetNamespaceRequest) Descriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdateTargetNamespaceRequest) GetTargetNamespace() string {
+	if x != nil {
+		return x.TargetNamespace
+	}
+	return ""
+}
+
+type UpdateTargetNamespaceResponse struct {
+	state         protoimpl.MessageState               `protogen:"open.v1"`
+	Status        UpdateTargetNamespaceResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=openperouter.v1alpha1.UpdateTargetNamespaceResponse_Status" json:"status,omitempty"`
+	Error         *string                              `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateTargetNamespaceResponse) Reset() {
+	*x = UpdateTargetNamespaceResponse{}
+	mi := &file_api_grpc_openperouter_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateTargetNamespaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateTargetNamespaceResponse) ProtoMessage() {}
+
+func (x *UpdateTargetNamespaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_grpc_openperouter_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateTargetNamespaceResponse.ProtoReflect.Descriptor instead.
+func (*UpdateTargetNamespaceResponse) Descriptor() ([]byte, []int) {
+	return file_api_grpc_openperouter_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UpdateTargetNamespaceResponse) GetStatus() UpdateTargetNamespaceResponse_Status {
+	if x != nil {
+		return x.Status
+	}
+	return UpdateTargetNamespaceResponse_SUCCESS
+}
+
+func (x *UpdateTargetNamespaceResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
 }
 
 var File_api_grpc_openperouter_proto protoreflect.FileDescriptor
@@ -1126,20 +1461,42 @@ const file_api_grpc_openperouter_proto_rawDesc = "" +
 	"\x04spec\x18\x02 \x01(\v2$.openperouter.v1alpha1.L3PassthroughR\x04spec\"X\n" +
 	"\rNamedUnderlay\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x123\n" +
-	"\x04spec\x18\x02 \x01(\v2\x1f.openperouter.v1alpha1.UnderlayR\x04spec\"\x93\x03\n" +
-	"\x10UpdateAllRequest\x12!\n" +
-	"\tnodeIndex\x18\x01 \x01(\rH\x00R\tnodeIndex\x88\x01\x01\x12-\n" +
-	"\x0ftargetNamespace\x18\x02 \x01(\tH\x01R\x0ftargetNamespace\x88\x01\x01\x129\n" +
-	"\x06l2vnis\x18\x03 \x03(\v2!.openperouter.v1alpha1.NamedL2VNIR\x06l2vnis\x129\n" +
-	"\x06l3vnis\x18\x04 \x03(\v2!.openperouter.v1alpha1.NamedL3VNIR\x06l3vnis\x12Q\n" +
-	"\x0el3passthroughs\x18\x05 \x03(\v2).openperouter.v1alpha1.NamedL3PassthroughR\x0el3passthroughs\x12B\n" +
-	"\tunderlays\x18\x06 \x03(\v2$.openperouter.v1alpha1.NamedUnderlayR\tunderlaysB\f\n" +
+	"\x04spec\x18\x02 \x01(\v2\x1f.openperouter.v1alpha1.UnderlayR\x04spec\"\x9f\x02\n" +
+	"\x10UpdateAllRequest\x129\n" +
+	"\x06l2vnis\x18\x01 \x03(\v2!.openperouter.v1alpha1.NamedL2VNIR\x06l2vnis\x129\n" +
+	"\x06l3vnis\x18\x02 \x03(\v2!.openperouter.v1alpha1.NamedL3VNIR\x06l3vnis\x12Q\n" +
+	"\x0el3passthroughs\x18\x03 \x03(\v2).openperouter.v1alpha1.NamedL3PassthroughR\x0el3passthroughs\x12B\n" +
+	"\tunderlays\x18\x04 \x03(\v2$.openperouter.v1alpha1.NamedUnderlayR\tunderlays\"\xb5\x01\n" +
+	"\x11UpdateAllResponse\x12G\n" +
+	"\x06status\x18\x01 \x01(\x0e2/.openperouter.v1alpha1.UpdateAllResponse.StatusR\x06status\x12\x16\n" +
+	"\x06errors\x18\x02 \x03(\tR\x06errors\"?\n" +
+	"\x06Status\x12\v\n" +
+	"\aSUCCESS\x10\x00\x12\v\n" +
+	"\aFAILURE\x10\x01\x12\x1b\n" +
+	"\x17NON_RECOVERABLE_FAILURE\x10\x02\"7\n" +
+	"\x16UpdateNodeIndexRequest\x12\x1d\n" +
 	"\n" +
-	"_nodeIndexB\x12\n" +
-	"\x10_targetNamespace\"\x13\n" +
-	"\x11UpdateAllResponse2u\n" +
+	"node_index\x18\x01 \x01(\rR\tnodeIndex\"\xb1\x01\n" +
+	"\x17UpdateNodeIndexResponse\x12M\n" +
+	"\x06status\x18\x01 \x01(\x0e25.openperouter.v1alpha1.UpdateNodeIndexResponse.StatusR\x06status\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01\"\"\n" +
+	"\x06Status\x12\v\n" +
+	"\aSUCCESS\x10\x00\x12\v\n" +
+	"\aFAILURE\x10\x01B\b\n" +
+	"\x06_error\"I\n" +
+	"\x1cUpdateTargetNamespaceRequest\x12)\n" +
+	"\x10target_namespace\x18\x01 \x01(\tR\x0ftargetNamespace\"\xbd\x01\n" +
+	"\x1dUpdateTargetNamespaceResponse\x12S\n" +
+	"\x06status\x18\x01 \x01(\x0e2;.openperouter.v1alpha1.UpdateTargetNamespaceResponse.StatusR\x06status\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01\"\"\n" +
+	"\x06Status\x12\v\n" +
+	"\aSUCCESS\x10\x00\x12\v\n" +
+	"\aFAILURE\x10\x01B\b\n" +
+	"\x06_error2\xec\x02\n" +
 	"\x13OpenPERouterService\x12^\n" +
-	"\tUpdateAll\x12'.openperouter.v1alpha1.UpdateAllRequest\x1a(.openperouter.v1alpha1.UpdateAllResponseB/Z-github.com/openperouter/openperouter/api/grpcb\x06proto3"
+	"\tUpdateAll\x12'.openperouter.v1alpha1.UpdateAllRequest\x1a(.openperouter.v1alpha1.UpdateAllResponse\x12p\n" +
+	"\x0fUpdateNodeIndex\x12-.openperouter.v1alpha1.UpdateNodeIndexRequest\x1a..openperouter.v1alpha1.UpdateNodeIndexResponse\x12\x82\x01\n" +
+	"\x15UpdateTargetNamespace\x123.openperouter.v1alpha1.UpdateTargetNamespaceRequest\x1a4.openperouter.v1alpha1.UpdateTargetNamespaceResponseB/Z-github.com/openperouter/openperouter/api/grpcb\x06proto3"
 
 var (
 	file_api_grpc_openperouter_proto_rawDescOnce sync.Once
@@ -1153,48 +1510,63 @@ func file_api_grpc_openperouter_proto_rawDescGZIP() []byte {
 	return file_api_grpc_openperouter_proto_rawDescData
 }
 
-var file_api_grpc_openperouter_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_api_grpc_openperouter_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_api_grpc_openperouter_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_api_grpc_openperouter_proto_goTypes = []any{
-	(*HostMaster)(nil),         // 0: openperouter.v1alpha1.HostMaster
-	(*LocalCIDRConfig)(nil),    // 1: openperouter.v1alpha1.LocalCIDRConfig
-	(*HostSession)(nil),        // 2: openperouter.v1alpha1.HostSession
-	(*BFDSettings)(nil),        // 3: openperouter.v1alpha1.BFDSettings
-	(*Neighbor)(nil),           // 4: openperouter.v1alpha1.Neighbor
-	(*EVPNConfig)(nil),         // 5: openperouter.v1alpha1.EVPNConfig
-	(*L2VNI)(nil),              // 6: openperouter.v1alpha1.L2VNI
-	(*L3VNI)(nil),              // 7: openperouter.v1alpha1.L3VNI
-	(*L3Passthrough)(nil),      // 8: openperouter.v1alpha1.L3Passthrough
-	(*Underlay)(nil),           // 9: openperouter.v1alpha1.Underlay
-	(*NamedL2VNI)(nil),         // 10: openperouter.v1alpha1.NamedL2VNI
-	(*NamedL3VNI)(nil),         // 11: openperouter.v1alpha1.NamedL3VNI
-	(*NamedL3Passthrough)(nil), // 12: openperouter.v1alpha1.NamedL3Passthrough
-	(*NamedUnderlay)(nil),      // 13: openperouter.v1alpha1.NamedUnderlay
-	(*UpdateAllRequest)(nil),   // 14: openperouter.v1alpha1.UpdateAllRequest
-	(*UpdateAllResponse)(nil),  // 15: openperouter.v1alpha1.UpdateAllResponse
+	(UpdateAllResponse_Status)(0),             // 0: openperouter.v1alpha1.UpdateAllResponse.Status
+	(UpdateNodeIndexResponse_Status)(0),       // 1: openperouter.v1alpha1.UpdateNodeIndexResponse.Status
+	(UpdateTargetNamespaceResponse_Status)(0), // 2: openperouter.v1alpha1.UpdateTargetNamespaceResponse.Status
+	(*HostMaster)(nil),                        // 3: openperouter.v1alpha1.HostMaster
+	(*LocalCIDRConfig)(nil),                   // 4: openperouter.v1alpha1.LocalCIDRConfig
+	(*HostSession)(nil),                       // 5: openperouter.v1alpha1.HostSession
+	(*BFDSettings)(nil),                       // 6: openperouter.v1alpha1.BFDSettings
+	(*Neighbor)(nil),                          // 7: openperouter.v1alpha1.Neighbor
+	(*EVPNConfig)(nil),                        // 8: openperouter.v1alpha1.EVPNConfig
+	(*L2VNI)(nil),                             // 9: openperouter.v1alpha1.L2VNI
+	(*L3VNI)(nil),                             // 10: openperouter.v1alpha1.L3VNI
+	(*L3Passthrough)(nil),                     // 11: openperouter.v1alpha1.L3Passthrough
+	(*Underlay)(nil),                          // 12: openperouter.v1alpha1.Underlay
+	(*NamedL2VNI)(nil),                        // 13: openperouter.v1alpha1.NamedL2VNI
+	(*NamedL3VNI)(nil),                        // 14: openperouter.v1alpha1.NamedL3VNI
+	(*NamedL3Passthrough)(nil),                // 15: openperouter.v1alpha1.NamedL3Passthrough
+	(*NamedUnderlay)(nil),                     // 16: openperouter.v1alpha1.NamedUnderlay
+	(*UpdateAllRequest)(nil),                  // 17: openperouter.v1alpha1.UpdateAllRequest
+	(*UpdateAllResponse)(nil),                 // 18: openperouter.v1alpha1.UpdateAllResponse
+	(*UpdateNodeIndexRequest)(nil),            // 19: openperouter.v1alpha1.UpdateNodeIndexRequest
+	(*UpdateNodeIndexResponse)(nil),           // 20: openperouter.v1alpha1.UpdateNodeIndexResponse
+	(*UpdateTargetNamespaceRequest)(nil),      // 21: openperouter.v1alpha1.UpdateTargetNamespaceRequest
+	(*UpdateTargetNamespaceResponse)(nil),     // 22: openperouter.v1alpha1.UpdateTargetNamespaceResponse
 }
 var file_api_grpc_openperouter_proto_depIdxs = []int32{
-	1,  // 0: openperouter.v1alpha1.HostSession.local_cidr:type_name -> openperouter.v1alpha1.LocalCIDRConfig
-	3,  // 1: openperouter.v1alpha1.Neighbor.bfd:type_name -> openperouter.v1alpha1.BFDSettings
-	0,  // 2: openperouter.v1alpha1.L2VNI.host_master:type_name -> openperouter.v1alpha1.HostMaster
-	2,  // 3: openperouter.v1alpha1.L3VNI.host_session:type_name -> openperouter.v1alpha1.HostSession
-	2,  // 4: openperouter.v1alpha1.L3Passthrough.host_session:type_name -> openperouter.v1alpha1.HostSession
-	4,  // 5: openperouter.v1alpha1.Underlay.neighbors:type_name -> openperouter.v1alpha1.Neighbor
-	5,  // 6: openperouter.v1alpha1.Underlay.evpn:type_name -> openperouter.v1alpha1.EVPNConfig
-	6,  // 7: openperouter.v1alpha1.NamedL2VNI.spec:type_name -> openperouter.v1alpha1.L2VNI
-	7,  // 8: openperouter.v1alpha1.NamedL3VNI.spec:type_name -> openperouter.v1alpha1.L3VNI
-	8,  // 9: openperouter.v1alpha1.NamedL3Passthrough.spec:type_name -> openperouter.v1alpha1.L3Passthrough
-	9,  // 10: openperouter.v1alpha1.NamedUnderlay.spec:type_name -> openperouter.v1alpha1.Underlay
-	10, // 11: openperouter.v1alpha1.UpdateAllRequest.l2vnis:type_name -> openperouter.v1alpha1.NamedL2VNI
-	11, // 12: openperouter.v1alpha1.UpdateAllRequest.l3vnis:type_name -> openperouter.v1alpha1.NamedL3VNI
-	12, // 13: openperouter.v1alpha1.UpdateAllRequest.l3passthroughs:type_name -> openperouter.v1alpha1.NamedL3Passthrough
-	13, // 14: openperouter.v1alpha1.UpdateAllRequest.underlays:type_name -> openperouter.v1alpha1.NamedUnderlay
-	14, // 15: openperouter.v1alpha1.OpenPERouterService.UpdateAll:input_type -> openperouter.v1alpha1.UpdateAllRequest
-	15, // 16: openperouter.v1alpha1.OpenPERouterService.UpdateAll:output_type -> openperouter.v1alpha1.UpdateAllResponse
-	16, // [16:17] is the sub-list for method output_type
-	15, // [15:16] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	4,  // 0: openperouter.v1alpha1.HostSession.local_cidr:type_name -> openperouter.v1alpha1.LocalCIDRConfig
+	6,  // 1: openperouter.v1alpha1.Neighbor.bfd:type_name -> openperouter.v1alpha1.BFDSettings
+	3,  // 2: openperouter.v1alpha1.L2VNI.host_master:type_name -> openperouter.v1alpha1.HostMaster
+	5,  // 3: openperouter.v1alpha1.L3VNI.host_session:type_name -> openperouter.v1alpha1.HostSession
+	5,  // 4: openperouter.v1alpha1.L3Passthrough.host_session:type_name -> openperouter.v1alpha1.HostSession
+	7,  // 5: openperouter.v1alpha1.Underlay.neighbors:type_name -> openperouter.v1alpha1.Neighbor
+	8,  // 6: openperouter.v1alpha1.Underlay.evpn:type_name -> openperouter.v1alpha1.EVPNConfig
+	9,  // 7: openperouter.v1alpha1.NamedL2VNI.spec:type_name -> openperouter.v1alpha1.L2VNI
+	10, // 8: openperouter.v1alpha1.NamedL3VNI.spec:type_name -> openperouter.v1alpha1.L3VNI
+	11, // 9: openperouter.v1alpha1.NamedL3Passthrough.spec:type_name -> openperouter.v1alpha1.L3Passthrough
+	12, // 10: openperouter.v1alpha1.NamedUnderlay.spec:type_name -> openperouter.v1alpha1.Underlay
+	13, // 11: openperouter.v1alpha1.UpdateAllRequest.l2vnis:type_name -> openperouter.v1alpha1.NamedL2VNI
+	14, // 12: openperouter.v1alpha1.UpdateAllRequest.l3vnis:type_name -> openperouter.v1alpha1.NamedL3VNI
+	15, // 13: openperouter.v1alpha1.UpdateAllRequest.l3passthroughs:type_name -> openperouter.v1alpha1.NamedL3Passthrough
+	16, // 14: openperouter.v1alpha1.UpdateAllRequest.underlays:type_name -> openperouter.v1alpha1.NamedUnderlay
+	0,  // 15: openperouter.v1alpha1.UpdateAllResponse.status:type_name -> openperouter.v1alpha1.UpdateAllResponse.Status
+	1,  // 16: openperouter.v1alpha1.UpdateNodeIndexResponse.status:type_name -> openperouter.v1alpha1.UpdateNodeIndexResponse.Status
+	2,  // 17: openperouter.v1alpha1.UpdateTargetNamespaceResponse.status:type_name -> openperouter.v1alpha1.UpdateTargetNamespaceResponse.Status
+	17, // 18: openperouter.v1alpha1.OpenPERouterService.UpdateAll:input_type -> openperouter.v1alpha1.UpdateAllRequest
+	19, // 19: openperouter.v1alpha1.OpenPERouterService.UpdateNodeIndex:input_type -> openperouter.v1alpha1.UpdateNodeIndexRequest
+	21, // 20: openperouter.v1alpha1.OpenPERouterService.UpdateTargetNamespace:input_type -> openperouter.v1alpha1.UpdateTargetNamespaceRequest
+	18, // 21: openperouter.v1alpha1.OpenPERouterService.UpdateAll:output_type -> openperouter.v1alpha1.UpdateAllResponse
+	20, // 22: openperouter.v1alpha1.OpenPERouterService.UpdateNodeIndex:output_type -> openperouter.v1alpha1.UpdateNodeIndexResponse
+	22, // 23: openperouter.v1alpha1.OpenPERouterService.UpdateTargetNamespace:output_type -> openperouter.v1alpha1.UpdateTargetNamespaceResponse
+	21, // [21:24] is the sub-list for method output_type
+	18, // [18:21] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_api_grpc_openperouter_proto_init() }
@@ -1202,19 +1574,21 @@ func file_api_grpc_openperouter_proto_init() {
 	if File_api_grpc_openperouter_proto != nil {
 		return
 	}
-	file_api_grpc_openperouter_proto_msgTypes[14].OneofWrappers = []any{}
+	file_api_grpc_openperouter_proto_msgTypes[17].OneofWrappers = []any{}
+	file_api_grpc_openperouter_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_grpc_openperouter_proto_rawDesc), len(file_api_grpc_openperouter_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   16,
+			NumEnums:      3,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_api_grpc_openperouter_proto_goTypes,
 		DependencyIndexes: file_api_grpc_openperouter_proto_depIdxs,
+		EnumInfos:         file_api_grpc_openperouter_proto_enumTypes,
 		MessageInfos:      file_api_grpc_openperouter_proto_msgTypes,
 	}.Build()
 	File_api_grpc_openperouter_proto = out.File
