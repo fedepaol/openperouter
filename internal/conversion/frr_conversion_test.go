@@ -17,9 +17,9 @@ func TestAPItoFRR(t *testing.T) {
 	tests := []struct {
 		name          string
 		nodeIndex     int
-		underlays     []grpc.Underlay
-		vnis          []grpc.L3VNI
-		l3Passthrough []grpc.L3Passthrough
+		underlays     []*grpc.Underlay
+		vnis          []*grpc.L3VNI
+		l3Passthrough []*grpc.L3Passthrough
 		logLevel      string
 		want          frr.Config
 		wantErr       bool
@@ -27,16 +27,16 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:          "no underlays",
 			nodeIndex:     0,
-			underlays:     []grpc.Underlay{},
-			vnis:          []grpc.L3VNI{{}},
-			l3Passthrough: []grpc.L3Passthrough{},
+			underlays:     []*grpc.Underlay{},
+			vnis:          []*grpc.L3VNI{&grpc.L3VNI{}},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			wantErr:       true,
 		},
 		{
 			name:      "no vnis",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -45,8 +45,8 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis:          []grpc.L3VNI{},
-			l3Passthrough: []grpc.L3Passthrough{},
+			vnis:          []*grpc.L3VNI{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -74,8 +74,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "ipv4 only",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -84,8 +84,8 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{
-				{
+			vnis: []*grpc.L3VNI{
+				&grpc.L3VNI{
 					HostSession: &grpc.HostSession{
 						Asn: 65000,
 						LocalCidr: &grpc.LocalCIDRConfig{
@@ -97,7 +97,7 @@ func TestAPItoFRR(t *testing.T) {
 					Vni: 200,
 				},
 			},
-			l3Passthrough: []grpc.L3Passthrough{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -138,8 +138,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "ipv6 only",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -148,8 +148,8 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{
-				{
+			vnis: []*grpc.L3VNI{
+				&grpc.L3VNI{
 					HostSession: &grpc.HostSession{
 						Asn: 65000,
 						LocalCidr: &grpc.LocalCIDRConfig{
@@ -161,7 +161,7 @@ func TestAPItoFRR(t *testing.T) {
 					Vni: 200,
 				},
 			},
-			l3Passthrough: []grpc.L3Passthrough{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -202,8 +202,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "dual stack",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -212,8 +212,8 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{
-				{
+			vnis: []*grpc.L3VNI{
+				&grpc.L3VNI{
 					HostSession: &grpc.HostSession{
 						Asn: 65000,
 						LocalCidr: &grpc.LocalCIDRConfig{
@@ -226,7 +226,7 @@ func TestAPItoFRR(t *testing.T) {
 					Vni: 200,
 				},
 			},
-			l3Passthrough: []grpc.L3Passthrough{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -279,8 +279,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "BFD with custom settings",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -301,8 +301,8 @@ func TestAPItoFRR(t *testing.T) {
 					},
 				},
 			},
-			vnis:          []grpc.L3VNI{},
-			l3Passthrough: []grpc.L3Passthrough{},
+			vnis:          []*grpc.L3VNI{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -339,8 +339,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "BFD enabled without settings",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -355,8 +355,8 @@ func TestAPItoFRR(t *testing.T) {
 					},
 				},
 			},
-			vnis:          []grpc.L3VNI{},
-			l3Passthrough: []grpc.L3Passthrough{},
+			vnis:          []*grpc.L3VNI{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -386,8 +386,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "vni without host session",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -396,13 +396,13 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{
-				{
+			vnis: []*grpc.L3VNI{
+				&grpc.L3VNI{
 					Vrf: "vrf1",
 					Vni: 200,
 				},
 			},
-			l3Passthrough: []grpc.L3Passthrough{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -437,8 +437,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "empty routeridcidr uses default",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -447,8 +447,8 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{
-				{
+			vnis: []*grpc.L3VNI{
+				&grpc.L3VNI{
 					HostSession: &grpc.HostSession{
 						Asn: 65000,
 						LocalCidr: &grpc.LocalCIDRConfig{
@@ -459,7 +459,7 @@ func TestAPItoFRR(t *testing.T) {
 					Vni: 200,
 				},
 			},
-			l3Passthrough: []grpc.L3Passthrough{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -500,15 +500,15 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "missing EVPN parameter",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn:          65000,
 					RouterIdCidr: "10.0.0.0/24",
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis:          []grpc.L3VNI{},
-			l3Passthrough: []grpc.L3Passthrough{},
+			vnis:          []*grpc.L3VNI{},
+			l3Passthrough: []*grpc.L3Passthrough{},
 			logLevel:      "debug",
 			want: frr.Config{
 				Underlay: frr.UnderlayConfig{
@@ -533,8 +533,8 @@ func TestAPItoFRR(t *testing.T) {
 		{
 			name:      "L3 passthrough",
 			nodeIndex: 0,
-			underlays: []grpc.Underlay{
-				{
+			underlays: []*grpc.Underlay{
+				&grpc.Underlay{
 					Asn: 65000,
 					Evpn: &grpc.EVPNConfig{
 						VtepCidr: "192.168.1.0/24",
@@ -543,9 +543,9 @@ func TestAPItoFRR(t *testing.T) {
 					Neighbors:    []*grpc.Neighbor{{Address: "192.168.1.1", Asn: 65001}},
 				},
 			},
-			vnis: []grpc.L3VNI{},
-			l3Passthrough: []grpc.L3Passthrough{
-				{
+			vnis: []*grpc.L3VNI{},
+			l3Passthrough: []*grpc.L3Passthrough{
+				&grpc.L3Passthrough{
 					HostSession: &grpc.HostSession{
 						HostAsn: 65001,
 						Asn:     65000,

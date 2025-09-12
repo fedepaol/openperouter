@@ -64,7 +64,7 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 	}
 
 	if len(config.L3Passthrough) > 0 {
-		passthrough, err := passthroughToFRR(&config.L3Passthrough[0], config.NodeIndex)
+		passthrough, err := passthroughToFRR(config.L3Passthrough[0], config.NodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate passthrough to frr: %w", err)
 		}
@@ -93,7 +93,7 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 
 	vniConfigs := []frr.L3VNIConfig{}
 	for i := range config.L3VNIs {
-		vni := &config.L3VNIs[i]
+		vni := config.L3VNIs[i]
 		frrVNI, err := l3vniToFRR(vni, routerID, underlay.Asn, config.NodeIndex)
 		if err != nil {
 			return frr.Config{}, fmt.Errorf("failed to translate vni to frr: %w, vni %v", err, vni)

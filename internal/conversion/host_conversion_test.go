@@ -339,12 +339,30 @@ func TestAPItoHostConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Convert slices to pointer slices
+			underlays := make([]*grpc.Underlay, len(tt.underlays))
+			for i := range tt.underlays {
+				underlays[i] = &tt.underlays[i]
+			}
+			vnis := make([]*grpc.L3VNI, len(tt.vnis))
+			for i := range tt.vnis {
+				vnis[i] = &tt.vnis[i]
+			}
+			l2vnis := make([]*grpc.L2VNI, len(tt.l2vnis))
+			for i := range tt.l2vnis {
+				l2vnis[i] = &tt.l2vnis[i]
+			}
+			l3Passthrough := make([]*grpc.L3Passthrough, len(tt.l3Passthrough))
+			for i := range tt.l3Passthrough {
+				l3Passthrough[i] = &tt.l3Passthrough[i]
+			}
+
 			apiConfig := ApiConfigData{
 				NodeIndex:     tt.nodeIndex,
-				Underlays:     tt.underlays,
-				L3VNIs:        tt.vnis,
-				L2VNIs:        tt.l2vnis,
-				L3Passthrough: tt.l3Passthrough,
+				Underlays:     underlays,
+				L3VNIs:        vnis,
+				L2VNIs:        l2vnis,
+				L3Passthrough: l3Passthrough,
 			}
 
 			gotHostConfig, err := APItoHostConfig(tt.nodeIndex, tt.targetNS, apiConfig)

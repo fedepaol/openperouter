@@ -25,7 +25,7 @@ func APItoHostConfig(nodeIndex int, targetNS string, apiConfig ApiConfigData) (H
 		return res, nil
 	}
 
-	underlay := &apiConfig.Underlays[0]
+	underlay := apiConfig.Underlays[0]
 
 	res.Underlay = hostnetwork.UnderlayParams{
 		UnderlayInterface: underlay.Nics[0],
@@ -66,7 +66,7 @@ func APItoHostConfig(nodeIndex int, targetNS string, apiConfig ApiConfigData) (H
 	}
 
 	for i := range apiConfig.L3VNIs {
-		vni := &apiConfig.L3VNIs[i]
+		vni := apiConfig.L3VNIs[i]
 		v := hostnetwork.L3VNIParams{
 			VNIParams: hostnetwork.VNIParams{
 				VRF:       vni.VRFName(),
@@ -98,7 +98,7 @@ func APItoHostConfig(nodeIndex int, targetNS string, apiConfig ApiConfigData) (H
 
 	res.L2VNIs = []hostnetwork.L2VNIParams{}
 	for i := range apiConfig.L2VNIs {
-		l2vni := &apiConfig.L2VNIs[i]
+		l2vni := apiConfig.L2VNIs[i]
 		vni := hostnetwork.L2VNIParams{
 			VNIParams: hostnetwork.VNIParams{
 				VRF:       l2vni.VRFName(),
