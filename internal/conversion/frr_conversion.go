@@ -35,7 +35,7 @@ func APItoFRR(config ApiConfigData) (frr.Config, error) {
 		return frr.Config{}, errors.New("multiple passthrough defined, can have only one")
 	}
 
-	underlay := &config.Underlays[0]
+	underlay := config.Underlays[0]
 
 	underlayNeighbors := []frr.NeighborConfig{}
 	bfdProfiles := []frr.BFDProfile{}
@@ -345,7 +345,7 @@ func durationToUint64(value time.Duration) (uint64, error) {
 	return uint64(value), nil // #nosec G115
 }
 
-func routerIDFromUnderlay(underlay *grpc.Underlay, nodeIndex int) (string, error) {
+func routerIDFromUnderlay(underlay *grpc.Underlay, nodeIndex uint32) (string, error) {
 	routerIDCidr := underlay.RouterIdCidr
 	if underlay.RouterIdCidr == "" {
 		routerIDCidr = defaultRouterIDCidr

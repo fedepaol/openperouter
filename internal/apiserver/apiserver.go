@@ -8,17 +8,29 @@ import (
 
 	"github.com/openperouter/openperouter/api/grpc"
 	pb "github.com/openperouter/openperouter/api/grpc"
+	"github.com/openperouter/openperouter/internal/conversion"
 )
 
 type ApiServer struct {
-	pb.UnimplementedOpenPERouterServiceServer
 	sync.Mutex
-	nodeIndex       uint32
-	targetNamespace string
+	NodeIndex       int
+	TargetNamespace string
+	ReloaderPort    uint32
+	ReloaderIP      string
 }
 
 func New() *ApiServer {
 	return &ApiServer{}
+}
+
+func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) error {
+
+	s.Lock()
+	defer s.Unlock()
+
+	slog.InfoContext(ctx, "updating reloader ip", "reloader ip", reloaderIP)
+	s.ReloaderIP = reloaderIP
+	return nil
 }
 
 func (s *ApiServer) updateNodeIndex(ctx context.Context, nodeIndex uint32) error {
@@ -31,7 +43,7 @@ func (s *ApiServer) updateNodeIndex(ctx context.Context, nodeIndex uint32) error
 	defer s.Unlock()
 
 	slog.InfoContext(ctx, "updating node index", "nodeIndex", nodeIndex)
-	s.nodeIndex = nodeIndex
+	s.NodeIndex = int(nodeIndex)
 	return nil
 }
 
@@ -45,49 +57,49 @@ func (s *ApiServer) updateTargetNamespace(ctx context.Context, namespace string)
 	defer s.Unlock()
 
 	slog.InfoContext(ctx, "updating target namespace", "namespace", namespace)
-	s.targetNamespace = namespace
+	s.TargetNamespace = namespace
 	return nil
 }
 
-func (s *ApiServer) UpdateAll(ctx context.Context,
-	L2Vnis []*grpc.L2VNI,
-	L3Vnis []*grpc.L3VNI,
-	L3Passthroughs []*grpc.L3Passthrough,
-	Underlays []*grpc.Underlay) error {
+func (s *ApiServer) updateAll(ctx context.Context,
+	l2vnis []*grpc.L2VNI,
+	l3vnis []*grpc.L3VNI,
+	l3passthroughs []*grpc.L3Passthrough,
+	underlays []*grpc.Underlay) error {
 
 	slog.InfoContext(ctx, "received UpdateAll request start")
 	defer slog.InfoContext(ctx, "received UpdateAll request end")
 
 	slog.DebugContext(ctx, "received UpdateAll request",
-		"l2vnis", len(req.L2Vnis),
-		"l3vnis", len(req.L3Vnis),
-		"l3passthroughs", len(req.L3Passthroughs),
-		"underlays", len(req.Underlays))
+		"l2vnis", len(l2vnis),
+		"l3vnis", len(l3vnis),
+		"l3passthroughs", len(l3passthroughs),
+		"underlays", len(underlays))
 
-	var errors []string
-
-	// TODO: Implement actual configuration logic for:
-	// - L2VNIs: req.L2Vnis
-	// - L3VNIs: req.L3Vnis
-	// - L3Passthroughs: req.L3Passthroughs
-	// - Underlays: req.Underlays
-
-	slog.InfoContext(ctx, "UpdateAll processing completed", "errors", len(errors))
-
-	if len(errors) > 0 {
-		return &pb.UpdateAllResponse{
-			Status: pb.UpdateAllResponse_FAILURE,
-			Errors: errors,
-		}, nil
+	apiConfig := &conversion.ApiConfigData{
+		NodeIndex:     s.NodeIndex,
+		Underlays:     underlays,
+		L2VNIs:        l2vnis,
+		L3VNIs:        l3vnis,
+		L3Passthrough: l3passthroughs,
+		LegLevel:      s.LogLevel,
 	}
 
-	return &pb.UpdateAllResponse{
-		Status: pb.UpdateAllResponse_SUCCESS,
-		Errors: []string{},
-	}, nil
-}
+	err := configureInterfaces(ctx, interfacesConfiguration{
+		RouterPodUUID: string(routerPod.UID),
+		PodRuntime:    *r.PodRuntime,
+		ApiConfigData: apiConfig,
+	})
 
-// gRPC RPC method implementations
+	// TODO: Implement actual configuration logic for:
+	// - L2VNIs: l2vnis
+	// - L3VNIs: l3vnis
+	// - L3Passthroughs: l3passthroughs
+	// - Underlays: underlays
+
+	slog.InfoContext(ctx, "UpdateAll processing completed")
+	return nil
+}
 
 func (s *ApiServer) UpdateNodeIndex(ctx context.Context, req *pb.UpdateNodeIndexRequest) (*pb.UpdateNodeIndexResponse, error) {
 	err := s.updateNodeIndex(ctx, req.NodeIndex)

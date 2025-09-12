@@ -1,6 +1,6 @@
 // SPDX-License-Identifier:Apache-2.0
 
-package routerconfiguration
+package apiserver
 
 import (
 	"context"
@@ -18,7 +18,7 @@ func (n UnderlayRemovedError) Error() string {
 	return "no underlays configured"
 }
 
-func configureInterfaces(ctx context.Context, config conversion.ApiConfigData, targetNS string) error {
+func configureInterfaces(ctx context.Context, config conversion.ApiConfigData, targetNS string, nodeIndex int) error {
 	hasAlreadyUnderlay, err := hostnetwork.HasUnderlayInterface(targetNS)
 	if hasAlreadyUnderlay && len(config.Underlays) == 0 {
 		return UnderlayRemovedError{}
@@ -37,7 +37,7 @@ func configureInterfaces(ctx context.Context, config conversion.ApiConfigData, t
 		L2VNIs:        config.L2VNIs,
 		L3Passthrough: config.L3Passthrough,
 	}
-	hostConfig, err := conversion.APItoHostConfig(config.NodeIndex, targetNS, apiConfig)
+	hostConfig, err := conversion.APItoHostConfig(nodeIndex, targetNS, apiConfig)
 	if err != nil {
 		return fmt.Errorf("failed to convert config to host configuration: %w", err)
 	}
