@@ -11,7 +11,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/apiserver"
 	"github.com/openperouter/openperouter/internal/logging"
 )
@@ -21,6 +20,7 @@ func main() {
 		logLevel      = flag.String("loglevel", "info", "Log level (debug, info, warn, error)")
 		socketPath    = flag.String("socket", "/tmp/openperouter.sock", "Path to Unix socket")
 		frrConfigPath = flag.String("frrconfig", "/etc/perouter/frr/frr.conf", "the location of the frr configuration file")
+		reloadPort    = flag.Int("reloadport", 9080, "the port of the reloader process")
 	)
 	flag.Parse()
 
@@ -54,9 +54,10 @@ func main() {
 
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
-	apiServer := apiserver.New()
-	apiServer.FRRConfigPath = *frrConfigPath
-	pb.RegisterOpenPERouterServiceServer(grpcServer, apiServer)
+	apiServer := &apiserver.ApiServer{
+		FRRConfigPath: *frrConfigPath,
+		ReloaderPort:  *reloadPort,
+	}
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -76,4 +77,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

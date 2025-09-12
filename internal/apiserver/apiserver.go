@@ -21,10 +21,6 @@ type ApiServer struct {
 	ReloaderIP      string
 }
 
-func New() *ApiServer {
-	return &ApiServer{}
-}
-
 func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) error {
 	if net.ParseIP(reloaderIP) == nil {
 		slog.ErrorContext(ctx, "invalid IP address format", "reloader_ip", reloaderIP)
