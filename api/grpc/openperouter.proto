@@ -82,33 +82,13 @@ service OpenPERouterService {
   rpc UpdateTargetNamespace(UpdateTargetNamespaceRequest) returns (UpdateTargetNamespaceResponse);
 }
 
-// Resource with name
-message NamedL2VNI {
-  string name = 1;
-  L2VNI spec = 2;
-}
-
-message NamedL3VNI {
-  string name = 1;
-  L3VNI spec = 2;
-}
-
-message NamedL3Passthrough {
-  string name = 1;
-  L3Passthrough spec = 2;
-}
-
-message NamedUnderlay {
-  string name = 1;
-  Underlay spec = 2;
-}
-
 // UpdateAll messages
 message UpdateAllRequest {
-  repeated NamedL2VNI l2vnis = 1;
-  repeated NamedL3VNI l3vnis = 2;
-  repeated NamedL3Passthrough l3passthroughs = 3;
-  repeated NamedUnderlay underlays = 4;
+  repeated L2VNI l2vnis = 1;
+  repeated L3VNI l3vnis = 2;
+  repeated L3Passthrough l3passthroughs = 3;
+  repeated Underlay underlays = 4;
+  string reloader_ip = 5;
 }
 
 message UpdateAllResponse {
