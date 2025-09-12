@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/internal/apiclient"
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/pods"
 	v1 "k8s.io/api/core/v1"
@@ -45,6 +46,7 @@ type PERouterReconciler struct {
 	PodRuntime  *pods.Runtime
 	LogLevel    string
 	Logger      *slog.Logger
+	ApiClient   *apiclient.Client
 }
 
 type requestKey string
@@ -131,37 +133,33 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	logger.Debug("using config", "l3vnis", l3vnis.Items, "l2vnis", l2vnis.Items, "underlays", underlays.Items, "l3passthrough", l3passthrough.Items)
-	apiConfig := conversion.ApiConfigData{
-		NodeIndex:     nodeIndex,
-		Underlays:     underlays.Items,
-		LogLevel:      r.LogLevel,
-		L3VNIs:        l3vnis.Items,
-		L2VNIs:        l2vnis.Items,
-		L3Passthrough: l3passthrough.Items,
-	}
-
-	if err := configureFRR(ctx, frrConfigData{
-		configFile:    r.FRRConfig,
-		address:       routerPod.Status.PodIP,
-		port:          r.ReloadPort,
-		ApiConfigData: apiConfig,
-	}); err != nil {
-		slog.Error("failed to reload frr config", "error", err)
-		return ctrl.Result{}, err
-	}
 
 	targetNS, err := r.PodRuntime.NetworkNamespace(ctx, string(routerPod.UID))
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to retrieve namespace for pod %s: %w", routerPod.UID, err)
 	}
 
-	err = configureInterfaces(ctx, interfacesConfiguration{
-		RouterPodUUID: string(routerPod.UID),
-		PodRuntime:    *r.PodRuntime,
-		ApiConfigData: apiConfig,
-	})
+	if err := r.ApiClient.UpdateNodeIndex(ctx, uint32(nodeIndex)); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update node index %d: %w", nodeIndex, err)
+	}
+	if err := r.ApiClient.UpdateReloaderIP(ctx, routerPod.Status.PodIP); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update node index %d: %w", nodeIndex, err)
+	}
+	if err := r.ApiClient.UpdateTargetNamespace(ctx, targetNS); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update node index %d: %w", nodeIndex, err)
+	}
 
-	if nonRecoverableHostError(err) {
+	api, err := crdsToUpdateAllRequest(
+		crs{
+			Underlays:      underlays.Items,
+			L2VNIs:         l2vnis.Items,
+			L3VNIs:         l3vnis.Items,
+			L3Passthroughs: l3passthrough.Items,
+		},
+	)
+	err = r.ApiClient.UpdateAll(ctx, api)
+
+	if apiclient.IsNonRecoverable(err) {
 		logger.Info("breaking configuration change", "killing pod", routerPod.Name)
 		if err := r.Delete(ctx, routerPod); err != nil && !errors.IsNotFound(err) {
 			slog.Error("failed to delete router pod", "error", err)

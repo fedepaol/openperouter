@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	pb "github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/apiserver"
 	"github.com/openperouter/openperouter/internal/logging"
 )
@@ -54,10 +55,15 @@ func main() {
 
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
-	apiServer := &apiserver.ApiServer{
+	routerController := &apiserver.RouterController{
 		FRRConfigPath: *frrConfigPath,
 		ReloaderPort:  *reloadPort,
+		LogLevel:      *logLevel,
 	}
+	apiServer := &apiserver.ApiServer{
+		Controller: routerController,
+	}
+	pb.RegisterOpenPERouterServiceServer(grpcServer, apiServer)
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)

@@ -8,10 +8,11 @@ import (
 	"sync"
 
 	"github.com/openperouter/openperouter/api/grpc"
+	pb "github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/conversion"
 )
 
-type ApiServer struct {
+type RouterController struct {
 	sync.Mutex
 	FRRConfigPath   string
 	NodeIndex       int
@@ -21,7 +22,7 @@ type ApiServer struct {
 	ReloaderIP      string
 }
 
-func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) error {
+func (s *RouterController) UpdateReloaderIP(ctx context.Context, reloaderIP string) error {
 	if net.ParseIP(reloaderIP) == nil {
 		slog.ErrorContext(ctx, "invalid IP address format", "reloader_ip", reloaderIP)
 		return fmt.Errorf("invalid IP address format: %s", reloaderIP)
@@ -35,7 +36,7 @@ func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) err
 	return nil
 }
 
-func (s *ApiServer) UpdateNodeIndex(ctx context.Context, nodeIndex uint32) error {
+func (s *RouterController) UpdateNodeIndex(ctx context.Context, nodeIndex uint32) error {
 	if nodeIndex == 0 {
 		slog.ErrorContext(ctx, "node index can't be 0")
 		return fmt.Errorf("node index can't be 0")
@@ -49,7 +50,7 @@ func (s *ApiServer) UpdateNodeIndex(ctx context.Context, nodeIndex uint32) error
 	return nil
 }
 
-func (s *ApiServer) UpdateTargetNamespace(ctx context.Context, namespace string) error {
+func (s *RouterController) UpdateTargetNamespace(ctx context.Context, namespace string) error {
 	if namespace == "" {
 		slog.ErrorContext(ctx, "empty target namespace")
 		return fmt.Errorf("empty namespace")
@@ -63,7 +64,7 @@ func (s *ApiServer) UpdateTargetNamespace(ctx context.Context, namespace string)
 	return nil
 }
 
-func (s *ApiServer) updateAll(ctx context.Context,
+func (s *RouterController) updateAll(ctx context.Context,
 	l2vnis []*grpc.L2VNI,
 	l3vnis []*grpc.L3VNI,
 	l3passthroughs []*grpc.L3Passthrough,
@@ -108,7 +109,7 @@ func (s *ApiServer) updateAll(ctx context.Context,
 	return nil
 }
 
-func (s *ApiServer) validate() error {
+func (s *RouterController) validate() error {
 	var errors []string
 
 	if s.NodeIndex == 0 {
@@ -130,4 +131,74 @@ func (s *ApiServer) validate() error {
 	}
 
 	return nil
+}
+
+type ApiServer struct {
+	pb.UnimplementedOpenPERouterServiceServer
+	Controller *RouterController
+}
+
+// gRPC service implementations
+func (s *ApiServer) UpdateAll(ctx context.Context, req *pb.UpdateAllRequest) (*pb.UpdateResponse, error) {
+	err := s.Controller.updateAll(ctx, req.L2Vnis, req.L3Vnis, req.L3Passthroughs, req.Underlays)
+
+	if nonRecoverableHostError(err) {
+		return &pb.UpdateResponse{
+			Status: pb.UpdateResponse_NON_RECOVERABLE_FAILURE,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	if err != nil {
+		return &pb.UpdateResponse{
+			Status: pb.UpdateResponse_FAILURE,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &pb.UpdateResponse{
+		Status: pb.UpdateResponse_SUCCESS,
+	}, nil
+}
+
+func (s *ApiServer) UpdateNodeIndex(ctx context.Context, req *pb.UpdateNodeIndexRequest) (*pb.UpdateResponse, error) {
+	err := s.Controller.UpdateNodeIndex(ctx, req.NodeIndex)
+	if err != nil {
+		return &pb.UpdateResponse{
+			Status: pb.UpdateResponse_FAILURE,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &pb.UpdateResponse{
+		Status: pb.UpdateResponse_SUCCESS,
+	}, nil
+}
+
+func (s *ApiServer) UpdateTargetNamespace(ctx context.Context, req *pb.UpdateTargetNamespaceRequest) (*pb.UpdateResponse, error) {
+	err := s.Controller.UpdateTargetNamespace(ctx, req.TargetNamespace)
+	if err != nil {
+		return &pb.UpdateResponse{
+			Status: pb.UpdateResponse_FAILURE,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &pb.UpdateResponse{
+		Status: pb.UpdateResponse_SUCCESS,
+	}, nil
+}
+
+func (s *ApiServer) UpdateReloaderIP(ctx context.Context, req *pb.UpdateReloaderIPRequest) (*pb.UpdateResponse, error) {
+	err := s.Controller.UpdateReloaderIP(ctx, req.ReloaderIp)
+	if err != nil {
+		return &pb.UpdateResponse{
+			Status: pb.UpdateResponse_FAILURE,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &pb.UpdateResponse{
+		Status: pb.UpdateResponse_SUCCESS,
+	}, nil
 }

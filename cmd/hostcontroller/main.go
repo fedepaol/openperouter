@@ -34,6 +34,7 @@ import (
 
 	"github.com/go-logr/logr"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/internal/apiclient"
 	"github.com/openperouter/openperouter/internal/controller/routerconfiguration"
 	"github.com/openperouter/openperouter/internal/logging"
 	"github.com/openperouter/openperouter/internal/pods"
@@ -54,16 +55,17 @@ func init() {
 
 func main() {
 	args := struct {
-		metricsAddr   string
-		probeAddr     string
-		secureMetrics bool
-		enableHTTP2   bool
-		nodeName      string
-		namespace     string
-		logLevel      string
-		frrConfigPath string
-		reloadPort    int
-		criSocket     string
+		metricsAddr          string
+		probeAddr            string
+		secureMetrics        bool
+		enableHTTP2          bool
+		nodeName             string
+		namespace            string
+		logLevel             string
+		frrConfigPath        string
+		reloadPort           int
+		criSocket            string
+		controllerSocketPath string
 	}{}
 	flag.StringVar(&args.metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -79,6 +81,7 @@ func main() {
 		"the location of the frr configuration file")
 	flag.IntVar(&args.reloadPort, "reloadport", 9080, "the port of the reloader process")
 	flag.StringVar(&args.criSocket, "crisocket", "/containerd.sock", "the location of the cri socket")
+	flag.StringVar(&args.controllerSocketPath, "controllersocket", "/etc/perouter/controller/ctrl.sock", "the location of the controller socket")
 
 	flag.Parse()
 
@@ -115,6 +118,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	apiClient, err := apiclient.New(args.controllerSocketPath)
+	if err != nil {
+		setupLog.Error(err, "connect to API server")
+		os.Exit(1)
+	}
+	defer apiClient.Close()
+
 	if err = (&routerconfiguration.PERouterReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
@@ -125,6 +135,7 @@ func main() {
 		LogLevel:    args.logLevel,
 		Logger:      logger,
 		MyNamespace: args.namespace,
+		ApiClient:   apiClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Underlay")
 		os.Exit(1)
