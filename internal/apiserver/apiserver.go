@@ -35,7 +35,7 @@ func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) err
 	return nil
 }
 
-func (s *ApiServer) updateNodeIndex(ctx context.Context, nodeIndex uint32) error {
+func (s *ApiServer) UpdateNodeIndex(ctx context.Context, nodeIndex uint32) error {
 	if nodeIndex == 0 {
 		slog.ErrorContext(ctx, "node index can't be 0")
 		return fmt.Errorf("node index can't be 0")
@@ -49,7 +49,7 @@ func (s *ApiServer) updateNodeIndex(ctx context.Context, nodeIndex uint32) error
 	return nil
 }
 
-func (s *ApiServer) updateTargetNamespace(ctx context.Context, namespace string) error {
+func (s *ApiServer) UpdateTargetNamespace(ctx context.Context, namespace string) error {
 	if namespace == "" {
 		slog.ErrorContext(ctx, "empty target namespace")
 		return fmt.Errorf("empty namespace")

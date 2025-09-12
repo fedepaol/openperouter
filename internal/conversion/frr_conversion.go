@@ -345,7 +345,7 @@ func durationToUint64(value time.Duration) (uint64, error) {
 	return uint64(value), nil // #nosec G115
 }
 
-func routerIDFromUnderlay(underlay *grpc.Underlay, nodeIndex uint32) (string, error) {
+func routerIDFromUnderlay(underlay *grpc.Underlay, nodeIndex int) (string, error) {
 	routerIDCidr := underlay.RouterIdCidr
 	if underlay.RouterIdCidr == "" {
 		routerIDCidr = defaultRouterIDCidr
