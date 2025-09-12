@@ -4,18 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 
 	"github.com/openperouter/openperouter/api/grpc"
-	pb "github.com/openperouter/openperouter/api/grpc"
 	"github.com/openperouter/openperouter/internal/conversion"
 )
 
 type ApiServer struct {
 	sync.Mutex
+	FRRConfigPath   string
 	NodeIndex       int
+	LogLevel        string
 	TargetNamespace string
-	ReloaderPort    uint32
+	ReloaderPort    int
 	ReloaderIP      string
 }
 
@@ -24,6 +26,10 @@ func New() *ApiServer {
 }
 
 func (s *ApiServer) UpdateReloaderIP(ctx context.Context, reloaderIP string) error {
+	if net.ParseIP(reloaderIP) == nil {
+		slog.ErrorContext(ctx, "invalid IP address format", "reloader_ip", reloaderIP)
+		return fmt.Errorf("invalid IP address format: %s", reloaderIP)
+	}
 
 	s.Lock()
 	defer s.Unlock()
@@ -70,61 +76,62 @@ func (s *ApiServer) updateAll(ctx context.Context,
 	slog.InfoContext(ctx, "received UpdateAll request start")
 	defer slog.InfoContext(ctx, "received UpdateAll request end")
 
+	if err := s.validate(); err != nil {
+		return err
+	}
+
 	slog.DebugContext(ctx, "received UpdateAll request",
 		"l2vnis", len(l2vnis),
 		"l3vnis", len(l3vnis),
 		"l3passthroughs", len(l3passthroughs),
 		"underlays", len(underlays))
 
-	apiConfig := &conversion.ApiConfigData{
+	apiConfig := conversion.ApiConfigData{
 		NodeIndex:     s.NodeIndex,
 		Underlays:     underlays,
 		L2VNIs:        l2vnis,
 		L3VNIs:        l3vnis,
 		L3Passthrough: l3passthroughs,
-		LegLevel:      s.LogLevel,
+		LogLevel:      s.LogLevel,
 	}
 
-	err := configureInterfaces(ctx, interfacesConfiguration{
-		RouterPodUUID: string(routerPod.UID),
-		PodRuntime:    *r.PodRuntime,
+	if err := configureInterfaces(ctx, apiConfig, s.TargetNamespace, s.NodeIndex); err != nil {
+		return fmt.Errorf("failed to configure interfaces %w", err)
+	}
+
+	frrConfig := frrConfigData{
+		configFile:    s.FRRConfigPath,
+		address:       s.ReloaderIP,
+		port:          s.ReloaderPort,
 		ApiConfigData: apiConfig,
-	})
-
-	// TODO: Implement actual configuration logic for:
-	// - L2VNIs: l2vnis
-	// - L3VNIs: l3vnis
-	// - L3Passthroughs: l3passthroughs
-	// - Underlays: underlays
-
+	}
+	if err := configureFRR(ctx, frrConfig); err != nil {
+		return fmt.Errorf("failed to configure frr %w", err)
+	}
 	slog.InfoContext(ctx, "UpdateAll processing completed")
 	return nil
 }
 
-func (s *ApiServer) UpdateNodeIndex(ctx context.Context, req *pb.UpdateNodeIndexRequest) (*pb.UpdateNodeIndexResponse, error) {
-	err := s.updateNodeIndex(ctx, req.NodeIndex)
-	if err != nil {
-		return &pb.UpdateNodeIndexResponse{
-			Status: pb.UpdateNodeIndexResponse_FAILURE,
-			Error:  &[]string{err.Error()}[0],
-		}, nil
+func (s *ApiServer) validate() error {
+	var errors []string
+
+	if s.NodeIndex == 0 {
+		errors = append(errors, "node index is required and cannot be 0")
 	}
 
-	return &pb.UpdateNodeIndexResponse{
-		Status: pb.UpdateNodeIndexResponse_SUCCESS,
-	}, nil
-}
-
-func (s *ApiServer) UpdateTargetNamespace(ctx context.Context, req *pb.UpdateTargetNamespaceRequest) (*pb.UpdateTargetNamespaceResponse, error) {
-	err := s.updateTargetNamespace(ctx, req.TargetNamespace)
-	if err != nil {
-		return &pb.UpdateTargetNamespaceResponse{
-			Status: pb.UpdateTargetNamespaceResponse_FAILURE,
-			Error:  &[]string{err.Error()}[0],
-		}, nil
+	if s.TargetNamespace == "" {
+		errors = append(errors, "target namespace is required")
 	}
 
-	return &pb.UpdateTargetNamespaceResponse{
-		Status: pb.UpdateTargetNamespaceResponse_SUCCESS,
-	}, nil
+	if s.ReloaderIP == "" {
+		errors = append(errors, "reloader IP is required")
+	} else if net.ParseIP(s.ReloaderIP) == nil {
+		errors = append(errors, fmt.Sprintf("invalid reloader IP format: %s", s.ReloaderIP))
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("validation failed: %v", errors)
+	}
+
+	return nil
 }

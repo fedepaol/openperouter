@@ -22,15 +22,17 @@ const (
 	OpenPERouterService_UpdateAll_FullMethodName             = "/openperouter.v1alpha1.OpenPERouterService/UpdateAll"
 	OpenPERouterService_UpdateNodeIndex_FullMethodName       = "/openperouter.v1alpha1.OpenPERouterService/UpdateNodeIndex"
 	OpenPERouterService_UpdateTargetNamespace_FullMethodName = "/openperouter.v1alpha1.OpenPERouterService/UpdateTargetNamespace"
+	OpenPERouterService_UpdateReloaderIP_FullMethodName      = "/openperouter.v1alpha1.OpenPERouterService/UpdateReloaderIP"
 )
 
 // OpenPERouterServiceClient is the client API for OpenPERouterService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OpenPERouterServiceClient interface {
-	UpdateAll(ctx context.Context, in *UpdateAllRequest, opts ...grpc.CallOption) (*UpdateAllResponse, error)
-	UpdateNodeIndex(ctx context.Context, in *UpdateNodeIndexRequest, opts ...grpc.CallOption) (*UpdateNodeIndexResponse, error)
-	UpdateTargetNamespace(ctx context.Context, in *UpdateTargetNamespaceRequest, opts ...grpc.CallOption) (*UpdateTargetNamespaceResponse, error)
+	UpdateAll(ctx context.Context, in *UpdateAllRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
+	UpdateNodeIndex(ctx context.Context, in *UpdateNodeIndexRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
+	UpdateTargetNamespace(ctx context.Context, in *UpdateTargetNamespaceRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
+	UpdateReloaderIP(ctx context.Context, in *UpdateReloaderIPRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
 }
 
 type openPERouterServiceClient struct {
@@ -41,9 +43,9 @@ func NewOpenPERouterServiceClient(cc grpc.ClientConnInterface) OpenPERouterServi
 	return &openPERouterServiceClient{cc}
 }
 
-func (c *openPERouterServiceClient) UpdateAll(ctx context.Context, in *UpdateAllRequest, opts ...grpc.CallOption) (*UpdateAllResponse, error) {
+func (c *openPERouterServiceClient) UpdateAll(ctx context.Context, in *UpdateAllRequest, opts ...grpc.CallOption) (*UpdateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateAllResponse)
+	out := new(UpdateResponse)
 	err := c.cc.Invoke(ctx, OpenPERouterService_UpdateAll_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,9 +53,9 @@ func (c *openPERouterServiceClient) UpdateAll(ctx context.Context, in *UpdateAll
 	return out, nil
 }
 
-func (c *openPERouterServiceClient) UpdateNodeIndex(ctx context.Context, in *UpdateNodeIndexRequest, opts ...grpc.CallOption) (*UpdateNodeIndexResponse, error) {
+func (c *openPERouterServiceClient) UpdateNodeIndex(ctx context.Context, in *UpdateNodeIndexRequest, opts ...grpc.CallOption) (*UpdateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateNodeIndexResponse)
+	out := new(UpdateResponse)
 	err := c.cc.Invoke(ctx, OpenPERouterService_UpdateNodeIndex_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -61,10 +63,20 @@ func (c *openPERouterServiceClient) UpdateNodeIndex(ctx context.Context, in *Upd
 	return out, nil
 }
 
-func (c *openPERouterServiceClient) UpdateTargetNamespace(ctx context.Context, in *UpdateTargetNamespaceRequest, opts ...grpc.CallOption) (*UpdateTargetNamespaceResponse, error) {
+func (c *openPERouterServiceClient) UpdateTargetNamespace(ctx context.Context, in *UpdateTargetNamespaceRequest, opts ...grpc.CallOption) (*UpdateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateTargetNamespaceResponse)
+	out := new(UpdateResponse)
 	err := c.cc.Invoke(ctx, OpenPERouterService_UpdateTargetNamespace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *openPERouterServiceClient) UpdateReloaderIP(ctx context.Context, in *UpdateReloaderIPRequest, opts ...grpc.CallOption) (*UpdateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateResponse)
+	err := c.cc.Invoke(ctx, OpenPERouterService_UpdateReloaderIP_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +87,10 @@ func (c *openPERouterServiceClient) UpdateTargetNamespace(ctx context.Context, i
 // All implementations must embed UnimplementedOpenPERouterServiceServer
 // for forward compatibility.
 type OpenPERouterServiceServer interface {
-	UpdateAll(context.Context, *UpdateAllRequest) (*UpdateAllResponse, error)
-	UpdateNodeIndex(context.Context, *UpdateNodeIndexRequest) (*UpdateNodeIndexResponse, error)
-	UpdateTargetNamespace(context.Context, *UpdateTargetNamespaceRequest) (*UpdateTargetNamespaceResponse, error)
+	UpdateAll(context.Context, *UpdateAllRequest) (*UpdateResponse, error)
+	UpdateNodeIndex(context.Context, *UpdateNodeIndexRequest) (*UpdateResponse, error)
+	UpdateTargetNamespace(context.Context, *UpdateTargetNamespaceRequest) (*UpdateResponse, error)
+	UpdateReloaderIP(context.Context, *UpdateReloaderIPRequest) (*UpdateResponse, error)
 	mustEmbedUnimplementedOpenPERouterServiceServer()
 }
 
@@ -88,14 +101,17 @@ type OpenPERouterServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedOpenPERouterServiceServer struct{}
 
-func (UnimplementedOpenPERouterServiceServer) UpdateAll(context.Context, *UpdateAllRequest) (*UpdateAllResponse, error) {
+func (UnimplementedOpenPERouterServiceServer) UpdateAll(context.Context, *UpdateAllRequest) (*UpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateAll not implemented")
 }
-func (UnimplementedOpenPERouterServiceServer) UpdateNodeIndex(context.Context, *UpdateNodeIndexRequest) (*UpdateNodeIndexResponse, error) {
+func (UnimplementedOpenPERouterServiceServer) UpdateNodeIndex(context.Context, *UpdateNodeIndexRequest) (*UpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateNodeIndex not implemented")
 }
-func (UnimplementedOpenPERouterServiceServer) UpdateTargetNamespace(context.Context, *UpdateTargetNamespaceRequest) (*UpdateTargetNamespaceResponse, error) {
+func (UnimplementedOpenPERouterServiceServer) UpdateTargetNamespace(context.Context, *UpdateTargetNamespaceRequest) (*UpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateTargetNamespace not implemented")
+}
+func (UnimplementedOpenPERouterServiceServer) UpdateReloaderIP(context.Context, *UpdateReloaderIPRequest) (*UpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateReloaderIP not implemented")
 }
 func (UnimplementedOpenPERouterServiceServer) mustEmbedUnimplementedOpenPERouterServiceServer() {}
 func (UnimplementedOpenPERouterServiceServer) testEmbeddedByValue()                             {}
@@ -172,6 +188,24 @@ func _OpenPERouterService_UpdateTargetNamespace_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OpenPERouterService_UpdateReloaderIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateReloaderIPRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OpenPERouterServiceServer).UpdateReloaderIP(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OpenPERouterService_UpdateReloaderIP_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OpenPERouterServiceServer).UpdateReloaderIP(ctx, req.(*UpdateReloaderIPRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OpenPERouterService_ServiceDesc is the grpc.ServiceDesc for OpenPERouterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var OpenPERouterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateTargetNamespace",
 			Handler:    _OpenPERouterService_UpdateTargetNamespace_Handler,
+		},
+		{
+			MethodName: "UpdateReloaderIP",
+			Handler:    _OpenPERouterService_UpdateReloaderIP_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

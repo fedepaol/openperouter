@@ -77,9 +77,10 @@ message Underlay {
 }
 
 service OpenPERouterService {
-  rpc UpdateAll(UpdateAllRequest) returns (UpdateAllResponse);
-  rpc UpdateNodeIndex(UpdateNodeIndexRequest) returns (UpdateNodeIndexResponse);
-  rpc UpdateTargetNamespace(UpdateTargetNamespaceRequest) returns (UpdateTargetNamespaceResponse);
+  rpc UpdateAll(UpdateAllRequest) returns (UpdateResponse);
+  rpc UpdateNodeIndex(UpdateNodeIndexRequest) returns (UpdateResponse);
+  rpc UpdateTargetNamespace(UpdateTargetNamespaceRequest) returns (UpdateResponse);
+  rpc UpdateReloaderIP(UpdateReloaderIPRequest) returns (UpdateResponse);
 }
 
 // UpdateAll messages
@@ -91,7 +92,7 @@ message UpdateAllRequest {
   string reloader_ip = 5;
 }
 
-message UpdateAllResponse {
+message UpdateResponse {
   enum Status {
     SUCCESS = 0;
     FAILURE = 1;
@@ -106,25 +107,12 @@ message UpdateNodeIndexRequest {
   uint32 node_index = 1;
 }
 
-message UpdateNodeIndexResponse {
-  enum Status {
-    SUCCESS = 0;
-    FAILURE = 1;
-  }
-  Status status = 1;
-  optional string error = 2;
-}
-
 // UpdateTargetNamespace messages
 message UpdateTargetNamespaceRequest {
   string target_namespace = 1;
 }
 
-message UpdateTargetNamespaceResponse {
-  enum Status {
-    SUCCESS = 0;
-    FAILURE = 1;
-  }
-  Status status = 1;
-  optional string error = 2;
+// UpdateReloaderIP messages
+message UpdateReloaderIPRequest {
+  string reloader_ip = 1;
 }

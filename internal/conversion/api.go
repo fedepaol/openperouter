@@ -8,11 +8,11 @@ import (
 )
 
 type ApiConfigData struct {
-	NodeIndex     uint32
 	Underlays     []*grpc.Underlay
 	L3VNIs        []*grpc.L3VNI
 	L2VNIs        []*grpc.L2VNI
 	L3Passthrough []*grpc.L3Passthrough
+	NodeIndex     int
 	LogLevel      string
 }
 

@@ -18,8 +18,9 @@ import (
 
 func main() {
 	var (
-		logLevel   = flag.String("loglevel", "info", "Log level (debug, info, warn, error)")
-		socketPath = flag.String("socket", "/tmp/openperouter.sock", "Path to Unix socket")
+		logLevel      = flag.String("loglevel", "info", "Log level (debug, info, warn, error)")
+		socketPath    = flag.String("socket", "/tmp/openperouter.sock", "Path to Unix socket")
+		frrConfigPath = flag.String("frrconfig", "/etc/perouter/frr/frr.conf", "the location of the frr configuration file")
 	)
 	flag.Parse()
 
@@ -54,6 +55,7 @@ func main() {
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
 	apiServer := apiserver.New()
+	apiServer.FRRConfigPath = *frrConfigPath
 	pb.RegisterOpenPERouterServiceServer(grpcServer, apiServer)
 
 	// Handle graceful shutdown
