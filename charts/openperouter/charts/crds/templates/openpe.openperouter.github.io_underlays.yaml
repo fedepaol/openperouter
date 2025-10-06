@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: underlays.openpe.openperouter.github.io
 spec:
   group: openpe.openperouter.github.io
@@ -124,6 +124,9 @@ spec:
                 description: VTEPCIDR is CIDR to be used to assign IPs to the local
                   VTEP on each node.
                 type: string
+            required:
+            - asn
+            - vtepcidr
             type: object
           status:
             description: UnderlayStatus defines the observed state of Underlay.

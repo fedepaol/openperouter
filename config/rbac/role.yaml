@@ -26,31 +26,6 @@ rules:
   - openpe.openperouter.github.io
   resources:
   - underlays
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
-  - underlays/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
-  - underlays/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
   - vnis
   verbs:
   - create
@@ -63,12 +38,14 @@ rules:
 - apiGroups:
   - openpe.openperouter.github.io
   resources:
+  - underlays/finalizers
   - vnis/finalizers
   verbs:
   - update
 - apiGroups:
   - openpe.openperouter.github.io
   resources:
+  - underlays/status
   - vnis/status
   verbs:
   - get
