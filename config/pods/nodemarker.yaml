@@ -39,3 +39,10 @@ spec:
             cpu: 10m
             memory: 64Mi
       serviceAccountName: controller
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/10.2.1
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists

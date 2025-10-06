@@ -12,7 +12,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: underlays.openpe.openperouter.github.io
 spec:
   group: openpe.openperouter.github.io
@@ -133,6 +133,9 @@ spec:
                 description: VTEPCIDR is CIDR to be used to assign IPs to the local
                   VTEP on each node.
                 type: string
+            required:
+            - asn
+            - vtepcidr
             type: object
           status:
             description: UnderlayStatus defines the observed state of Underlay.
@@ -147,7 +150,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: vnis.openpe.openperouter.github.io
 spec:
   group: openpe.openperouter.github.io
@@ -225,6 +228,8 @@ spec:
                 description: VXLanPort is the port to be used for VXLan encapsulation.
                 format: int32
                 type: integer
+            required:
+            - asn
             type: object
           status:
             description: VNIStatus defines the observed state of VNI.
@@ -280,31 +285,6 @@ rules:
   - openpe.openperouter.github.io
   resources:
   - underlays
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
-  - underlays/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
-  - underlays/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - openpe.openperouter.github.io
-  resources:
   - vnis
   verbs:
   - create
@@ -317,12 +297,14 @@ rules:
 - apiGroups:
   - openpe.openperouter.github.io
   resources:
+  - underlays/finalizers
   - vnis/finalizers
   verbs:
   - update
 - apiGroups:
   - openpe.openperouter.github.io
   resources:
+  - underlays/status
   - vnis/status
   verbs:
   - get
@@ -484,6 +466,13 @@ spec:
             cpu: 10m
             memory: 64Mi
       serviceAccountName: controller
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/10.2.1
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
 ---
 apiVersion: apps/v1
 kind: DaemonSet
