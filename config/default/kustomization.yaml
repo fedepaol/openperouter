@@ -4,4 +4,4 @@ resources:
 - ../crd
 - ../rbac
 - ../pods
-- ../webhook
+# TODO webhook - ../webhook

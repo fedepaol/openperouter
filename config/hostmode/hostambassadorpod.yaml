@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: hostambassador
+  namespace: kube-system
+  labels:
+    control-plane: hostambassador
+    app.kubernetes.io/name: hostambassador
+    app.kubernetes.io/instance: hostambassador
+    app.kubernetes.io/component: config-exporter
+    app.kubernetes.io/created-by: hostambassador
+    app.kubernetes.io/part-of: hostambassador
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: hostambassador
+  template:
+    metadata:
+      labels:
+        control-plane: hostambassador
+        app: hostambassador
+    spec:
+      containers:
+      - name: ambassador
+        command:
+        - /hostambassador
+        args:
+        - "--output-path=/shared"
+        image: router:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        volumeMounts:
+        - name: shared-config
+          mountPath: /shared
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      volumes:
+      - name: shared-config
+        hostPath:
+          path: /var/lib/hostambassador
+          type: DirectoryOrCreate
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      serviceAccountName: controller

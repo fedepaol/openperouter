@@ -10,8 +10,6 @@ import (
 	"github.com/go-kit/log"
 )
 
-type ConfigUpdater func(context.Context, string) error
-
 type FRR struct {
 	sync.Mutex
 }
@@ -20,7 +18,9 @@ type FRR struct {
 // in unit tests.
 var osHostname = os.Hostname
 
-func ApplyConfig(ctx context.Context, config *Config, updater ConfigUpdater) error {
+type Updater func(context.Context, string) error
+
+func ApplyConfig(ctx context.Context, config *Config, updater Updater) error {
 	hostname, err := osHostname()
 	if err != nil {
 		return err
