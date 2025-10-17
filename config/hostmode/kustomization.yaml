@@ -1,0 +1,12 @@
+namespace: openperouter-system
+
+resources:
+- ../crd
+- ../rbac
+- ../webhook
+- namespace.yaml
+- hostambassadorpod.yaml
+images:
+- name: router
+  newName: quay.io/openperouter/router
+  newTag: main
