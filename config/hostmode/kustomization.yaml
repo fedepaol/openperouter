@@ -6,6 +6,7 @@ resources:
 - ../webhook
 - namespace.yaml
 - hostambassadorpod.yaml
+- nodemarker.yaml
 images:
 - name: router
   newName: quay.io/openperouter/router
