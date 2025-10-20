@@ -1,0 +1,13 @@
+[Unit]
+Description=Router Pod
+Wants=network-online.target
+After=network-online.target
+
+[Pod]
+PodmanArgs=--share=+pid
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

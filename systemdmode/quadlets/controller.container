@@ -1,0 +1,25 @@
+[Unit]
+Description=OpenPerouter Controller Container
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+EnvironmentFile=-/etc/containers/systemd/router.env
+Image=${ROUTER_IMAGE:-quay.io/openperouter/router:main}
+Pod=controllerpod.pod
+ContainerName=controller
+Volume=/run/containerd/containerd.sock:/run/containerd/containerd.sock:rshared
+Volume=/run/netns:/run/netns:rshared
+Volume=/etc/perouter/frr:/etc/perouter/frr:rshared
+Volume=/var/lib/hostambassador:/shared:rshared
+Environment=KUBECONFIG=/shared/kubeconfig
+Network=host
+PodmanArgs=--pid=host
+AddCapability=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN
+Exec=--loglevel debug --frrconfig /etc/perouter/frr/frr.conf --pid-path /etc/perouter/frr/frr.pid --frr-socket /etc/perouter/frr/frr.socket --mode host
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

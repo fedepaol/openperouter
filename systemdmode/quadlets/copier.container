@@ -1,0 +1,20 @@
+[Unit]
+Description=Config Copier Container
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+EnvironmentFile=-/etc/containers/systemd/router.env
+Image=${ROUTER_IMAGE:-quay.io/openperouter/router:main}
+Pod=routerpod.pod
+ContainerName=copier
+Volume=frrconfig.volume:/etc/frr:Z
+Volume=reloader.volume:/etc/frr_reloader:Z
+Exec=/bin/sh -c "cp -rLf /tmp/frr/* /etc/frr && cp /reloader /etc/frr_reloader/reloader"
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
