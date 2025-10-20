@@ -1,12 +1,25 @@
 #!/bin/bash
 
 set -x
+set -e  # Exit on error
 
 ROUTER_IMAGE="${IMAGE:-quay.io/openperouter/router:main}"
 FRR_IMAGE="${IMAGE:-quay.io/frrouting/frr:10.2.1}"
 
-#mkdir /run/netns
-#mkdir -p /etc/perouter/frr
+# Create necessary directories
+# Note: Some require root privileges. Run manually if script fails:
+#   sudo mkdir -p /run/netns /etc/perouter/frr /var/lib/hostambassador
+echo "Creating required directories..."
+mkdir -p /run/netns 2>/dev/null || echo "Warning: Could not create /run/netns"
+mkdir -p /etc/perouter/frr 2>/dev/null || echo "Warning: Could not create /etc/perouter/frr"
+mkdir -p /var/lib/hostambassador 2>/dev/null || echo "Warning: Could not create /var/lib/hostambassador"
+
+# Check if directories exist
+if [ ! -d "/etc/perouter/frr" ] || [ ! -d "/var/lib/hostambassador" ]; then
+    echo "ERROR: Required directories do not exist. Please run:"
+    echo "  sudo mkdir -p /run/netns /etc/perouter/frr /var/lib/hostambassador"
+    exit 1
+fi
 
 podman pod create --share=+pid --name=routerpod 
 podman create --pod=routerpod --name=frr \
@@ -38,9 +51,6 @@ podman create --pod=routerpod --name=copier \
 
 
 podman pod create --name=controllerpod
-
-# Needs to be there before
-#mkdir -p /var/lib/hostambassador
 
 podman create --pod=controllerpod --name=controller \
 	-v=/run/containerd/containerd.sock:/run/containerd/containerd.sock:rshared \
