@@ -297,6 +297,7 @@ clab-multi-cluster: ## Deploy multi-cluster setup with 2 kindleafs, 2 kind switc
 
 .PHONY: load-on-kind
 load-on-kind: ## Load the docker image into the kind cluster.
+	KIND=$(KIND) bash -c 'source clab/common.sh && load_local_image_to_kind ${IMG} router-a'
 	$(KIND) load docker-image ${IMG} --name pe-kind
 
 .PHONY: load-on-multi-cluster
