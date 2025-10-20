@@ -46,8 +46,8 @@ podman create --pod=routerpod --name=copier \
 	-v=reloader:/etc/frr_reloader:Z \
 	--entrypoint=/bin/sh \
 	-t "$ROUTER_IMAGE" \
-	-c "cp -rLf /tmp/frr/* /etc/frr && \
-	 cp /reloader /etc/frr_reloader/reloader"
+	-c "cp -rLf /tmp/frr/* /etc/frr && chmod -R a+rw /etc/frr && \
+	 cp /reloader /etc/frr_reloader/reloader && chmod -R a+rw /etc/frr_reloader"
 
 
 podman pod create --name=controllerpod

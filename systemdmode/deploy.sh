@@ -1,13 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# OpenPerouter Systemd Quadlet Deployment Script
-# Deploys Quadlet files to /etc/containers/systemd/openperouter/
+# OpenPerouter Systemd Service Deployment Script for Kind Nodes
+# Deploys systemd service files to kind cluster nodes
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-QUADLET_SOURCE_DIR="${SCRIPT_DIR}/quadlets"
-SYSTEMD_QUADLET_DIR="/etc/containers/systemd/openperouter"
-ENV_FILE="${SYSTEMD_QUADLET_DIR}/router.env"
+SYSTEMD_UNIT_DIR="/etc/systemd/system"
 
 log_info() {
     echo "[INFO] $*"
@@ -21,99 +19,83 @@ log_error() {
     echo "[ERROR] $*"
 }
 
-# Check if quadlet source directory exists
-if [[ ! -d "$QUADLET_SOURCE_DIR" ]]; then
-    log_error "Quadlet source directory not found: $QUADLET_SOURCE_DIR"
+# Check for cluster name parameter
+if [[ $# -lt 1 ]]; then
+    log_error "Usage: $0 <kind-cluster-name>"
+    log_error "Example: $0 my-cluster"
     exit 1
 fi
 
-log_info "Deploying OpenPerouter Quadlet files..."
+CLUSTER_NAME="$1"
 
-# Create systemd quadlet directory for openperouter
-log_info "Creating directory: $SYSTEMD_QUADLET_DIR"
-mkdir -p "$SYSTEMD_QUADLET_DIR"
+log_info "Deploying OpenPerouter systemd services to kind cluster: $CLUSTER_NAME"
 
-# Copy all quadlet files except the .env.example
-log_info "Copying Quadlet files..."
-for file in "$QUADLET_SOURCE_DIR"/*.{container,pod,volume}; do
-    if [[ -f "$file" ]]; then
-        cp -v "$file" "$SYSTEMD_QUADLET_DIR/"
-    fi
+# Get all nodes in the kind cluster
+NODES=$(kind get nodes --name "$CLUSTER_NAME" 2>/dev/null)
+if [[ -z "$NODES" ]]; then
+    log_error "No nodes found for kind cluster: $CLUSTER_NAME"
+    log_error "Please check that the cluster exists with: kind get clusters"
+    exit 1
+fi
+
+log_info "Found nodes in cluster $CLUSTER_NAME:"
+echo "$NODES"
+echo ""
+
+# Deploy to each node
+for NODE in $NODES; do
+    log_info "Deploying to node: $NODE"
+
+    # Copy service files to the node
+    log_info "  Copying service files..."
+    for service_file in "$SCRIPT_DIR"/pod-*.service "$SCRIPT_DIR"/container-*.service; do
+        if [[ -f "$service_file" ]]; then
+            SERVICE_NAME=$(basename "$service_file")
+            log_info "    Copying $SERVICE_NAME"
+            docker cp "$service_file" "$NODE:$SYSTEMD_UNIT_DIR/$SERVICE_NAME"
+        fi
+    done
+
+    # Create required directories on the node
+    log_info "  Creating required directories..."
+    docker exec "$NODE" mkdir -p /etc/perouter/frr
+    docker exec "$NODE" mkdir -p /var/lib/hostambassador
+
+    # Reload systemd on the node
+    log_info "  Reloading systemd daemon..."
+    docker exec "$NODE" systemctl daemon-reload
+
+    # Start the pod services
+    log_info "  Starting pod services..."
+    docker exec "$NODE" systemctl start pod-routerpod.service || log_warn "Failed to start pod-routerpod.service on $NODE"
+    docker exec "$NODE" systemctl start pod-controllerpod.service || log_warn "Failed to start pod-controllerpod.service on $NODE"
+
+    # Enable services for auto-start
+    log_info "  Enabling services for auto-start..."
+    docker exec "$NODE" systemctl enable pod-routerpod.service pod-controllerpod.service || log_warn "Failed to enable services on $NODE"
+
+    echo ""
 done
 
-# Handle environment file
-if [[ ! -f "$ENV_FILE" ]]; then
-    log_warn "Environment file not found, creating from example..."
-    cp "$QUADLET_SOURCE_DIR/router.env.example" "$ENV_FILE"
-    log_info "Created $ENV_FILE - please review and customize if needed"
-else
-    log_info "Environment file already exists: $ENV_FILE (not overwriting)"
-fi
-
-# Create required host directories
-log_info "Creating required host directories..."
-mkdir -p /etc/perouter/frr
-mkdir -p /var/lib/hostambassador
-
-# Set appropriate permissions
-log_info "Setting permissions..."
-chmod 644 "$SYSTEMD_QUADLET_DIR"/*.{container,pod,volume} 2>/dev/null || true
-chmod 600 "$ENV_FILE"
-
-# Reload systemd to recognize new quadlet files
-log_info "Reloading systemd daemon..."
-systemctl daemon-reload
-
-# Check if services are already running
-ROUTERPOD_RUNNING=false
-CONTROLLERPOD_RUNNING=false
-
-if systemctl is-active --quiet routerpod.service 2>/dev/null; then
-    ROUTERPOD_RUNNING=true
-fi
-
-if systemctl is-active --quiet controllerpod.service 2>/dev/null; then
-    CONTROLLERPOD_RUNNING=true
-fi
-
-# Start or restart services
-log_info "Managing services..."
-
-if $ROUTERPOD_RUNNING; then
-    log_info "Restarting routerpod.service..."
-    systemctl restart routerpod.service
-else
-    log_info "Starting routerpod.service..."
-    systemctl start routerpod.service
-fi
-
-if $CONTROLLERPOD_RUNNING; then
-    log_info "Restarting controllerpod.service..."
-    systemctl restart controllerpod.service
-else
-    log_info "Starting controllerpod.service..."
-    systemctl start controllerpod.service
-fi
-
-# Enable services for auto-start
-log_info "Enabling services for auto-start..."
-systemctl enable routerpod.service controllerpod.service
-
-# Show status
+# Show status for all nodes
+log_info "Deployment complete! Showing service status for all nodes:"
 echo ""
-log_info "Deployment complete! Service status:"
-echo ""
-systemctl status routerpod.service --no-pager -l || true
-echo ""
-systemctl status controllerpod.service --no-pager -l || true
+
+for NODE in $NODES; do
+    echo "========================================"
+    log_info "Node: $NODE"
+    echo "========================================"
+    docker exec "$NODE" systemctl status pod-routerpod.service --no-pager -l 2>&1 || true
+    echo ""
+    docker exec "$NODE" systemctl status pod-controllerpod.service --no-pager -l 2>&1 || true
+    echo ""
+done
 
 echo ""
 log_info "Useful commands:"
-echo "  View logs:           journalctl -u routerpod.service -f"
-echo "  View logs:           journalctl -u controllerpod.service -f"
-echo "  Restart services:    systemctl restart routerpod.service controllerpod.service"
-echo "  Stop services:       systemctl stop routerpod.service controllerpod.service"
-echo "  Disable auto-start:  systemctl disable routerpod.service controllerpod.service"
-echo "  Edit environment:    vim $ENV_FILE"
+echo "  View logs on a node:     docker exec <node-name> journalctl -u pod-routerpod.service -f"
+echo "  View logs on a node:     docker exec <node-name> journalctl -u pod-controllerpod.service -f"
+echo "  Restart services:        docker exec <node-name> systemctl restart pod-routerpod.service pod-controllerpod.service"
+echo "  Stop services:           docker exec <node-name> systemctl stop pod-routerpod.service pod-controllerpod.service"
+echo "  Get node names:          kind get nodes --name $CLUSTER_NAME"
 echo ""
-log_info "Quadlet files location: $SYSTEMD_QUADLET_DIR"
