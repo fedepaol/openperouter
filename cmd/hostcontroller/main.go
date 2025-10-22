@@ -41,6 +41,7 @@ import (
 	"github.com/openperouter/openperouter/internal/controller/routerconfiguration"
 	"github.com/openperouter/openperouter/internal/logging"
 	"github.com/openperouter/openperouter/internal/pods"
+	"github.com/openperouter/openperouter/internal/staticconfiguration"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	// +kubebuilder:scaffold:imports
 )
@@ -66,7 +67,7 @@ type hostModeParameters struct {
 	k8sWaitInterval      time.Duration
 	hostContainerPidPath string
 	hostFRRReloadSocket  string
-	nodeIndex            int
+	configuration        string
 }
 
 type k8sModeParameters struct {
@@ -110,11 +111,10 @@ func main() {
 	flag.DurationVar(&hostModeParams.k8sWaitInterval, "k8s-wait-timeout", time.Minute, "K8s API server waiting interval time")
 	flag.StringVar(&hostModeParams.hostContainerPidPath, "pid-path", "", "the path of the pid file of the router container")
 	flag.StringVar(&hostModeParams.hostFRRReloadSocket, "frr-socket", "", "the path of socket to trigger frr reload in the router container")
-	flag.IntVar(&hostModeParams.nodeIndex, "nodeIndex", 0, "the index of the current node")
+	flag.StringVar(&hostModeParams.configuration, "host-configuration", "/etc/openperouter/config.yaml", "the path of host configuration")
 
 	flag.Parse()
 
-	fmt.Println("FEDE", args.mode)
 	if err := validateParameters(args.mode, hostModeParams, k8sModeParams); err != nil {
 		fmt.Printf("validation error: %v\n", err)
 		os.Exit(1)
@@ -170,11 +170,16 @@ func main() {
 			Node:          k8sModeParams.nodeName,
 		}
 	case modeHost:
+		hostConfig, err := staticconfiguration.ReadFromFile(hostModeParams.configuration)
+		if err != nil {
+			setupLog.Error(err, "failed to load the static configuration file")
+			os.Exit(1)
+		}
 		routerManager = &routerconfiguration.RouterHostManager{
 			FRRConfigPath:     args.frrConfigPath,
 			FRRReloadSocket:   hostModeParams.hostFRRReloadSocket,
 			RouterPidFilePath: hostModeParams.hostContainerPidPath,
-			CurrentNodeIndex:  hostModeParams.nodeIndex,
+			CurrentNodeIndex:  hostConfig.NodeIndex,
 		}
 	}
 
