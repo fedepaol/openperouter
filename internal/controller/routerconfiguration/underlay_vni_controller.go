@@ -69,12 +69,6 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	ctx = context.WithValue(ctx, requestKey("request"), req.String())
 
-	nodeIndex, err := nodeIndex(ctx, r.Client, r.MyNode)
-	if err != nil {
-		slog.Error("failed to fetch node index", "node", r.MyNode, "error", err)
-		return ctrl.Result{}, err
-	}
-
 	var underlays v1alpha1.UnderlayList
 	if err := r.List(ctx, &underlays); err != nil {
 		slog.Error("failed to list underlays", "error", err)
@@ -99,6 +93,11 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	nodeIndex, err := r.Manager.NodeIndex(ctx)
+	if err != nil {
+		slog.Error("failed to get node index", "error", err)
+		return ctrl.Result{}, err
+	}
 	logger.Debug("using config", "l3vnis", l3vnis.Items, "l2vnis", l2vnis.Items, "underlays", underlays.Items, "l3passthrough", l3passthrough.Items)
 	apiConfig := conversion.ApiConfigData{
 		NodeIndex:     nodeIndex,
