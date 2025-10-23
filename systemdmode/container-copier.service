@@ -28,7 +28,7 @@ ExecStart=/usr/bin/podman run \
 	-v=reloader:/etc/frr_reloader:Z \
 	--entrypoint=/bin/sh \
 	-t quay.io/openperouter/router:main \
-	-c "cp -rLf /tmp/frr/* /etc/frr && chmod -R a+rw /etc/frr && \t cp /reloader /etc/frr_reloader/reloader && chmod -R a+rw /etc/frr_reloader"
+	-c "cp -rLf /tmp/frr/* /etc/frr && chmod -R a+rw /etc/frr && \t cp /reloader /etc/frr_reloader/reloader && chmod -R a+rw /etc/frr_reloader && sleep infinity"
 ExecStop=/usr/bin/podman stop \
 	--ignore -t 10 \
 	--cidfile=%t/%n.ctr-id

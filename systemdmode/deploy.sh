@@ -43,6 +43,7 @@ echo "$NODES"
 echo ""
 
 # Deploy to each node
+NODE_INDEX=0
 for NODE in $NODES; do
     log_info "Deploying to node: $NODE"
 
@@ -60,6 +61,16 @@ for NODE in $NODES; do
     log_info "  Creating required directories..."
     docker exec "$NODE" mkdir -p /etc/perouter/frr
     docker exec "$NODE" mkdir -p /var/lib/hostambassador
+    docker exec "$NODE" mkdir -p /etc/openperouter
+
+    # Create configuration file
+    log_info "  Creating configuration file with node_index=$NODE_INDEX..."
+    docker exec "$NODE" bash -c "cat > /etc/openperouter/config.yaml <<EOF
+node_index: $NODE_INDEX
+EOF"
+
+    # Increment node index for next node
+    NODE_INDEX=$((NODE_INDEX + 1))
 
     # Reload systemd on the node
     log_info "  Reloading systemd daemon..."
