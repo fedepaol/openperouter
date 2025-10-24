@@ -6,20 +6,18 @@ set -e  # Exit on error
 ROUTER_IMAGE="${IMAGE:-quay.io/openperouter/router:main}"
 FRR_IMAGE="${IMAGE:-quay.io/frrouting/frr:10.2.1}"
 
-# Create necessary directories
-# Note: Some require root privileges. Run manually if script fails:
-#   sudo mkdir -p /run/netns /etc/perouter/frr /var/lib/hostambassador
-echo "Creating required directories..."
-mkdir -p /run/netns 2>/dev/null || echo "Warning: Could not create /run/netns"
-mkdir -p /etc/perouter/frr 2>/dev/null || echo "Warning: Could not create /etc/perouter/frr"
-mkdir -p /var/lib/hostambassador 2>/dev/null || echo "Warning: Could not create /var/lib/hostambassador"
+# Use /var/lib for config instead of /etc to avoid requiring root
+# This directory will be created by deploy.sh on each node
+CONFIG_DIR="${CONFIG_DIR:-/var/lib/openperouter}"
 
-# Check if directories exist
-if [ ! -d "/etc/perouter/frr" ] || [ ! -d "/var/lib/hostambassador" ]; then
-    echo "ERROR: Required directories do not exist. Please run:"
-    echo "  sudo mkdir -p /run/netns /etc/perouter/frr /var/lib/hostambassador"
-    exit 1
-fi
+# Note: Directories will be created by deploy.sh on each node
+# For local testing, you may need to create them manually:
+#   sudo mkdir -p /run/netns /etc/perouter/frr /var/lib/hostambassador "${CONFIG_DIR}"
+echo "Note: This script generates systemd files. Directories will be created by deploy.sh on nodes."
+
+# Clean up any existing pods/containers first
+echo "Cleaning up existing pods..."
+podman pod rm -f routerpod controllerpod 2>/dev/null || true
 
 podman pod create --share=+pid --name=routerpod 
 podman create --pod=routerpod --name=frr \
@@ -47,7 +45,7 @@ podman create --pod=routerpod --name=copier \
 	--entrypoint=/bin/sh \
 	-t "$ROUTER_IMAGE" \
 	-c "cp -rLf /tmp/frr/* /etc/frr && chmod -R a+rw /etc/frr && \
-	 cp /reloader /etc/frr_reloader/reloader && chmod -R a+rw /etc/frr_reloader"
+	 cp /reloader /etc/frr_reloader/reloader && chmod -R a+rw /etc/frr_reloader && sleep infinity"
 
 
 podman pod create --name=controllerpod
@@ -57,7 +55,6 @@ podman create --pod=controllerpod --name=controller \
 	-v=/run/netns:/run/netns:rshared \
 	-v=/etc/perouter/frr:/etc/perouter/frr:rshared \
 	-v /var/lib/hostambassador:/shared:rshared \
-	-v=/etc/openperouter:/etc/openperouter:rshared \
 	-e KUBECONFIG=/shared/kubeconfig \
 	--network=host \
 	--cap-add=CAP_NET_BIND_SERVICE,CAP_NET_ADMIN,CAP_NET_RAW,CAP_SYS_ADMIN \
@@ -69,6 +66,11 @@ podman create --pod=controllerpod --name=controller \
 # Generate systemd unit files for both pods
 podman generate systemd --new --files --name routerpod
 podman generate systemd --new --files --name controllerpod
+
+# Add the config directory mount to the generated controller service file
+# This is done post-generation to avoid needing the directory to exist locally
+echo "Adding config directory mount to container-controller.service..."
+sed -i '/--name=controller/a\	-v='"${CONFIG_DIR}"':/etc/openperouter:ro \\' container-controller.service
 
 # Clean up the temporary pods and containers
 # The --new flag ensures systemd units will create/remove them on start/stop

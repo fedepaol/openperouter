@@ -19,6 +19,67 @@ log_error() {
     echo "[ERROR] $*"
 }
 
+# Function to load an image into podman on a node
+# Args: $1=NODE, $2=IMAGE_NAME, $3=IMAGE_TAG
+load_image_to_node() {
+    local NODE="$1"
+    local IMAGE="$2"
+    local TEMP_TAR="/tmp/$(basename $IMAGE | tr '/:' '_')-update.tar"
+
+    log_info "    Loading image $IMAGE..."
+    docker save "$IMAGE" -o "$TEMP_TAR" 2>/dev/null || {
+        log_warn "Failed to save image $IMAGE"
+        return 1
+    }
+
+    if [[ -f "$TEMP_TAR" ]]; then
+        docker cp "$TEMP_TAR" "$NODE:/tmp/image-update.tar"
+        docker exec "$NODE" podman load -i /tmp/image-update.tar
+        docker exec "$NODE" rm /tmp/image-update.tar
+        rm "$TEMP_TAR"
+        log_info "    Image $IMAGE loaded successfully"
+        return 0
+    fi
+    return 1
+}
+
+update_and_restart_routerpod() {
+    local NODE="$1"
+    local ROUTER_IMAGE="quay.io/openperouter/router:main"
+    local FRR_IMAGE="quay.io/frrouting/frr:10.2.1"
+
+    log_info "  Updating routerpod images..."
+    load_image_to_node "$NODE" "$ROUTER_IMAGE"
+    load_image_to_node "$NODE" "$FRR_IMAGE"
+
+    log_info "  Restarting routerpod services..."
+    docker exec "$NODE" systemctl restart pod-routerpod.service || log_warn "Failed to restart pod-routerpod.service on $NODE"
+    sleep 2  # Give the pod time to start
+
+    # Clean up stale ctr-id files if they exist
+    docker exec "$NODE" bash -c "rm -f /run/container-*.ctr-id" 2>/dev/null || true
+
+    # Restart container services
+    docker exec "$NODE" systemctl restart container-copier.service || log_warn "Failed to restart container-copier.service on $NODE"
+    docker exec "$NODE" systemctl restart container-frr.service || log_warn "Failed to restart container-frr.service on $NODE"
+    docker exec "$NODE" systemctl restart container-reloader.service || log_warn "Failed to restart container-reloader.service on $NODE"
+}
+
+update_and_restart_controllerpod() {
+    local NODE="$1"
+    local ROUTER_IMAGE="quay.io/openperouter/router:main"
+
+    log_info "  Updating controllerpod images..."
+    load_image_to_node "$NODE" "$ROUTER_IMAGE"
+
+    log_info "  Restarting controllerpod services..."
+    docker exec "$NODE" systemctl restart pod-controllerpod.service || log_warn "Failed to restart pod-controllerpod.service on $NODE"
+    sleep 2  # Give the pod time to start
+
+    # Restart container service
+    docker exec "$NODE" systemctl restart container-controller.service || log_warn "Failed to restart container-controller.service on $NODE"
+}
+
 # Check for cluster name parameter
 if [[ $# -lt 1 ]]; then
     log_error "Usage: $0 <kind-cluster-name>"
@@ -61,11 +122,11 @@ for NODE in $NODES; do
     log_info "  Creating required directories..."
     docker exec "$NODE" mkdir -p /etc/perouter/frr
     docker exec "$NODE" mkdir -p /var/lib/hostambassador
-    docker exec "$NODE" mkdir -p /etc/openperouter
+    docker exec "$NODE" mkdir -p /var/lib/openperouter
 
     # Create configuration file
     log_info "  Creating configuration file with node_index=$NODE_INDEX..."
-    docker exec "$NODE" bash -c "cat > /etc/openperouter/config.yaml <<EOF
+    docker exec "$NODE" bash -c "cat > /var/lib/openperouter/config.yaml <<EOF
 node_index: $NODE_INDEX
 EOF"
 
@@ -76,10 +137,16 @@ EOF"
     log_info "  Reloading systemd daemon..."
     docker exec "$NODE" systemctl daemon-reload
 
-    # Start the pod services
-    log_info "  Starting pod services..."
-    docker exec "$NODE" systemctl start pod-routerpod.service || log_warn "Failed to start pod-routerpod.service on $NODE"
-    docker exec "$NODE" systemctl start pod-controllerpod.service || log_warn "Failed to start pod-controllerpod.service on $NODE"
+    # Check if pods are already running and update or start accordingly
+    if docker exec "$NODE" systemctl is-active --quiet pod-controllerpod.service; then
+        log_info "  Detected running pods - updating images and restarting..."
+        update_and_restart_routerpod "$NODE"
+        update_and_restart_controllerpod "$NODE"
+    else
+        log_info "  Initial deployment - starting pod services..."
+        docker exec "$NODE" systemctl start pod-routerpod.service || log_warn "Failed to start pod-routerpod.service on $NODE"
+        docker exec "$NODE" systemctl start pod-controllerpod.service || log_warn "Failed to start pod-controllerpod.service on $NODE"
+    fi
 
     # Enable services for auto-start
     log_info "  Enabling services for auto-start..."
