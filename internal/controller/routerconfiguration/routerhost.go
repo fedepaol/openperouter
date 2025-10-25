@@ -11,7 +11,6 @@ import (
 
 	"github.com/openperouter/openperouter/internal/frr"
 	"github.com/openperouter/openperouter/internal/frrconfig"
-	"github.com/vishvananda/netns"
 )
 
 type RouterHostManager struct {
@@ -51,13 +50,8 @@ func (r *RouterHostContainer) TargetNS(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to parse PID from file %s: %w", r.manager.RouterPidFilePath, err)
 	}
 
-	nsHandle, err := netns.GetFromPid(pid)
-	if err != nil {
-		return "", fmt.Errorf("failed to get network namespace for PID %d: %w", pid, err)
-	}
-	defer nsHandle.Close()
-
-	return nsHandle.String(), nil
+	res := fmt.Sprintf("/hostproc/%d/ns/net", pid)
+	return res, nil
 }
 
 func (r *RouterHostContainer) HandleNonRecoverableError(ctx context.Context) error {

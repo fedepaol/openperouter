@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strconv"
 
 	"github.com/openperouter/openperouter/internal/controller/nodeindex"
@@ -71,7 +72,8 @@ func (r *RouterPod) TargetNS(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve namespace for pod %s: %w", r.pod.UID, err)
 	}
-	return targetNS, nil
+	res := filepath.Join("/run/ns", targetNS)
+	return res, nil
 }
 
 func (r *RouterPod) HandleNonRecoverableError(ctx context.Context) error {
