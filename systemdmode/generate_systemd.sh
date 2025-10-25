@@ -55,6 +55,7 @@ podman create --pod=controllerpod --name=controller \
 	-v=/run/netns:/run/netns:rshared \
 	-v=/etc/perouter/frr:/etc/perouter/frr:rshared \
 	-v /var/lib/hostambassador:/shared:rshared \
+	-v=/proc:/hostproc:ro \
 	-e KUBECONFIG=/shared/kubeconfig \
 	--network=host \
 	--cap-add=CAP_NET_BIND_SERVICE,CAP_NET_ADMIN,CAP_NET_RAW,CAP_SYS_ADMIN \
