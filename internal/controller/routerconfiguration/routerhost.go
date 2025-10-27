@@ -11,6 +11,7 @@ import (
 
 	"github.com/openperouter/openperouter/internal/frr"
 	"github.com/openperouter/openperouter/internal/frrconfig"
+	"github.com/openperouter/openperouter/internal/systemdctl"
 )
 
 type RouterHostManager struct {
@@ -18,6 +19,7 @@ type RouterHostManager struct {
 	FRRReloadSocket   string
 	RouterPidFilePath string
 	CurrentNodeIndex  int
+	SystemdSocketPath string
 }
 
 var _ RouterManager = (*RouterHostManager)(nil)
@@ -55,7 +57,15 @@ func (r *RouterHostContainer) TargetNS(ctx context.Context) (string, error) {
 }
 
 func (r *RouterHostContainer) HandleNonRecoverableError(ctx context.Context) error {
-	// TODO
+	client, err := systemdctl.NewClient(r.manager.SystemdSocketPath)
+	if err != nil {
+		return fmt.Errorf("failed to create systemd client %w", err)
+	}
+	defer client.Close()
+	if err := client.Restart(ctx, "pod-routerpod.service"); err != nil {
+		return fmt.Errorf("failed to restart routerpod service")
+	}
+
 	return nil
 }
 
@@ -65,6 +75,15 @@ func (r *RouterHostContainer) Updater(ctx context.Context) (frr.Updater, error) 
 }
 
 func (r *RouterHostContainer) CanReconcile(ctx context.Context) (bool, error) {
-	// TODO check if the container is up
-	return true, nil
+	client, err := systemdctl.NewClient(r.manager.SystemdSocketPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to create systemd client %w", err)
+	}
+	defer client.Close()
+	res, err := client.IsActive("pod-routerpod.service")
+	if err != nil {
+		return false, fmt.Errorf("failed to restart routerpod service")
+	}
+
+	return res, nil
 }

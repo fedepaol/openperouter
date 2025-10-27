@@ -42,6 +42,7 @@ import (
 	"github.com/openperouter/openperouter/internal/logging"
 	"github.com/openperouter/openperouter/internal/pods"
 	"github.com/openperouter/openperouter/internal/staticconfiguration"
+	"github.com/openperouter/openperouter/internal/systemdctl"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	// +kubebuilder:scaffold:imports
 )
@@ -68,6 +69,7 @@ type hostModeParameters struct {
 	hostContainerPidPath string
 	hostFRRReloadSocket  string
 	configuration        string
+	systemdSocketPath    string
 }
 
 type k8sModeParameters struct {
@@ -112,6 +114,7 @@ func main() {
 	flag.StringVar(&hostModeParams.hostContainerPidPath, "pid-path", "", "the path of the pid file of the router container")
 	flag.StringVar(&hostModeParams.hostFRRReloadSocket, "frr-socket", "", "the path of socket to trigger frr reload in the router container")
 	flag.StringVar(&hostModeParams.configuration, "host-configuration", "/etc/openperouter/config.yaml", "the path of host configuration")
+	flag.StringVar(&hostModeParams.systemdSocketPath, "systemd-socket", systemdctl.HostDBusSocket, "the path of systemd control socket")
 
 	flag.Parse()
 
@@ -180,6 +183,7 @@ func main() {
 			FRRReloadSocket:   hostModeParams.hostFRRReloadSocket,
 			RouterPidFilePath: hostModeParams.hostContainerPidPath,
 			CurrentNodeIndex:  hostConfig.NodeIndex,
+			SystemdSocketPath: hostModeParams.systemdSocketPath,
 		}
 	}
 
