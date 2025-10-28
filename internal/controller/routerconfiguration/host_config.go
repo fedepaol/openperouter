@@ -29,6 +29,7 @@ func configureInterfaces(ctx context.Context, config interfacesConfiguration) er
 		return fmt.Errorf("failed to check if target namespace %s has underlay: %w", config.targetNamespace, err)
 	}
 	if hasAlreadyUnderlay && len(config.Underlays) == 0 {
+		fmt.Println("FEDE returning underlay removed")
 		return UnderlayRemovedError{}
 	}
 

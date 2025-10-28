@@ -5,6 +5,7 @@ package routerconfiguration
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -57,14 +58,18 @@ func (r *RouterHostContainer) TargetNS(ctx context.Context) (string, error) {
 }
 
 func (r *RouterHostContainer) HandleNonRecoverableError(ctx context.Context) error {
-	client, err := systemdctl.NewClient(r.manager.SystemdSocketPath)
+	fmt.Println("FEDE new client")
+	client, err := systemdctl.NewExecClient()
 	if err != nil {
 		return fmt.Errorf("failed to create systemd client %w", err)
 	}
+	fmt.Println("FEDE new client taken")
 	defer client.Close()
+	slog.Info("restarting router systemd unit", "unit", "pod-routerpod.service")
 	if err := client.Restart(ctx, "pod-routerpod.service"); err != nil {
 		return fmt.Errorf("failed to restart routerpod service")
 	}
+	slog.Info("router systemd unit restarted", "unit", "pod-routerpod.service")
 
 	return nil
 }
@@ -75,7 +80,7 @@ func (r *RouterHostContainer) Updater(ctx context.Context) (frr.Updater, error) 
 }
 
 func (r *RouterHostContainer) CanReconcile(ctx context.Context) (bool, error) {
-	client, err := systemdctl.NewClient(r.manager.SystemdSocketPath)
+	client, err := systemdctl.NewExecClient()
 	if err != nil {
 		return false, fmt.Errorf("failed to create systemd client %w", err)
 	}

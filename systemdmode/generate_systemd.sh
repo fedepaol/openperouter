@@ -56,7 +56,7 @@ podman create --pod=controllerpod --name=controller \
 	-v=/etc/perouter/frr:/etc/perouter/frr:rshared \
 	-v /var/lib/hostambassador:/shared:rshared \
 	-v=/proc:/hostproc:ro \
-	-v=/run/dbus/system_bus_socket:/host/dbus/system_bus_socket:ro \
+	-v=/run/dbus/system_bus_socket:/host/dbus/system_bus_socket:rw \
 	-e KUBECONFIG=/shared/kubeconfig \
 	--privileged \
 	--network=host \

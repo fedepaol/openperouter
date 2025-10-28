@@ -29,17 +29,38 @@ func NewClient(socketPath string) (*Client, error) {
 // NewClientWithTimeout creates a new systemd client with a custom D-Bus socket path
 // and a custom timeout
 func NewClientWithTimeout(socketPath string, timeout time.Duration) (*Client, error) {
-	conn, err := dbus.NewConnection(func() (*godbus.Conn, error) {
-		return godbus.Dial(socketPath)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to D-Bus at %s: %w", socketPath, err)
-	}
+	// Create a context with timeout for the dial operation
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	return &Client{
-		conn:    conn,
-		timeout: timeout,
-	}, nil
+	// Create a channel to handle the connection attempt with timeout
+	type result struct {
+		conn *dbus.Conn
+		err  error
+	}
+	resultChan := make(chan result, 1)
+
+	go func() {
+		conn, err := dbus.NewConnection(func() (*godbus.Conn, error) {
+			// Try to dial with the context
+			return godbus.Dial(socketPath, godbus.WithContext(ctx))
+		})
+		resultChan <- result{conn: conn, err: err}
+	}()
+
+	// Wait for either the connection or timeout
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("timeout connecting to D-Bus at %s: %w", socketPath, ctx.Err())
+	case res := <-resultChan:
+		if res.err != nil {
+			return nil, fmt.Errorf("failed to connect to D-Bus at %s: %w", socketPath, res.err)
+		}
+		return &Client{
+			conn:    res.conn,
+			timeout: timeout,
+		}, nil
+	}
 }
 
 // Close closes the D-Bus connection

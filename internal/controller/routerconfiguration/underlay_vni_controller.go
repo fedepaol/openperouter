@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -125,6 +124,7 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	err = Reconcile(ctx, apiConfig, r.FRRConfigPath, targetNS, updater)
 	if nonRecoverableHostError(err) {
+		fmt.Println("FEDE non recoverable")
 		if err := router.HandleNonRecoverableError(ctx); err != nil {
 			slog.Error("failed to handle non recoverable error", "error", err)
 			return ctrl.Result{}, err
@@ -136,21 +136,6 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *PERouterReconciler) HandleNonRecoverableError(ctx context.Context) error {
-	routerPod, err := routerPodForNode(ctx, r.Client, r.MyNode)
-	if err != nil {
-		slog.Error("failed to fetch router pod", "node", r.MyNode, "error", err)
-		return err
-	}
-	slog.Info("breaking configuration change", "killing pod", routerPod.Name)
-	if err := r.Delete(ctx, routerPod); err != nil && !errors.IsNotFound(err) {
-		slog.Error("failed to delete router pod", "error", err)
-		return err
-	}
-	return nil
-
 }
 
 // SetupWithManager sets up the controller with the Manager.

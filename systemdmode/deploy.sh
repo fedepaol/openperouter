@@ -33,9 +33,9 @@ load_image_to_node() {
     }
 
     if [[ -f "$TEMP_TAR" ]]; then
-        docker cp "$TEMP_TAR" "$NODE:/tmp/image-update.tar"
-        docker exec "$NODE" podman load -i /tmp/image-update.tar
-        docker exec "$NODE" rm /tmp/image-update.tar
+        docker cp "$TEMP_TAR" "$NODE:/var/tmp/image-update.tar"
+        docker exec "$NODE" podman load -i /var/tmp/image-update.tar
+        docker exec "$NODE" rm /var/tmp/image-update.tar
         rm "$TEMP_TAR"
         log_info "    Image $IMAGE loaded successfully"
         return 0
@@ -53,16 +53,8 @@ update_and_restart_routerpod() {
     load_image_to_node "$NODE" "$FRR_IMAGE"
 
     log_info "  Restarting routerpod services..."
+    # Restart the pod service - systemd will automatically handle the container services via Wants= dependency
     docker exec "$NODE" systemctl restart pod-routerpod.service || log_warn "Failed to restart pod-routerpod.service on $NODE"
-    sleep 2  # Give the pod time to start
-
-    # Clean up stale ctr-id files if they exist
-    docker exec "$NODE" bash -c "rm -f /run/container-*.ctr-id" 2>/dev/null || true
-
-    # Restart container services
-    docker exec "$NODE" systemctl restart container-copier.service || log_warn "Failed to restart container-copier.service on $NODE"
-    docker exec "$NODE" systemctl restart container-frr.service || log_warn "Failed to restart container-frr.service on $NODE"
-    docker exec "$NODE" systemctl restart container-reloader.service || log_warn "Failed to restart container-reloader.service on $NODE"
 }
 
 update_and_restart_controllerpod() {
@@ -73,11 +65,8 @@ update_and_restart_controllerpod() {
     load_image_to_node "$NODE" "$ROUTER_IMAGE"
 
     log_info "  Restarting controllerpod services..."
+    # Restart the pod service - systemd will automatically handle the container service via Wants= dependency
     docker exec "$NODE" systemctl restart pod-controllerpod.service || log_warn "Failed to restart pod-controllerpod.service on $NODE"
-    sleep 2  # Give the pod time to start
-
-    # Restart container service
-    docker exec "$NODE" systemctl restart container-controller.service || log_warn "Failed to restart container-controller.service on $NODE"
 }
 
 # Check for cluster name parameter
@@ -143,9 +132,9 @@ EOF"
         update_and_restart_routerpod "$NODE"
         update_and_restart_controllerpod "$NODE"
     else
-        log_info "  Initial deployment - starting pod services..."
-        docker exec "$NODE" systemctl start pod-routerpod.service || log_warn "Failed to start pod-routerpod.service on $NODE"
-        docker exec "$NODE" systemctl start pod-controllerpod.service || log_warn "Failed to start pod-controllerpod.service on $NODE"
+        log_info "  Initial deployment - loading images and starting pod services..."
+        update_and_restart_routerpod "$NODE"
+        update_and_restart_controllerpod "$NODE"
     fi
 
     # Enable services for auto-start
