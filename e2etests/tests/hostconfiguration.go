@@ -83,7 +83,11 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 		Expect(err).NotTo(HaveOccurred())
 		ginkgo.By("waiting for the router pod to rollout after removing the underlay")
 		Eventually(func() error {
-			return openperouter.DaemonsetRolled(cs, routerPods)
+			newRouterPods, err := openperouter.RouterPods(cs)
+			if err != nil {
+				return err
+			}
+			return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
 		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
@@ -181,7 +185,11 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 			Expect(err).NotTo(HaveOccurred())
 			ginkgo.By("waiting for the router pod to rollout after removing the underlay")
 			Eventually(func() error {
-				return openperouter.DaemonsetRolled(cs, routerPods)
+				newRouterPods, err := openperouter.RouterPods(cs)
+				if err != nil {
+					return err
+				}
+				return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
 			}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 		})
 
@@ -433,7 +441,11 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 			ginkgo.By("waiting for the routers to be rolled out again")
 			Eventually(func() error {
-				return openperouter.DaemonsetRolled(cs, routerPods)
+				newRouterPods, err := openperouter.RouterPods(cs)
+				if err != nil {
+					return err
+				}
+				return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
 			}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 		})
 

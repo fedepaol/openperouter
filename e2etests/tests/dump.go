@@ -17,7 +17,6 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
-	corev1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -86,18 +85,4 @@ func logFileFor(base string, kind string) (*os.File, error) {
 		return nil, err
 	}
 	return f, nil
-}
-
-func DumpPods(name string, pods []*corev1.Pod) {
-	ginkgo.GinkgoWriter.Printf("%s pods are: %s", name)
-	for _, pod := range pods {
-		ginkgo.GinkgoWriter.Printf("Pod %s/%s: %s", pod.Namespace, pod.Name, pod.Status.Phase)
-		ginkgo.GinkgoWriter.Printf("  Node: %s", pod.Spec.NodeName)
-		ginkgo.GinkgoWriter.Printf("  IPs: %v", pod.Status.PodIPs)
-		ginkgo.GinkgoWriter.Printf("  Containers:")
-		for _, c := range pod.Spec.Containers {
-			ginkgo.GinkgoWriter.Printf("    - %s: %s", c.Name, c.Image)
-		}
-		ginkgo.GinkgoWriter.Print("\n")
-	}
 }

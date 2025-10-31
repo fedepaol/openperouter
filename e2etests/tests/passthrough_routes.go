@@ -76,7 +76,11 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 		By("waiting for the router pod to rollout after removing the underlay")
 		Eventually(func() error {
-			return openperouter.DaemonsetRolled(cs, routerPods)
+			newRouterPods, err := openperouter.RouterPods(cs)
+			if err != nil {
+				return err
+			}
+			return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
 		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
