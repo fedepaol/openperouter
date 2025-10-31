@@ -89,7 +89,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		routers, err = openperouter.Get(cs, HostMode)
 		Expect(err).NotTo(HaveOccurred())
 
-		routers.Dump("routers", ginkgo.GinkgoWriter)
+		routers.Dump(ginkgo.GinkgoWriter)
 
 		err = Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
@@ -137,16 +137,15 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			checkRouteFromLeaf := func(leaf infra.Leaf, vni v1alpha1.L3VNI, mustContain bool, prefixes []string) {
 				By(fmt.Sprintf("checking routes from leaf %s on vni %s, mustContain %v %v", leaf.Name, vni.Name, mustContain, prefixes))
 				Eventually(func() error {
-					for _, p := range routerPods {
-						exec := executor.ForPod(p.Namespace, p.Name, "frr")
+					for exec := range routers.GetExecutors() {
 						evpn, err := frr.EVPNInfo(exec)
 						Expect(err).NotTo(HaveOccurred())
 						for _, prefix := range prefixes {
 							if mustContain && !evpn.ContainsType5RouteForVNI(prefix, leaf.VTEPIP, int(vni.Spec.VNI)) {
-								return fmt.Errorf("type5 route for %s - %s not found in %v in router %s", prefix, leaf.VTEPIP, evpn, p.Name)
+								return fmt.Errorf("type5 route for %s - %s not found in %v in router %s", prefix, leaf.VTEPIP, evpn, exec.Name())
 							}
 							if !mustContain && evpn.ContainsType5RouteForVNI(prefix, leaf.VTEPIP, int(vni.Spec.VNI)) {
-								return fmt.Errorf("type5 route for %s - %s found in %v in router %s", prefix, leaf.VTEPIP, evpn, p.Name)
+								return fmt.Errorf("type5 route for %s - %s found in %v in router %s", prefix, leaf.VTEPIP, evpn, exec.Name())
 							}
 						}
 					}

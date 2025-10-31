@@ -44,11 +44,10 @@ func dumpBGPInfo(basePath, testName string, cs clientset.Interface, clabContaine
 
 	routers, err := openperouter.Get(cs, HostMode)
 	Expect(err).NotTo(HaveOccurred())
-	routers.Dump("router", ginkgo.GinkgoWriter)
+	routers.Dump(ginkgo.GinkgoWriter)
 
-	for _, pod := range routerPods {
-		podExec := executor.ForPod(pod.Namespace, pod.Name, "frr")
-		executors[pod.Name] = podExec
+	for router := range routers.GetExecutors() {
+		executors[router.Name()] = router
 	}
 
 	frrk8sPods, err := frrk8s.Pods(cs)
