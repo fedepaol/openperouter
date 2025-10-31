@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/onsi/ginkgo/v2"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +21,7 @@ const (
 )
 
 type Routers interface {
+	Dump(name string, writer io.Writer)
 }
 
 type routerPods struct {
@@ -89,17 +89,25 @@ func DaemonsetRolled(oldRouters Routers, newRouters Routers) error {
 	}
 }
 
+func (r routerPodmans) Dump(writer io.Writer, name string) {
+	fmt.Fprintf(writer, "%s pods are: %s", name)
+	for _, router := range r.routers {
+		fmt.Fprintf(writer, "  Node: %s", router.nodeName)
+		fmt.Fprint(writer, "\n")
+	}
+}
+
 func (r routerPods) Dump(writer io.Writer, name string) {
-	ginkgo.GinkgoWriter.Printf("%s pods are: %s", name)
+	fmt.Fprintf(writer, "%s pods are: %s", name)
 	for _, pod := range r.pods {
-		ginkgo.GinkgoWriter.Printf("Pod %s/%s: %s", pod.Namespace, pod.Name, pod.Status.Phase)
-		ginkgo.GinkgoWriter.Printf("  Node: %s", pod.Spec.NodeName)
-		ginkgo.GinkgoWriter.Printf("  IPs: %v", pod.Status.PodIPs)
-		ginkgo.GinkgoWriter.Printf("  Containers:")
+		fmt.Fprintf(writer, "Pod %s/%s: %s", pod.Namespace, pod.Name, pod.Status.Phase)
+		fmt.Fprintf(writer, "  Node: %s", pod.Spec.NodeName)
+		fmt.Fprintf(writer, "  IPs: %v", pod.Status.PodIPs)
+		fmt.Fprintf(writer, "  Containers:")
 		for _, c := range pod.Spec.Containers {
-			ginkgo.GinkgoWriter.Printf("    - %s: %s", c.Name, c.Image)
+			fmt.Fprintf(writer, "    - %s: %s", c.Name, c.Image)
 		}
-		ginkgo.GinkgoWriter.Print("\n")
+		fmt.Fprint(writer, "\n")
 	}
 }
 

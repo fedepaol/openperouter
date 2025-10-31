@@ -10,6 +10,7 @@ import (
 	"time"
 
 	frrk8sapi "github.com/metallb/frr-k8s/api/v1beta1"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
@@ -88,7 +89,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		routers, err = openperouter.Get(cs, HostMode)
 		Expect(err).NotTo(HaveOccurred())
 
-		DumpPods("Router pods", routerPods)
+		routers.Dump("routers", ginkgo.GinkgoWriter)
 
 		err = Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
@@ -103,7 +104,11 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 		By("waiting for the router pod to rollout after removing the underlay")
 		Eventually(func() error {
-			return openperouter.DaemonsetRolled(cs, routerPods)
+			newRouters, err := openperouter.Get(cs, HostMode)
+			if err != nil {
+				return err
+			}
+			return openperouter.DaemonsetRolled(routers, newRouters)
 		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
