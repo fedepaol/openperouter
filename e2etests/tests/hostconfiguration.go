@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -87,7 +88,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 			if err != nil {
 				return err
 			}
-			return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
+			return podsRolled(cs, routerPods, newRouterPods)
 		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 	})
 
@@ -189,7 +190,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				if err != nil {
 					return err
 				}
-				return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
+				return podsRolled(cs, routerPods, newRouterPods)
 			}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 		})
 
@@ -445,7 +446,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				if err != nil {
 					return err
 				}
-				return openperouter.DaemonsetRolled(cs, routerPods, newRouterPods)
+				return podsRolled(cs, routerPods, newRouterPods)
 			}, time.Minute, time.Second).ShouldNot(HaveOccurred())
 		})
 
@@ -859,4 +860,25 @@ func sendConfigToValidate[T any](pod *corev1.Pod, toValidate T) string {
 	err = k8s.SendFileToPod(toValidateFile.Name(), pod)
 	Expect(err).NotTo(HaveOccurred())
 	return filepath.Base(toValidateFile.Name())
+}
+
+func podsRolled(cs clientset.Interface, oldPods, newPods []*corev1.Pod) error {
+	oldPodsNames := []string{}
+	for _, p := range oldPods {
+		oldPodsNames = append(oldPodsNames, p.Name)
+	}
+
+	if len(newPods) != len(oldPodsNames) {
+		return fmt.Errorf("new pods len %d different from old pods len: %d", len(newPods), len(oldPodsNames))
+	}
+
+	for _, p := range newPods {
+		if slices.Contains(oldPodsNames, p.Name) {
+			return fmt.Errorf("old pod %s not deleted yet", p.Name)
+		}
+		if !k8s.PodIsReady(p) {
+			return fmt.Errorf("pod %s is not ready", p.Name)
+		}
+	}
+	return nil
 }
