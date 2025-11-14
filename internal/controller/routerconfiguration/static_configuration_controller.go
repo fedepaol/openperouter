@@ -24,16 +24,12 @@ import (
 // StaticConfigReconciler reconciles configuration from a static file.
 // It's designed for host mode where Kubernetes API may not be available.
 type StaticConfigReconciler struct {
-	Scheme        *runtime.Scheme
-	Logger        *slog.Logger
-	LogLevel      string
-	FRRConfigPath string
-
-	// Host mode specific configuration
-	FRRReloadSocket   string
-	RouterPidFilePath string
-	SystemdSocketPath string
-	ConfigFilePath    string
+	Scheme         *runtime.Scheme
+	Logger         *slog.Logger
+	LogLevel       string
+	FRRConfigPath  string
+	RouterProvider RouterProvider
+	ConfigFilePath string
 
 	TriggerChan chan event.GenericEvent
 }
@@ -53,21 +49,13 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	apiConfig := r.staticConfigToAPIConfig(staticConfig)
 
-	logger.Debug("using config",
+	logger.Info("using config",
 		"l3vnis", apiConfig.L3VNIs,
 		"l2vnis", apiConfig.L2VNIs,
 		"underlays", apiConfig.Underlays,
 		"l3passthrough", apiConfig.L3Passthrough)
 
-	routerProvider := &RouterHostProvider{
-		FRRConfigPath:     r.FRRConfigPath,
-		FRRReloadSocket:   r.FRRReloadSocket,
-		RouterPidFilePath: r.RouterPidFilePath,
-		CurrentNodeIndex:  staticConfig.NodeIndex,
-		SystemdSocketPath: r.SystemdSocketPath,
-	}
-
-	router, err := routerProvider.New(ctx)
+	router, err := r.RouterProvider.New(ctx)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get router instance: %w", err)
 	}
