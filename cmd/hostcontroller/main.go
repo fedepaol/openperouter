@@ -144,11 +144,10 @@ func main() {
 		setupLog.Info("disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
 	})*/
-
-	k8sConfig, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
+	// Host mode: get config but don't fail if API is unavailable
+	k8sConfig, err := config.GetConfig()
 	if err != nil {
-		setupLog.Error(err, "failed to connect to kubernetes api server")
-		os.Exit(1)
+		setupLog.Info("kubernetes config not available, will use static configuration only", "error", err)
 	}
 
 	mgr, err := ctrl.NewManager(k8sConfig, ctrl.Options{
@@ -192,19 +191,69 @@ func main() {
 		}
 	}
 
-	if err = (&routerconfiguration.PERouterReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		MyNode:         k8sModeParams.nodeName,
-		LogLevel:       args.logLevel,
-		Logger:         logger,
-		MyNamespace:    k8sModeParams.namespace,
-		FRRConfigPath:  args.frrConfigPath,
-		RouterProvider: routerProvider,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Underlay")
-		os.Exit(1)
+	// Setup controllers based on mode
+	switch args.mode {
+	case modeK8s:
+		// K8s mode: setup PERouterReconciler with API watches
+		if err = (&routerconfiguration.PERouterReconciler{
+			Client:         mgr.GetClient(),
+			Scheme:         mgr.GetScheme(),
+			MyNode:         k8sModeParams.nodeName,
+			LogLevel:       args.logLevel,
+			Logger:         logger,
+			MyNamespace:    k8sModeParams.namespace,
+			FRRConfigPath:  args.frrConfigPath,
+			RouterProvider: routerProvider,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "PERouter")
+			os.Exit(1)
+		}
+
+	case modeHost:
+		// Host mode: setup StaticConfigReconciler first (no K8s dependency)
+		staticReconciler := &routerconfiguration.StaticConfigReconciler{
+			Scheme:         mgr.GetScheme(),
+			Logger:         logger,
+			LogLevel:       args.logLevel,
+			FRRConfigPath:  args.frrConfigPath,
+			RouterProvider: routerProvider,
+			ConfigFilePath: hostModeParams.configuration,
+		}
+		if err = staticReconciler.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
+			os.Exit(1)
+		}
+
+		// Background goroutine: wait for K8s API and add PERouterReconciler when available
+		go func() {
+			setupLog.Info("starting background task to wait for kubernetes API")
+			_, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
+			if err != nil {
+				setupLog.Error(err, "failed to connect to kubernetes API in background, will continue with static config only")
+				return
+			}
+
+			setupLog.Info("kubernetes API is now available, adding API-based controller")
+
+			// Create API-based reconciler
+			apiReconciler := &routerconfiguration.PERouterReconciler{
+				Client:         mgr.GetClient(),
+				Scheme:         mgr.GetScheme(),
+				LogLevel:       args.logLevel,
+				Logger:         logger,
+				FRRConfigPath:  args.frrConfigPath,
+				RouterProvider: routerProvider,
+			}
+
+			if err := apiReconciler.SetupWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to add API-based controller")
+				return
+			}
+
+			setupLog.Info("API-based controller added successfully")
+		}()
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
