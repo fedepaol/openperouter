@@ -204,7 +204,7 @@ func InterfaceByCIDRForNamespace(namespace, cidr string) (*net.Interface, *net.I
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse cidr %s: %w", cidr, err)
 	}
-	ns, err := netns.GetFromPath(namespace)
+	ns, err := netns.GetFromName(namespace)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get network namespace %s: %w", namespace, err)
 	}
