@@ -73,7 +73,7 @@ func init() {
 type hostModeParameters struct {
 	k8sWaitInterval      time.Duration
 	hostContainerPidPath string
-	configuration        string
+	configurationPath    string
 	systemdSocketPath    string
 }
 
@@ -118,7 +118,7 @@ func main() {
 		"the path of the pid file of the router container")
 	flag.StringVar(&args.reloaderSocket, "reloader-socket", "",
 		"the path of socket to trigger frr reload in the router container")
-	flag.StringVar(&hostModeParams.configuration, "host-configuration",
+	flag.StringVar(&hostModeParams.configurationPath, "host-configuration",
 		"/etc/openperouter/config.yaml", "the path of host configuration")
 	flag.StringVar(&hostModeParams.systemdSocketPath, "systemd-socket",
 		systemdctl.HostDBusSocket, "the path of systemd control socket")
@@ -186,7 +186,7 @@ func main() {
 			Node:          nodeName,
 		}
 	case modeHost:
-		hostConfig, err := staticconfiguration.ReadFromFile(hostModeParams.configuration)
+		hostConfig, err := staticconfiguration.ReadFromFile(hostModeParams.configurationPath)
 		if err != nil {
 			setupLog.Error(err, "failed to load the static configuration file")
 			os.Exit(1)
@@ -229,7 +229,7 @@ func main() {
 			FRRConfigPath:   args.frrConfigPath,
 			FRRReloadSocket: args.reloaderSocket,
 			RouterProvider:  routerProvider,
-			ConfigFilePath:  hostModeParams.configuration,
+			ConfigFilePath:  hostModeParams.configurationPath,
 		}
 		if err = staticReconciler.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
@@ -238,10 +238,10 @@ func main() {
 
 		// Background goroutine: wait for K8s API and add PERouterReconciler when available
 		go func() {
-			setupLog.Info("starting background task to wait for kubernetes API")
+			setupLog.Info("waiting for kubernetes API")
 			_, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
 			if err != nil {
-				setupLog.Error(err, "failed to connect to kubernetes API in background, will continue with static config only")
+				setupLog.Error(err, "failed to connect to kubernetes API, will continue with static config only")
 				return
 			}
 
@@ -249,13 +249,14 @@ func main() {
 
 			// Create API-based reconciler
 			apiReconciler := &routerconfiguration.PERouterReconciler{
-				Client:          mgr.GetClient(),
-				Scheme:          mgr.GetScheme(),
-				LogLevel:        args.logLevel,
-				Logger:          logger,
-				FRRReloadSocket: args.reloaderSocket,
-				FRRConfigPath:   args.frrConfigPath,
-				RouterProvider:  routerProvider,
+				Client:           mgr.GetClient(),
+				Scheme:           mgr.GetScheme(),
+				LogLevel:         args.logLevel,
+				Logger:           logger,
+				FRRReloadSocket:  args.reloaderSocket,
+				FRRConfigPath:    args.frrConfigPath,
+				RouterProvider:   routerProvider,
+				StaticConfigPath: hostModeParams.configurationPath,
 			}
 
 			if err := apiReconciler.SetupWithManager(mgr); err != nil {

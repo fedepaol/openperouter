@@ -75,21 +75,22 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	ctx = context.WithValue(ctx, requestKey("request"), req.String())
 
-	apiConfig, err := r.getConfigFromAPI(ctx, logger)
+	config, err := r.getConfigFromAPI(ctx, logger)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	staticConfig, err := readStaticConfig(r.StaticConfigPath)
-	if err != nil {
-		logger.Error("failed to read static configuration", "error", err, "path", r.StaticConfigPath)
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-	}
-
-	mergedConfig, err := conversion.MergeAPIConfigs(apiConfig, staticConfig)
-	if err != nil {
-		logger.Error("failed to merge static configuration and configuration from crs", "error", err)
-		return ctrl.Result{}, nil
+	if r.StaticConfigPath != "" {
+		staticConfig, err := readStaticConfig(r.StaticConfigPath)
+		if err != nil {
+			logger.Error("failed to read static configuration", "error", err, "path", r.StaticConfigPath)
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		}
+		config, err = conversion.MergeAPIConfigs(config, staticConfig)
+		if err != nil {
+			logger.Error("failed to merge static configuration and configuration from crs", "error", err)
+			return ctrl.Result{}, nil
+		}
 	}
 
 	router, err := r.RouterProvider.New(ctx)
@@ -112,7 +113,7 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	updater := frrconfig.UpdaterForSocket(r.FRRReloadSocket, r.FRRConfigPath)
 
-	err = Reconcile(ctx, mergedConfig, r.FRRConfigPath, targetNS, updater)
+	err = Reconcile(ctx, config, r.FRRConfigPath, targetNS, updater)
 	if nonRecoverableHostError(err) {
 		if err := router.HandleNonRecoverableError(ctx); err != nil {
 			slog.Error("failed to handle non recoverable error", "error", err)
