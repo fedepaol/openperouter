@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/openperouter/openperouter/internal/frrconfig"
+	"github.com/openperouter/openperouter/internal/staticconfiguration"
 )
 
 // StaticConfigReconciler reconciles configuration from a static file.
@@ -35,6 +36,11 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	logger := r.Logger.With("controller", "StaticConfigReconciler", "request", req.String())
 	logger.Info("start reconcile")
 	defer logger.Info("end reconcile")
+
+	if !staticconfiguration.FileExists(r.ConfigFilePath) {
+		logger.Info("static configuration file does not exist")
+		return ctrl.Result{}, nil
+	}
 
 	apiConfig, err := readStaticConfig(r.ConfigFilePath)
 	if err != nil {
