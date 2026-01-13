@@ -73,7 +73,7 @@ func init() {
 type hostModeParameters struct {
 	k8sWaitInterval      time.Duration
 	hostContainerPidPath string
-	configurationPath    string
+	configurationDir     string
 	systemdSocketPath    string
 }
 
@@ -118,8 +118,8 @@ func main() {
 		"the path of the pid file of the router container")
 	flag.StringVar(&args.reloaderSocket, "reloader-socket", "",
 		"the path of socket to trigger frr reload in the router container")
-	flag.StringVar(&hostModeParams.configurationPath, "host-configuration",
-		"/etc/openperouter/config.yaml", "the path of host configuration")
+	flag.StringVar(&hostModeParams.configurationDir, "host-configuration",
+		"/etc/openperouter/config.yaml", "the dir containing the static configuration files")
 	flag.StringVar(&hostModeParams.systemdSocketPath, "systemd-socket",
 		systemdctl.HostDBusSocket, "the path of systemd control socket")
 

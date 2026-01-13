@@ -18,8 +18,8 @@ func FileExists(path string) bool {
 
 // ReadFromFile reads a PERouterConfig from a YAML file.
 // If the file does not exist, returns an empty config.
-func ReadFromFile(path string) (*static.PERouterConfig, error) {
-	data, err := os.ReadFile(path)
+func ReadFromFile(configDir string) (*static.PERouterConfig, error) {
+	data, err := os.ReadFile(configDir)
 	if os.IsNotExist(err) {
 		return &static.PERouterConfig{}, nil
 	}
