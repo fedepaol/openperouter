@@ -8,6 +8,7 @@ import (
 
 type NodeConfig struct {
 	NodeIndex int    `json:"nodeIndex"`
+	NodeName  string `json:"nodeName"`
 	LogLevel  string `json:"logLevel"`
 }
 

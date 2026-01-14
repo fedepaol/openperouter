@@ -21,9 +21,6 @@ func FileExists(path string) bool {
 // If the file does not exist, returns an empty config.
 func ReadNodeConfig(path string) (*static.NodeConfig, error) {
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return &static.NodeConfig{}, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read node config file: %w", err)
 	}

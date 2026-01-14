@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/logr"
+	"github.com/openperouter/openperouter/api/static"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/controller/routerconfiguration"
 	"github.com/openperouter/openperouter/internal/hostnetwork"
@@ -84,20 +85,23 @@ type k8sModeParameters struct {
 	criSocket string
 }
 
+type parameters struct {
+	probeAddr          string
+	tlsOpts            []func(*tls.Config)
+	frrConfigPath      string
+	reloaderSocket     string
+	mode               string
+	underlayFromMultus bool
+	ovsSocketPath      string
+	nodeName           string
+	logLevel           string
+}
+
 func main() {
 	hostModeParams := hostModeParameters{}
 	k8sModeParams := k8sModeParameters{}
 
-	args := struct {
-		probeAddr          string
-		tlsOpts            []func(*tls.Config)
-		logLevel           string
-		frrConfigPath      string
-		reloaderSocket     string
-		mode               string
-		underlayFromMultus bool
-		ovsSocketPath      string
-	}{}
+	args := parameters{}
 
 	flag.StringVar(&args.probeAddr, "health-probe-bind-address", ":9081", "The address the probe endpoint binds to.")
 	flag.StringVar(&args.logLevel, "loglevel", "info", "the verbosity of the process")
@@ -135,6 +139,17 @@ func main() {
 
 	// Initialize OVS socket path for the hostnetwork package
 	hostnetwork.OVSSocketPath = args.ovsSocketPath
+
+	var nodeConfig = &static.NodeConfig{}
+	if args.mode == modeHost {
+		var err error
+		nodeConfig, err = staticconfiguration.ReadNodeConfig(hostModeParams.nodeConfigPath)
+		if err != nil {
+			setupLog.Error(err, "failed to load the node configuration file")
+			os.Exit(1)
+		}
+	}
+	overrideFromStatic(&args, *nodeConfig)
 
 	logger, err := logging.New(args.logLevel)
 	if err != nil {
@@ -178,37 +193,15 @@ func main() {
 	}
 
 	var routerProvider routerconfiguration.RouterProvider
-	var nodeName string
 	switch args.mode {
 	case modeK8s:
-		nodeName = k8sModeParams.nodeName
 		routerProvider = &routerconfiguration.RouterPodProvider{
 			FRRConfigPath: args.frrConfigPath,
 			PodRuntime:    podRuntime,
 			Client:        mgr.GetClient(),
-			Node:          nodeName,
+			Node:          k8sModeParams.nodeName,
 		}
 	case modeHost:
-		// Read node config to get NodeIndex and LogLevel
-		nodeConfig, err := staticconfiguration.ReadNodeConfig(hostModeParams.nodeConfigPath)
-		if err != nil {
-			setupLog.Error(err, "failed to load the node configuration file")
-			os.Exit(1)
-		}
-
-		// Override logger if LogLevel is set in config (config file takes precedence)
-		if nodeConfig.LogLevel != "" {
-			logger, err = logging.New(nodeConfig.LogLevel)
-			if err != nil {
-				setupLog.Error(err, "failed to reinitialize logger with config file log level")
-				os.Exit(1)
-			}
-			ctrl.SetLogger(logr.FromSlogHandler(logger.Handler()))
-			setupLog.Info("log level overridden by node config", "logLevel", nodeConfig.LogLevel)
-		}
-
-		// In host mode, the node name is passed via --nodename parameter
-		nodeName = k8sModeParams.nodeName
 		routerProvider = &routerconfiguration.RouterHostProvider{
 			FRRConfigPath:     args.frrConfigPath,
 			RouterPidFilePath: hostModeParams.hostContainerPidPath,
@@ -253,7 +246,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Background goroutine: wait for K8s API and add PERouterReconciler when available
+		// wait for K8s API and add PERouterReconciler when available
 		go func() {
 			setupLog.Info("waiting for kubernetes API")
 			_, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
@@ -270,6 +263,7 @@ func main() {
 				Scheme:          mgr.GetScheme(),
 				LogLevel:        args.logLevel,
 				Logger:          logger,
+				MyNode:          k8sModeParams.nodeName,
 				FRRReloadSocket: args.reloaderSocket,
 				FRRConfigPath:   args.frrConfigPath,
 				RouterProvider:  routerProvider,
@@ -369,4 +363,15 @@ func validateParameters(mode string, hostModeParams hostModeParameters, k8sModeP
 	}
 
 	return nil
+}
+
+func overrideFromStatic(args *parameters, nodeConfig static.NodeConfig) {
+	if nodeConfig.LogLevel != "" {
+		setupLog.Info("overriding log level from static configuration", "loglevel", nodeConfig.LogLevel)
+		args.logLevel = nodeConfig.LogLevel
+	}
+	if nodeConfig.NodeName != "" {
+		setupLog.Info("overriding node name from static configuration", "nodename", nodeConfig.NodeName)
+		args.nodeName = nodeConfig.NodeName
+	}
 }

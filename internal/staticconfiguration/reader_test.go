@@ -73,12 +73,9 @@ func TestReadNodeConfig(t *testing.T) {
 }
 
 func TestReadNodeConfig_NonExistentFile(t *testing.T) {
-	config, err := ReadNodeConfig("/nonexistent/path/node-config.yaml")
-	if err != nil {
-		t.Errorf("expected no error for non-existent file, got: %v", err)
-	}
-	if config == nil {
-		t.Error("expected empty config, got nil")
+	_, err := ReadNodeConfig("/nonexistent/path/node-config.yaml")
+	if err == nil {
+		t.Errorf("expected error for non-existent file, got: %v", err)
 	}
 }
 
