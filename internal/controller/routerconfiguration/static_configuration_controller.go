@@ -15,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/openperouter/openperouter/internal/frrconfig"
-	"github.com/openperouter/openperouter/internal/staticconfiguration"
 )
 
 // StaticConfigReconciler reconciles configuration from a static file.
@@ -23,12 +22,12 @@ import (
 type StaticConfigReconciler struct {
 	Scheme          *runtime.Scheme
 	Logger          *slog.Logger
+	NodeIndex       int
 	LogLevel        string
 	FRRConfigPath   string
 	FRRReloadSocket string
 	RouterProvider  RouterProvider
 	ConfigDir       string
-	NodeConfigPath  string
 
 	TriggerChan chan event.GenericEvent
 }
@@ -38,23 +37,16 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	logger.Info("start reconcile")
 	defer logger.Info("end reconcile")
 
-	// Read node config (required for NodeIndex)
-	nodeConfig, err := staticconfiguration.ReadNodeConfig(r.NodeConfigPath)
-	if err != nil {
-		logger.Error("failed to read node configuration", "error", err, "path", r.NodeConfigPath)
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-	}
-
 	// Read and merge router configs from directory
-	apiConfig, err := readStaticConfigs(r.ConfigDir, nodeConfig)
+	apiConfig, err := readStaticConfigs(r.ConfigDir)
 	if err != nil {
 		logger.Error("failed to read static router configurations", "error", err, "dir", r.ConfigDir)
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
 	logger.Info("using config",
-		"nodeIndex", apiConfig.NodeIndex,
-		"logLevel", apiConfig.LogLevel,
+		"nodeIndex", r.NodeIndex,
+		"logLevel", r.LogLevel,
 		"l3vnis", len(apiConfig.L3VNIs),
 		"l2vnis", len(apiConfig.L2VNIs),
 		"underlays", len(apiConfig.Underlays),
@@ -72,7 +64,7 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	updater := frrconfig.UpdaterForSocket(r.FRRReloadSocket, r.FRRConfigPath)
 
-	err = Reconcile(ctx, apiConfig, r.FRRConfigPath, targetNS, updater)
+	err = Reconcile(ctx, apiConfig, false, r.NodeIndex, r.LogLevel, r.FRRConfigPath, targetNS, updater)
 	if nonRecoverableHostError(err) {
 		if err := router.HandleNonRecoverableError(ctx); err != nil {
 			logger.Error("failed to handle non recoverable error", "error", err)

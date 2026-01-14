@@ -234,12 +234,12 @@ func main() {
 		staticReconciler := &routerconfiguration.StaticConfigReconciler{
 			Scheme:          mgr.GetScheme(),
 			Logger:          logger,
+			NodeIndex:       nodeConfig.NodeIndex,
 			LogLevel:        args.logLevel,
 			FRRConfigPath:   args.frrConfigPath,
 			FRRReloadSocket: args.reloaderSocket,
 			RouterProvider:  routerProvider,
 			ConfigDir:       hostModeParams.configurationDir,
-			NodeConfigPath:  hostModeParams.nodeConfigPath,
 		}
 		if err = staticReconciler.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")

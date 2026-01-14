@@ -34,7 +34,6 @@ import (
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/filter"
 	"github.com/openperouter/openperouter/internal/frrconfig"
-	"github.com/openperouter/openperouter/internal/staticconfiguration"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -83,15 +82,8 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if r.StaticConfigDir != "" {
-		// Read node config
-		nodeConfig, err := staticconfiguration.ReadNodeConfig(r.NodeConfigPath)
-		if err != nil {
-			logger.Error("failed to read node configuration", "error", err, "path", r.NodeConfigPath)
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-
 		// Read and merge static router configs
-		staticConfig, err := readStaticConfigs(r.StaticConfigDir, nodeConfig)
+		staticConfig, err := readStaticConfigs(r.StaticConfigDir)
 		if err != nil {
 			logger.Error("failed to read static configuration", "error", err, "dir", r.StaticConfigDir)
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
@@ -124,7 +116,13 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	updater := frrconfig.UpdaterForSocket(r.FRRReloadSocket, r.FRRConfigPath)
 
-	err = Reconcile(ctx, config, r.FRRConfigPath, targetNS, updater)
+	nodeIndex, err := r.RouterProvider.NodeIndex(ctx)
+	if err != nil {
+		slog.Error("failed to get node index", "error", err)
+		return ctrl.Result{}, err
+	}
+
+	err = Reconcile(ctx, config, r.UnderlayFromMultus, nodeIndex, r.LogLevel, r.FRRConfigPath, targetNS, updater)
 	if nonRecoverableHostError(err) {
 		if err := router.HandleNonRecoverableError(ctx); err != nil {
 			slog.Error("failed to handle non recoverable error", "error", err)
@@ -195,22 +193,13 @@ func (r *PERouterReconciler) getConfigFromAPI(ctx context.Context, logger *slog.
 		return conversion.ApiConfigData{}, err
 	}
 
-	nodeIndex, err := r.RouterProvider.NodeIndex(ctx)
-	if err != nil {
-		slog.Error("failed to get node index", "error", err)
-		return conversion.ApiConfigData{}, err
-	}
-
 	logger.Debug("using config", "l3vnis", l3vnis.Items, "l2vnis", l2vnis.Items, "underlays", underlays.Items, "l3passthrough", l3passthrough.Items)
 
 	apiConfig := conversion.ApiConfigData{
-		NodeIndex:          nodeIndex,
-		UnderlayFromMultus: r.UnderlayFromMultus,
-		Underlays:          filteredUnderlays,
-		LogLevel:           r.LogLevel,
-		L3VNIs:             filteredL3VNIs,
-		L2VNIs:             filteredL2VNIs,
-		L3Passthrough:      filteredL3Passthrough,
+		Underlays:     filteredUnderlays,
+		L3VNIs:        filteredL3VNIs,
+		L2VNIs:        filteredL2VNIs,
+		L3Passthrough: filteredL3Passthrough,
 	}
 
 	return apiConfig, nil
