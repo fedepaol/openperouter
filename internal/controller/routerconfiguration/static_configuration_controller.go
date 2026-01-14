@@ -27,7 +27,8 @@ type StaticConfigReconciler struct {
 	FRRConfigPath   string
 	FRRReloadSocket string
 	RouterProvider  RouterProvider
-	ConfigFilePath  string
+	ConfigDir       string
+	NodeConfigPath  string
 
 	TriggerChan chan event.GenericEvent
 }
@@ -37,22 +38,27 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	logger.Info("start reconcile")
 	defer logger.Info("end reconcile")
 
-	if !staticconfiguration.FileExists(r.ConfigFilePath) {
-		logger.Info("static configuration file does not exist")
-		return ctrl.Result{}, nil
+	// Read node config (required for NodeIndex)
+	nodeConfig, err := staticconfiguration.ReadNodeConfig(r.NodeConfigPath)
+	if err != nil {
+		logger.Error("failed to read node configuration", "error", err, "path", r.NodeConfigPath)
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
-	apiConfig, err := readStaticConfig(r.ConfigFilePath)
+	// Read and merge router configs from directory
+	apiConfig, err := readStaticConfigs(r.ConfigDir, nodeConfig)
 	if err != nil {
-		logger.Error("failed to read static configuration", "error", err, "path", r.ConfigFilePath)
+		logger.Error("failed to read static router configurations", "error", err, "dir", r.ConfigDir)
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
 	logger.Info("using config",
-		"l3vnis", apiConfig.L3VNIs,
-		"l2vnis", apiConfig.L2VNIs,
-		"underlays", apiConfig.Underlays,
-		"l3passthrough", apiConfig.L3Passthrough)
+		"nodeIndex", apiConfig.NodeIndex,
+		"logLevel", apiConfig.LogLevel,
+		"l3vnis", len(apiConfig.L3VNIs),
+		"l2vnis", len(apiConfig.L2VNIs),
+		"underlays", len(apiConfig.Underlays),
+		"l3passthrough", len(apiConfig.L3Passthrough))
 
 	router, err := r.RouterProvider.New(ctx)
 	if err != nil {

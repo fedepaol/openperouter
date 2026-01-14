@@ -34,6 +34,7 @@ import (
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/filter"
 	"github.com/openperouter/openperouter/internal/frrconfig"
+	"github.com/openperouter/openperouter/internal/staticconfiguration"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -47,7 +48,8 @@ type PERouterReconciler struct {
 	UnderlayFromMultus bool
 	FRRConfigPath      string
 	FRRReloadSocket    string
-	StaticConfigPath   string
+	StaticConfigDir    string
+	NodeConfigPath     string
 	RouterProvider     RouterProvider
 }
 
@@ -80,12 +82,21 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	if r.StaticConfigPath != "" {
-		staticConfig, err := readStaticConfig(r.StaticConfigPath)
+	if r.StaticConfigDir != "" {
+		// Read node config
+		nodeConfig, err := staticconfiguration.ReadNodeConfig(r.NodeConfigPath)
 		if err != nil {
-			logger.Error("failed to read static configuration", "error", err, "path", r.StaticConfigPath)
+			logger.Error("failed to read node configuration", "error", err, "path", r.NodeConfigPath)
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 		}
+
+		// Read and merge static router configs
+		staticConfig, err := readStaticConfigs(r.StaticConfigDir, nodeConfig)
+		if err != nil {
+			logger.Error("failed to read static configuration", "error", err, "dir", r.StaticConfigDir)
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		}
+
 		config, err = conversion.MergeAPIConfigs(config, staticConfig)
 		if err != nil {
 			logger.Error("failed to merge static configuration and configuration from crs", "error", err)

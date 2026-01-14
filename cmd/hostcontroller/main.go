@@ -74,6 +74,7 @@ type hostModeParameters struct {
 	k8sWaitInterval      time.Duration
 	hostContainerPidPath string
 	configurationDir     string
+	nodeConfigPath       string
 	systemdSocketPath    string
 }
 
@@ -118,8 +119,10 @@ func main() {
 		"the path of the pid file of the router container")
 	flag.StringVar(&args.reloaderSocket, "reloader-socket", "",
 		"the path of socket to trigger frr reload in the router container")
-	flag.StringVar(&hostModeParams.configurationDir, "host-configuration",
-		"/etc/openperouter/config.yaml", "the dir containing the static configuration files")
+	flag.StringVar(&hostModeParams.configurationDir, "host-configuration-dir",
+		"/etc/openperouter/configs", "the directory containing static router configuration files (openpe_*.yaml)")
+	flag.StringVar(&hostModeParams.nodeConfigPath, "node-config",
+		"/etc/openperouter/node-config.yaml", "the path to node configuration file")
 	flag.StringVar(&hostModeParams.systemdSocketPath, "systemd-socket",
 		systemdctl.HostDBusSocket, "the path of systemd control socket")
 
@@ -186,17 +189,30 @@ func main() {
 			Node:          nodeName,
 		}
 	case modeHost:
-		hostConfig, err := staticconfiguration.ReadFromFile(hostModeParams.configurationPath)
+		// Read node config to get NodeIndex and LogLevel
+		nodeConfig, err := staticconfiguration.ReadNodeConfig(hostModeParams.nodeConfigPath)
 		if err != nil {
-			setupLog.Error(err, "failed to load the static configuration file")
+			setupLog.Error(err, "failed to load the node configuration file")
 			os.Exit(1)
 		}
+
+		// Override logger if LogLevel is set in config (config file takes precedence)
+		if nodeConfig.LogLevel != "" {
+			logger, err = logging.New(nodeConfig.LogLevel)
+			if err != nil {
+				setupLog.Error(err, "failed to reinitialize logger with config file log level")
+				os.Exit(1)
+			}
+			ctrl.SetLogger(logr.FromSlogHandler(logger.Handler()))
+			setupLog.Info("log level overridden by node config", "logLevel", nodeConfig.LogLevel)
+		}
+
 		// In host mode, the node name is passed via --nodename parameter
 		nodeName = k8sModeParams.nodeName
 		routerProvider = &routerconfiguration.RouterHostProvider{
 			FRRConfigPath:     args.frrConfigPath,
 			RouterPidFilePath: hostModeParams.hostContainerPidPath,
-			CurrentNodeIndex:  hostConfig.NodeIndex,
+			CurrentNodeIndex:  nodeConfig.NodeIndex,
 			SystemdSocketPath: hostModeParams.systemdSocketPath,
 		}
 	}
@@ -229,7 +245,8 @@ func main() {
 			FRRConfigPath:   args.frrConfigPath,
 			FRRReloadSocket: args.reloaderSocket,
 			RouterProvider:  routerProvider,
-			ConfigFilePath:  hostModeParams.configurationPath,
+			ConfigDir:       hostModeParams.configurationDir,
+			NodeConfigPath:  hostModeParams.nodeConfigPath,
 		}
 		if err = staticReconciler.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
@@ -249,14 +266,15 @@ func main() {
 
 			// Create API-based reconciler
 			apiReconciler := &routerconfiguration.PERouterReconciler{
-				Client:           mgr.GetClient(),
-				Scheme:           mgr.GetScheme(),
-				LogLevel:         args.logLevel,
-				Logger:           logger,
-				FRRReloadSocket:  args.reloaderSocket,
-				FRRConfigPath:    args.frrConfigPath,
-				RouterProvider:   routerProvider,
-				StaticConfigPath: hostModeParams.configurationPath,
+				Client:          mgr.GetClient(),
+				Scheme:          mgr.GetScheme(),
+				LogLevel:        args.logLevel,
+				Logger:          logger,
+				FRRReloadSocket: args.reloaderSocket,
+				FRRConfigPath:   args.frrConfigPath,
+				RouterProvider:  routerProvider,
+				StaticConfigDir: hostModeParams.configurationDir,
+				NodeConfigPath:  hostModeParams.nodeConfigPath,
 			}
 
 			if err := apiReconciler.SetupWithManager(mgr); err != nil {

@@ -10,16 +10,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func readStaticConfig(path string) (conversion.ApiConfigData, error) {
-	staticConfig, err := staticconfiguration.ReadFromFile(path)
+func readStaticConfigs(configDir string, nodeConfig *static.NodeConfig) (conversion.ApiConfigData, error) {
+	routerConfigs, err := staticconfiguration.ReadRouterConfigs(configDir)
 	if err != nil {
-		return conversion.ApiConfigData{}, fmt.Errorf("failed to read static config: %w", err)
+		return conversion.ApiConfigData{}, fmt.Errorf("failed to read router configs: %w", err)
 	}
 
-	return staticConfigToAPIConfig(staticConfig), nil
+	// Convert each PERouterConfig to ApiConfigData
+	apiConfigs := make([]conversion.ApiConfigData, len(routerConfigs))
+	for i, rc := range routerConfigs {
+		apiConfigs[i] = staticConfigToAPIConfig(rc, nodeConfig)
+	}
+
+	// If no router configs found, return empty config with just NodeConfig data
+	if len(apiConfigs) == 0 {
+		return conversion.ApiConfigData{
+			NodeIndex: nodeConfig.NodeIndex,
+			LogLevel:  nodeConfig.LogLevel,
+		}, nil
+	}
+
+	// Merge all configs using existing merge function
+	merged, err := conversion.MergeAPIConfigs(apiConfigs...)
+	if err != nil {
+		return conversion.ApiConfigData{}, fmt.Errorf("failed to merge static configs: %w", err)
+	}
+
+	return merged, nil
 }
 
-func staticConfigToAPIConfig(staticConfig *static.PERouterConfig) conversion.ApiConfigData {
+func staticConfigToAPIConfig(staticConfig *static.PERouterConfig, nodeConfig *static.NodeConfig) conversion.ApiConfigData {
 	underlays := make([]v1alpha1.Underlay, len(staticConfig.Underlays))
 	for i, spec := range staticConfig.Underlays {
 		underlays[i] = v1alpha1.Underlay{
@@ -79,7 +99,8 @@ func staticConfigToAPIConfig(staticConfig *static.PERouterConfig) conversion.Api
 	}
 
 	return conversion.ApiConfigData{
-		NodeIndex:     staticConfig.NodeIndex,
+		NodeIndex:     nodeConfig.NodeIndex,
+		LogLevel:      nodeConfig.LogLevel,
 		Underlays:     underlays,
 		L3VNIs:        l3vnis,
 		L2VNIs:        l2vnis,
