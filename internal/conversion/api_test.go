@@ -9,23 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestMergeAPIConfigs_EmptyInput(t *testing.T) {
-	merged, err := MergeAPIConfigs()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if merged.NodeIndex != 0 {
-		t.Errorf("expected NodeIndex 0, got %d", merged.NodeIndex)
-	}
-	if len(merged.Underlays) != 0 {
-		t.Errorf("expected 0 underlays, got %d", len(merged.Underlays))
-	}
-}
-
 func TestMergeAPIConfigs_SingleConfig(t *testing.T) {
 	config := ApiConfigData{
-		NodeIndex: 1,
-		LogLevel:  "debug",
 		Underlays: []v1alpha1.Underlay{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "underlay1"},
@@ -41,12 +26,6 @@ func TestMergeAPIConfigs_SingleConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if merged.NodeIndex != 1 {
-		t.Errorf("expected NodeIndex 1, got %d", merged.NodeIndex)
-	}
-	if merged.LogLevel != "debug" {
-		t.Errorf("expected LogLevel debug, got %s", merged.LogLevel)
-	}
 	if len(merged.Underlays) != 1 {
 		t.Fatalf("expected 1 underlay, got %d", len(merged.Underlays))
 	}
@@ -57,8 +36,6 @@ func TestMergeAPIConfigs_SingleConfig(t *testing.T) {
 
 func TestMergeAPIConfigs_MultipleConfigs(t *testing.T) {
 	config1 := ApiConfigData{
-		NodeIndex: 1,
-		LogLevel:  "info",
 		Underlays: []v1alpha1.Underlay{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "underlay1"},
@@ -68,8 +45,6 @@ func TestMergeAPIConfigs_MultipleConfigs(t *testing.T) {
 	}
 
 	config2 := ApiConfigData{
-		NodeIndex: 1,
-		LogLevel:  "info",
 		L3VNIs: []v1alpha1.L3VNI{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "l3vni1"},
@@ -79,8 +54,6 @@ func TestMergeAPIConfigs_MultipleConfigs(t *testing.T) {
 	}
 
 	config3 := ApiConfigData{
-		NodeIndex: 1,
-		LogLevel:  "info",
 		L2VNIs: []v1alpha1.L2VNI{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "l2vni1"},
@@ -94,9 +67,6 @@ func TestMergeAPIConfigs_MultipleConfigs(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if merged.NodeIndex != 1 {
-		t.Errorf("expected NodeIndex 1, got %d", merged.NodeIndex)
-	}
 	if len(merged.Underlays) != 1 {
 		t.Errorf("expected 1 underlay, got %d", len(merged.Underlays))
 	}
@@ -107,56 +77,8 @@ func TestMergeAPIConfigs_MultipleConfigs(t *testing.T) {
 		t.Errorf("expected 1 l2vni, got %d", len(merged.L2VNIs))
 	}
 }
-
-func TestMergeAPIConfigs_NodeIndexMismatch(t *testing.T) {
-	config1 := ApiConfigData{
-		NodeIndex: 1,
-		Underlays: []v1alpha1.Underlay{
-			{ObjectMeta: metav1.ObjectMeta{Name: "underlay1"}},
-		},
-	}
-
-	config2 := ApiConfigData{
-		NodeIndex: 2,
-		L3VNIs: []v1alpha1.L3VNI{
-			{ObjectMeta: metav1.ObjectMeta{Name: "l3vni1"}},
-		},
-	}
-
-	_, err := MergeAPIConfigs(config1, config2)
-	if err == nil {
-		t.Error("expected error for NodeIndex mismatch, got none")
-	}
-	expectedErr := "NodeIndex mismatch: config[0] has 1, config[1] has 2"
-	if err != nil && err.Error() != expectedErr {
-		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
-	}
-}
-
-func TestMergeAPIConfigs_UnderlayFromMultusMismatch(t *testing.T) {
-	config1 := ApiConfigData{
-		NodeIndex:          1,
-		UnderlayFromMultus: true,
-	}
-
-	config2 := ApiConfigData{
-		NodeIndex:          1,
-		UnderlayFromMultus: false,
-	}
-
-	_, err := MergeAPIConfigs(config1, config2)
-	if err == nil {
-		t.Error("expected error for UnderlayFromMultus mismatch, got none")
-	}
-	expectedErr := "UnderlayFromMultus mismatch: config[0] has true, config[1] has false"
-	if err != nil && err.Error() != expectedErr {
-		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
-	}
-}
-
 func TestMergeAPIConfigs_AllResourceTypes(t *testing.T) {
 	config := ApiConfigData{
-		NodeIndex: 1,
 		Underlays: []v1alpha1.Underlay{
 			{ObjectMeta: metav1.ObjectMeta{Name: "underlay1"}},
 		},
@@ -192,7 +114,6 @@ func TestMergeAPIConfigs_AllResourceTypes(t *testing.T) {
 
 func TestMergeAPIConfigs_ResourcesConcatenated(t *testing.T) {
 	config1 := ApiConfigData{
-		NodeIndex: 1,
 		Underlays: []v1alpha1.Underlay{
 			{ObjectMeta: metav1.ObjectMeta{Name: "underlay1"}},
 			{ObjectMeta: metav1.ObjectMeta{Name: "underlay2"}},
@@ -200,7 +121,6 @@ func TestMergeAPIConfigs_ResourcesConcatenated(t *testing.T) {
 	}
 
 	config2 := ApiConfigData{
-		NodeIndex: 1,
 		Underlays: []v1alpha1.Underlay{
 			{ObjectMeta: metav1.ObjectMeta{Name: "underlay3"}},
 		},

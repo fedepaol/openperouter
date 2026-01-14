@@ -8,13 +8,10 @@ import (
 )
 
 type ApiConfigData struct {
-	//	NodeIndex          int
-	//UnderlayFromMultus bool
 	Underlays     []v1alpha1.Underlay
 	L3VNIs        []v1alpha1.L3VNI
 	L2VNIs        []v1alpha1.L2VNI
 	L3Passthrough []v1alpha1.L3Passthrough
-	//LogLevel           string
 }
 
 type HostConfigData struct {
@@ -29,7 +26,11 @@ func MergeAPIConfigs(configs ...ApiConfigData) (ApiConfigData, error) {
 		return ApiConfigData{}, nil
 	}
 
-	merged := ApiConfigData{}
+	merged := ApiConfigData{
+		L3VNIs:        []v1alpha1.L3VNI{},
+		L2VNIs:        []v1alpha1.L2VNI{},
+		L3Passthrough: []v1alpha1.L3Passthrough{},
+	}
 
 	for _, config := range configs {
 		merged.Underlays = append(merged.Underlays, config.Underlays...)

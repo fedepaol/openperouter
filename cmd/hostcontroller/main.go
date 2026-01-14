@@ -80,7 +80,6 @@ type hostModeParameters struct {
 }
 
 type k8sModeParameters struct {
-	nodeName  string
 	namespace string
 	criSocket string
 }
@@ -113,7 +112,7 @@ func main() {
 
 	flag.StringVar(&args.mode, "mode", modeK8s, "the mode to run in (k8s or host)")
 
-	flag.StringVar(&k8sModeParams.nodeName, "nodename", "", "The name of the node the controller runs on")
+	flag.StringVar(&args.nodeName, "nodename", "", "The name of the node the controller runs on")
 	flag.StringVar(&k8sModeParams.namespace, "namespace", "", "The namespace the controller runs in")
 	flag.StringVar(&k8sModeParams.criSocket, "crisocket", "/containerd.sock", "the location of the cri socket")
 
@@ -130,12 +129,11 @@ func main() {
 	flag.StringVar(&hostModeParams.systemdSocketPath, "systemd-socket",
 		systemdctl.HostDBusSocket, "the path of systemd control socket")
 
-	if err := validateParameters(args.mode, hostModeParams, k8sModeParams); err != nil {
+	flag.Parse()
+	if err := validateParameters(args, hostModeParams, k8sModeParams); err != nil {
 		fmt.Printf("validation error: %v\n", err)
 		os.Exit(1)
 	}
-
-	flag.Parse()
 
 	// Initialize OVS socket path for the hostnetwork package
 	hostnetwork.OVSSocketPath = args.ovsSocketPath
@@ -176,7 +174,7 @@ func main() {
 		Cache: cache.Options{
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Node{}: {
-					Field: fields.Set{"metadata.name": k8sModeParams.nodeName}.AsSelector(),
+					Field: fields.Set{"metadata.name": args.nodeName}.AsSelector(),
 				},
 			},
 		},
@@ -199,7 +197,7 @@ func main() {
 			FRRConfigPath: args.frrConfigPath,
 			PodRuntime:    podRuntime,
 			Client:        mgr.GetClient(),
-			Node:          k8sModeParams.nodeName,
+			Node:          args.nodeName,
 		}
 	case modeHost:
 		routerProvider = &routerconfiguration.RouterHostProvider{
@@ -217,7 +215,7 @@ func main() {
 		if err := (&routerconfiguration.PERouterReconciler{
 			Client:             mgr.GetClient(),
 			Scheme:             mgr.GetScheme(),
-			MyNode:             k8sModeParams.nodeName,
+			MyNode:             args.nodeName,
 			LogLevel:           args.logLevel,
 			Logger:             logger,
 			MyNamespace:        k8sModeParams.namespace,
@@ -263,7 +261,7 @@ func main() {
 				Scheme:          mgr.GetScheme(),
 				LogLevel:        args.logLevel,
 				Logger:          logger,
-				MyNode:          k8sModeParams.nodeName,
+				MyNode:          args.nodeName,
 				FRRReloadSocket: args.reloaderSocket,
 				FRRConfigPath:   args.frrConfigPath,
 				RouterProvider:  routerProvider,
@@ -333,33 +331,31 @@ func pingAPIServer() (*rest.Config, error) {
 	return cfg, nil
 }
 
-func validateParameters(mode string, hostModeParams hostModeParameters, k8sModeParams k8sModeParameters) error {
-	if mode != modeK8s && mode != modeHost {
-		return fmt.Errorf("invalid mode %q, must be '%s' or '%s'", mode, modeK8s, modeHost)
+func validateParameters(args parameters, hostModeParams hostModeParameters, k8sModeParams k8sModeParameters) error {
+	if args.mode != modeK8s && args.mode != modeHost {
+		return fmt.Errorf("invalid mode %q, must be '%s' or '%s'", args.mode, modeK8s, modeHost)
 	}
 
-	if mode == modeK8s {
+	if args.nodeName == "" {
+		return fmt.Errorf("nodename is required")
+	}
+
+	if args.mode == modeK8s {
 		if hostModeParams.hostContainerPidPath != "" {
 			return fmt.Errorf("pid-path should not be set in %s mode", modeK8s)
-		}
-		if k8sModeParams.nodeName == "" {
-			return fmt.Errorf("nodename is required in %s mode", modeK8s)
 		}
 		if k8sModeParams.namespace == "" {
 			return fmt.Errorf("namespace is required in %s mode", modeK8s)
 		}
+		return nil
 	}
 
-	if mode == modeHost {
-		if k8sModeParams.nodeName == "" {
-			return fmt.Errorf("nodename is required in %s mode", modeHost)
-		}
-		if k8sModeParams.namespace != "" {
-			return fmt.Errorf("namespace should not be set in %s mode", modeHost)
-		}
-		if hostModeParams.hostContainerPidPath == "" {
-			return fmt.Errorf("pid-path is required in %s mode", modeHost)
-		}
+	// host mode
+	if k8sModeParams.namespace != "" {
+		return fmt.Errorf("namespace should not be set in %s mode", modeHost)
+	}
+	if hostModeParams.hostContainerPidPath == "" {
+		return fmt.Errorf("pid-path is required in %s mode", modeHost)
 	}
 
 	return nil
