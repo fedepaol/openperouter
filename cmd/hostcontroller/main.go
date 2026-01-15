@@ -130,10 +130,6 @@ func main() {
 		systemdctl.HostDBusSocket, "the path of systemd control socket")
 
 	flag.Parse()
-	if err := validateParameters(args, hostModeParams, k8sModeParams); err != nil {
-		fmt.Printf("validation error: %v\n", err)
-		os.Exit(1)
-	}
 
 	// Initialize OVS socket path for the hostnetwork package
 	hostnetwork.OVSSocketPath = args.ovsSocketPath
@@ -146,10 +142,15 @@ func main() {
 			setupLog.Error(err, "failed to load the node configuration file")
 			os.Exit(1)
 		}
+		if err := overrideHostMode(&args, *nodeConfig); err != nil {
+			setupLog.Error(err, "failed to override host mode arguments")
+			os.Exit(1)
+		}
 	}
 
-	if args.mode == modeHost {
-		overrideHostMode(&args, *nodeConfig)
+	if err := validateParameters(args, hostModeParams, k8sModeParams); err != nil {
+		fmt.Printf("validation error: %v\n", err)
+		os.Exit(1)
 	}
 
 	logger, err := logging.New(args.logLevel)
@@ -371,7 +372,7 @@ func validateParameters(args parameters, hostModeParams hostModeParameters, k8sM
 // with those provided from the configuration files. This allows do
 // have an uniform deployment while being able to provide different
 // knobs for different nodes.
-func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) {
+func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) error {
 	if nodeConfig.LogLevel != "" {
 		setupLog.Info("overriding log level from static configuration", "loglevel", nodeConfig.LogLevel)
 		args.logLevel = nodeConfig.LogLevel
@@ -379,13 +380,14 @@ func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) {
 	if nodeConfig.NodeName != "" {
 		setupLog.Info("overriding node name from static configuration", "nodename", nodeConfig.NodeName)
 		args.nodeName = nodeConfig.NodeName
-		return
+		return nil
 	}
-	hostname, err := os.Hostname()
+
+	var err error
+	args.nodeName, err = os.Hostname()
 	if err != nil {
-		setupLog.Error(err, "failed to get hostname")
-		os.Exit(1)
+		return fmt.Errorf("failed to get hostname: %w", err)
 	}
-	args.nodeName = hostname
 	setupLog.Info("nodename not provided, using hostname", "nodename", args.nodeName)
+	return nil
 }

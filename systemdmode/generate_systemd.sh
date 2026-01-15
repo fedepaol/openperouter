@@ -92,6 +92,7 @@ podman create --pod=controllerpod --name=controller \
 	--network=host \
 	--cap-add=CAP_NET_BIND_SERVICE,CAP_NET_ADMIN,CAP_NET_RAW,CAP_SYS_ADMIN \
 	--pid=host \
+	--uts=host \
 	-t "$ROUTER_IMAGE" \
 	--frrconfig /etc/perouter/frr/frr.conf --pid-path /etc/perouter/frr/frr.pid --reloader-socket /etc/perouter/frr/frr.socket \
 	--mode host
