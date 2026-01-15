@@ -147,7 +147,10 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	overrideFromStatic(&args, *nodeConfig)
+
+	if args.mode == modeHost {
+		overrideHostMode(&args, *nodeConfig)
+	}
 
 	logger, err := logging.New(args.logLevel)
 	if err != nil {
@@ -341,6 +344,9 @@ func validateParameters(args parameters, hostModeParams hostModeParameters, k8sM
 	}
 
 	if args.mode == modeK8s {
+		if args.nodeName == "" {
+			return fmt.Errorf("nodename is required in %s mode", modeK8s)
+		}
 		if hostModeParams.hostContainerPidPath != "" {
 			return fmt.Errorf("pid-path should not be set in %s mode", modeK8s)
 		}
@@ -361,7 +367,11 @@ func validateParameters(args parameters, hostModeParams hostModeParameters, k8sM
 	return nil
 }
 
-func overrideFromStatic(args *parameters, nodeConfig static.NodeConfig) {
+// overrideHostMode overrides the values provided by the cli args
+// with those provided from the configuration files. This allows do
+// have an uniform deployment while being able to provide different
+// knobs for different nodes.
+func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) {
 	if nodeConfig.LogLevel != "" {
 		setupLog.Info("overriding log level from static configuration", "loglevel", nodeConfig.LogLevel)
 		args.logLevel = nodeConfig.LogLevel
@@ -369,5 +379,13 @@ func overrideFromStatic(args *parameters, nodeConfig static.NodeConfig) {
 	if nodeConfig.NodeName != "" {
 		setupLog.Info("overriding node name from static configuration", "nodename", nodeConfig.NodeName)
 		args.nodeName = nodeConfig.NodeName
+		return
 	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		setupLog.Error(err, "failed to get hostname")
+		os.Exit(1)
+	}
+	args.nodeName = hostname
+	setupLog.Info("nodename not provided, using hostname", "nodename", args.nodeName)
 }
