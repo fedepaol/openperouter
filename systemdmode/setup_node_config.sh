@@ -30,8 +30,9 @@ for NODE in $NODES; do
 
     docker exec "$NODE" mkdir -p /var/lib/openperouter
 
-    docker exec "$NODE" bash -c "cat > /var/lib/openperouter/config.yaml <<EOF
+    docker exec "$NODE" bash -c "cat > /var/lib/openperouter/node-config.yaml <<EOF
 nodeIndex: $NODE_INDEX
+logLevel: debug
 EOF"
 
     log_info "  Configuration file created successfully"
