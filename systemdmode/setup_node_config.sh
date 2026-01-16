@@ -10,21 +10,21 @@ log_error() {
 }
 
 if [[ $# -lt 1 ]]; then
-    log_error "Usage: $0 <kind-cluster-name> [config-dir]"
+    log_error "Usage: $0 <kind-cluster-name>"
     log_error "Example: $0 pe-kind"
-    log_error "Example: $0 pe-kind /path/to/config/files"
+    log_error "Optional: Set NODE_CONFIG_DIR env variable to copy files to each node"
+    log_error "Example: NODE_CONFIG_DIR=/path/to/config/files $0 pe-kind"
     exit 1
 fi
 
 CLUSTER_NAME="$1"
-CONFIG_DIR="${2:-}"
 
-if [[ -n "$CONFIG_DIR" ]]; then
-    if [[ ! -d "$CONFIG_DIR" ]]; then
-        log_error "Config directory does not exist: $CONFIG_DIR"
+if [[ -n "${NODE_CONFIG_DIR:-}" ]]; then
+    if [[ ! -d "$NODE_CONFIG_DIR" ]]; then
+        log_error "Config directory does not exist: $NODE_CONFIG_DIR"
         exit 1
     fi
-    log_info "Will copy files from $CONFIG_DIR to each node"
+    log_info "Will copy files from $NODE_CONFIG_DIR to each node"
 fi
 
 NODES=$(kind get nodes --name "$CLUSTER_NAME" 2>/dev/null)
@@ -47,9 +47,9 @@ EOF"
 
     log_info "  Configuration file created successfully"
 
-    if [[ -n "$CONFIG_DIR" ]]; then
-        log_info "  Copying files from $CONFIG_DIR to node $NODE..."
-        for file in "$CONFIG_DIR"/*; do
+    if [[ -n "${NODE_CONFIG_DIR:-}" ]]; then
+        log_info "  Copying files from $NODE_CONFIG_DIR to node $NODE..."
+        for file in "$NODE_CONFIG_DIR"/*; do
             if [[ -f "$file" ]]; then
                 filename=$(basename "$file")
                 docker cp "$file" "$NODE:/var/lib/openperouter/$filename"

@@ -179,6 +179,7 @@ setup-hostmode: ## Setup node configuration for hostmode.
 
 .PHONY: deploy-hostmode-boot
 deploy-hostmode-boot: export KUSTOMIZE_LAYER=hostmode
+deploy-hostmode-boot: export NODE_CONFIG_DIR=$(shell pwd)/e2etests/testdata
 deploy-hostmode-boot: kind deploy-cluster setup-hostmode
 	./systemdmode/deploy.sh $(KIND_CLUSTER_NAME)
 
@@ -301,9 +302,21 @@ $(APIDOCSGEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/crd-ref-docs || \
 	GOBIN=$(LOCALBIN) go install github.com/elastic/crd-ref-docs@$(APIDOCSGEN_VERSION)
 
-.PHONY: e2etests 
+.PHONY: e2etests
 e2etests: ginkgo kubectl build-validator create-export-logs
-	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} 
+	$(GINKGO) -v $(GINKGO_ARGS) --label-filter="!systemd" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS}
+
+# e2etests-hostmode-boot are meant to test the scenario where we run from the static configuration only first,
+# and then the k8s api becomes available. To do so they must run right after running deploy-hostmode-boot.
+# The way it works is, they run specific e2e tests meant to validate the static configuration, then they
+# run another set of tests meant to validate the interaction between the static configuration and the
+# dynamic configuration coming from k8s.
+.PHONY: e2etests-hostmode-boot
+e2etests-hostmode-boot: ginkgo kubectl build-validator create-export-logs
+	$(GINKGO) -v $(GINKGO_ARGS) --label-filter="systemd && beforek8s" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS}
+	# Deploy the pods so that the controller can reach the api server
+	# $(MAKE) deploy-controller KUSTOMIZE_LAYER=hostmode
+	# $(GINKGO) -v $(GINKGO_ARGS) --label-filter="systemd && afterk8s" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} 
 
 
 .PHONY: clab-cluster
