@@ -177,6 +177,11 @@ deploy: kind deploy-cluster deploy-controller ## Deploy cluster and controller.
 setup-hostmode: ## Setup node configuration for hostmode.
 	./systemdmode/setup_node_config.sh $(KIND_CLUSTER_NAME)
 
+.PHONY: deploy-hostmode-boot
+deploy-hostmode-boot: export KUSTOMIZE_LAYER=hostmode
+deploy-hostmode-boot: kind deploy-cluster setup-hostmode
+	./systemdmode/deploy.sh $(KIND_CLUSTER_NAME)
+
 .PHONY: deploy-hostmode
 deploy-hostmode: export KUSTOMIZE_LAYER=hostmode
 deploy-hostmode: kind deploy-cluster setup-hostmode deploy-controller ## Deploy cluster and controller in hostmode, then setup systemd services.
