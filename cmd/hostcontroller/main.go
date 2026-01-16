@@ -164,6 +164,9 @@ func main() {
 	setupLog.Info("version", "version", build.Main.Version)
 	setupLog.Info("arguments", "args", fmt.Sprintf("%+v", args))
 
+	// Setup signal handler once for the entire process
+	ctx := ctrl.SetupSignalHandler()
+
 	if args.mode == modeK8s {
 		// K8s mode: setup k8s-based reconciler and start
 		k8sConfig, err := config.GetConfig()
@@ -177,12 +180,14 @@ func main() {
 			os.Exit(1)
 		}
 		// runK8sreconciler is blocking so when running in k8s mode we should stop here
-		if err := runK8sReconciler(args, hostModeParams, k8sModeParams, nodeConfig, k8sConfig, logger, podRuntime, args.probeAddr); err != nil {
+		if err := runK8sReconciler(ctx, args, hostModeParams, k8sModeParams, nodeConfig, k8sConfig, logger, podRuntime, args.probeAddr); err != nil {
 			setupLog.Error(err, "failed to enable k8s reconciler")
 			os.Exit(1)
 		}
 		return
 	}
+
+	// host mode: run the host reconciler and keep polling until the k8s api is available.
 
 	// Wait for K8s API and create second manager when available
 	go func() {
@@ -202,7 +207,7 @@ func main() {
 			return
 		}
 
-		if err := runK8sReconciler(args, hostModeParams, k8sModeParams, nodeConfig, k8sConfig, logger, podRuntime, ":9082"); err != nil {
+		if err := runK8sReconciler(ctx, args, hostModeParams, k8sModeParams, nodeConfig, k8sConfig, logger, podRuntime, ":9082"); err != nil {
 			setupLog.Error(err, "failed to enable k8s reconciler")
 			return
 		}
@@ -210,6 +215,10 @@ func main() {
 
 	// Host mode: create static manager first, then wait for k8s in background
 	setupLog.Info("creating static-only manager for host mode")
+	if err := runStaticConfigReconciler(ctx, args, hostModeParams, nodeConfig, logger, args.probeAddr); err != nil {
+		setupLog.Error(err, "failed to run static config reconciler")
+		os.Exit(1)
+	}
 }
 
 func waitForKubernetes(ctx context.Context, waitInterval time.Duration) (*rest.Config, error) {
@@ -304,7 +313,8 @@ func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) error {
 	return nil
 }
 
-func runK8sReconciler(args parameters,
+func runK8sReconciler(ctx context.Context,
+	args parameters,
 	hostModeParams hostModeParameters,
 	k8sModeParams k8sModeParameters,
 	nodeConfig *static.NodeConfig,
@@ -379,17 +389,18 @@ func runK8sReconciler(args parameters,
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		return fmt.Errorf("problem running manager: %w", err)
 	}
 	return nil
 }
 
-func runStaticConfigReconciler(args parameters,
+func runStaticConfigReconciler(ctx context.Context,
+	args parameters,
 	hostModeParams hostModeParameters,
 	nodeConfig *static.NodeConfig,
 	logger *slog.Logger,
-	probeAddr string) {
+	probeAddr string) error {
 	mgr, err := ctrl.NewManager(&rest.Config{}, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
@@ -399,8 +410,7 @@ func runStaticConfigReconciler(args parameters,
 		},
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start static manager")
-		os.Exit(1)
+		return fmt.Errorf("unable to start static manager: %w", err)
 	}
 
 	staticRouterProvider := &routerconfiguration.RouterHostProvider{
@@ -421,24 +431,21 @@ func runStaticConfigReconciler(args parameters,
 		ConfigDir:       hostModeParams.configurationDir,
 	}
 	if err = staticReconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
-		os.Exit(1)
+		return fmt.Errorf("unable to create controller: %w", err)
 	}
 
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return fmt.Errorf("unable to set up health check: %w", err)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		return fmt.Errorf("unable to set up ready check: %w", err)
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+	if err := mgr.Start(ctx); err != nil {
+		return fmt.Errorf("problem running manager: %w", err)
 	}
+	return nil
 }
