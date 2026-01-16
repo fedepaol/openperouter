@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/go-logr/logr"
 	"github.com/openperouter/openperouter/api/static"
@@ -163,123 +164,69 @@ func main() {
 	setupLog.Info("version", "version", build.Main.Version)
 	setupLog.Info("arguments", "args", fmt.Sprintf("%+v", args))
 
-	// Host mode: get config but don't fail if API is unavailable
-	k8sConfig, err := config.GetConfig()
-	if err != nil {
-		setupLog.Info("kubernetes config not available, will use static configuration only", "error", err)
+	if args.mode == modeK8s {
+		k8sConfig, err := config.GetConfig()
+		if err != nil {
+			setupLog.Error(err, "unable to get kubernetes config")
+			os.Exit(1)
+		}
+		podRuntime, err := pods.NewRuntime(k8sModeParams.criSocket, 5*time.Minute)
+		if err != nil {
+			setupLog.Error(err, "connect to crio")
+			os.Exit(1)
+		}
+		enableK8sReconciler(args, k8sConfig, k8sModeParams.namespace, podRuntime)
 	}
 
-	mgr, err := ctrl.NewManager(k8sConfig, ctrl.Options{
+	// wait for K8s API and create second manager when available
+	go func() {
+		setupLog.Info("waiting for kubernetes API")
+		k8sConfig, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
+		if err != nil {
+			setupLog.Error(err, "failed to connect to kubernetes API, will continue with static config only")
+			return
+		}
+
+		setupLog.Info("kubernetes API is now available, creating second manager for API-based controller")
+
+		setupLog.Info("starting second manager for API-based reconciler")
+		enableK8sReconciler()
+	}()
+
+	setupLog.Info("creating static-only manager for host mode")
+	mgr, err := ctrl.NewManager(&rest.Config{}, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: args.probeAddr,
-		// Restrict client cache/informer to events for the node running this pod.
-		// On large clusters, not doing so can overload the API server for daemonsets
-		// since nodes receive frequent updates in some environments.
-		Cache: cache.Options{
-			ByObject: map[client.Object]cache.ByObject{
-				&corev1.Node{}: {
-					Field: fields.Set{"metadata.name": args.nodeName}.AsSelector(),
-				},
-			},
+		LeaderElection:         false,
+		Metrics: server.Options{
+			BindAddress: "0", // disable metrics
 		},
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to start static manager")
 		os.Exit(1)
 	}
 
-	podRuntime, err := pods.NewRuntime(k8sModeParams.criSocket, 5*time.Minute)
-	if err != nil {
-		setupLog.Error(err, "connect to crio")
+	staticRouterProvider := &routerconfiguration.RouterHostProvider{
+		FRRConfigPath:     args.frrConfigPath,
+		RouterPidFilePath: hostModeParams.hostContainerPidPath,
+		CurrentNodeIndex:  nodeConfig.NodeIndex,
+		SystemdSocketPath: hostModeParams.systemdSocketPath,
+	}
+
+	staticReconciler := &routerconfiguration.StaticConfigReconciler{
+		Scheme:          mgr.GetScheme(),
+		Logger:          logger,
+		NodeIndex:       nodeConfig.NodeIndex,
+		LogLevel:        args.logLevel,
+		FRRConfigPath:   args.frrConfigPath,
+		FRRReloadSocket: args.reloaderSocket,
+		RouterProvider:  staticRouterProvider,
+		ConfigDir:       hostModeParams.configurationDir,
+	}
+	if err = staticReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
 		os.Exit(1)
-	}
-
-	var routerProvider routerconfiguration.RouterProvider
-	switch args.mode {
-	case modeK8s:
-		routerProvider = &routerconfiguration.RouterPodProvider{
-			FRRConfigPath: args.frrConfigPath,
-			PodRuntime:    podRuntime,
-			Client:        mgr.GetClient(),
-			Node:          args.nodeName,
-		}
-	case modeHost:
-		routerProvider = &routerconfiguration.RouterHostProvider{
-			FRRConfigPath:     args.frrConfigPath,
-			RouterPidFilePath: hostModeParams.hostContainerPidPath,
-			CurrentNodeIndex:  nodeConfig.NodeIndex,
-			SystemdSocketPath: hostModeParams.systemdSocketPath,
-		}
-	}
-
-	// Setup controllers based on mode
-	switch args.mode {
-	case modeK8s:
-		// K8s mode: setup PERouterReconciler with API watches
-		if err := (&routerconfiguration.PERouterReconciler{
-			Client:             mgr.GetClient(),
-			Scheme:             mgr.GetScheme(),
-			MyNode:             args.nodeName,
-			LogLevel:           args.logLevel,
-			Logger:             logger,
-			MyNamespace:        k8sModeParams.namespace,
-			FRRConfigPath:      args.frrConfigPath,
-			FRRReloadSocket:    args.reloaderSocket,
-			RouterProvider:     routerProvider,
-			UnderlayFromMultus: args.underlayFromMultus,
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Underlay")
-			os.Exit(1)
-		}
-	case modeHost:
-		// Host mode: setup StaticConfigReconciler first (no K8s dependency)
-		staticReconciler := &routerconfiguration.StaticConfigReconciler{
-			Scheme:          mgr.GetScheme(),
-			Logger:          logger,
-			NodeIndex:       nodeConfig.NodeIndex,
-			LogLevel:        args.logLevel,
-			FRRConfigPath:   args.frrConfigPath,
-			FRRReloadSocket: args.reloaderSocket,
-			RouterProvider:  routerProvider,
-			ConfigDir:       hostModeParams.configurationDir,
-		}
-		if err = staticReconciler.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "StaticConfig")
-			os.Exit(1)
-		}
-
-		// wait for K8s API and add PERouterReconciler when available
-		go func() {
-			setupLog.Info("waiting for kubernetes API")
-			_, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
-			if err != nil {
-				setupLog.Error(err, "failed to connect to kubernetes API, will continue with static config only")
-				return
-			}
-
-			setupLog.Info("kubernetes API is now available, adding API-based controller")
-
-			// Create API-based reconciler
-			apiReconciler := &routerconfiguration.PERouterReconciler{
-				Client:          mgr.GetClient(),
-				Scheme:          mgr.GetScheme(),
-				LogLevel:        args.logLevel,
-				Logger:          logger,
-				MyNode:          args.nodeName,
-				FRRReloadSocket: args.reloaderSocket,
-				FRRConfigPath:   args.frrConfigPath,
-				RouterProvider:  routerProvider,
-				StaticConfigDir: hostModeParams.configurationDir,
-				NodeConfigPath:  hostModeParams.nodeConfigPath,
-			}
-
-			if err := apiReconciler.SetupWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to add API-based controller")
-				return
-			}
-
-			setupLog.Info("API-based controller added successfully")
-		}()
 	}
 
 	// +kubebuilder:scaffold:builder
@@ -390,4 +337,89 @@ func overrideHostMode(args *parameters, nodeConfig static.NodeConfig) error {
 	}
 	setupLog.Info("nodename not provided, using hostname", "nodename", args.nodeName)
 	return nil
+}
+
+func enableK8sReconciler(args parameters,
+	hostModeParams hostModeParameters,
+	k8sModeParams k8sModeParameters,
+	nodeConfig static.NodeConfig,
+	k8sConfig *rest.Config,
+	logger *slog.Logger,
+	podRuntime *pods.Runtime) {
+
+	mgr, err := ctrl.NewManager(k8sConfig, ctrl.Options{
+		Scheme:                 scheme,
+		HealthProbeBindAddress: args.probeAddr,
+		// Restrict client cache/informer to events for the node running this pod.
+		// On large clusters, not doing so can overload the API server for daemonsets
+		// since nodes receive frequent updates in some environments.
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.Node{}: {
+					Field: fields.Set{"metadata.name": args.nodeName}.AsSelector(),
+				},
+			},
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+	var routerProvider routerconfiguration.RouterProvider
+	routerProvider = &routerconfiguration.RouterPodProvider{
+		FRRConfigPath: args.frrConfigPath,
+		PodRuntime:    podRuntime,
+		Client:        mgr.GetClient(),
+		Node:          args.nodeName,
+	}
+
+	if args.mode == modeHost {
+		routerProvider = &routerconfiguration.RouterHostProvider{
+			FRRConfigPath:     args.frrConfigPath,
+			RouterPidFilePath: hostModeParams.hostContainerPidPath,
+			CurrentNodeIndex:  nodeConfig.NodeIndex,
+			SystemdSocketPath: hostModeParams.systemdSocketPath,
+		}
+	}
+
+	apiReconciler := &routerconfiguration.PERouterReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		LogLevel:        args.logLevel,
+		Logger:          logger,
+		MyNode:          args.nodeName,
+		FRRReloadSocket: args.reloaderSocket,
+		FRRConfigPath:   args.frrConfigPath,
+		RouterProvider:  routerProvider,
+	}
+	if args.mode == modeHost {
+		apiReconciler.StaticConfigDir = hostModeParams.configurationDir
+		apiReconciler.NodeConfigPath = hostModeParams.nodeConfigPath
+	}
+	if args.mode == modeK8s {
+		apiReconciler.MyNamespace = k8sModeParams.namespace
+	}
+
+	if err := apiReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Underlay")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting second manager for API-based reconciler")
+
+	// +kubebuilder:scaffold:builder
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running API manager")
+	}
 }
