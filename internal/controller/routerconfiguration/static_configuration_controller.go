@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -84,7 +86,14 @@ func (r *StaticConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	go func() {
 		time.Sleep(1 * time.Second)
-		r.TriggerChan <- event.GenericEvent{}
+		r.TriggerChan <- event.GenericEvent{
+			Object: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "static-config-trigger",
+					Namespace: "default",
+				},
+			},
+		}
 	}()
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -95,7 +104,14 @@ func (r *StaticConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *StaticConfigReconciler) TriggerReconcile() {
 	select {
-	case r.TriggerChan <- event.GenericEvent{}:
+	case r.TriggerChan <- event.GenericEvent{
+		Object: &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "static-config-trigger",
+				Namespace: "default",
+			},
+		},
+	}:
 		r.Logger.Info("triggered static config reconciliation")
 	default:
 		r.Logger.Debug("reconciliation already queued, skipping trigger")
