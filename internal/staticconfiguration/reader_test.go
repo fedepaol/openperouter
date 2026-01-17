@@ -274,4 +274,88 @@ func TestReadRouterConfigs(t *testing.T) {
 			t.Error("expected error for invalid YAML file")
 		}
 	})
+
+	t.Run("comprehensive testdata files", func(t *testing.T) {
+		// Use the actual testdata directory with comprehensive resource types
+		testdataDir := "./testdata"
+
+		configs, err := ReadRouterConfigs(testdataDir)
+		if err != nil {
+			t.Fatalf("unexpected error reading testdata: %v", err)
+		}
+
+		if len(configs) != 4 {
+			t.Fatalf("expected 4 config files, got %d", len(configs))
+		}
+
+		// Aggregate all configs to verify we have all resource types
+		for _, cfg := range configs {
+			if len(cfg.Underlays) > 0 {
+				if len(cfg.Underlays) != 1 {
+					t.Errorf("expected 1 underlay, got %d", len(cfg.Underlays))
+				}
+				// Verify underlay details
+				underlay := cfg.Underlays[0]
+				if underlay.ASN != 64514 {
+					t.Errorf("expected underlay ASN 64514, got %d", underlay.ASN)
+				}
+				if len(underlay.Nics) < 2 {
+					t.Errorf("expected at least 2 NICs in underlay, got %d", len(underlay.Nics))
+				}
+				if len(underlay.Neighbors) < 2 {
+					t.Errorf("expected at least 2 neighbors in underlay, got %d", len(underlay.Neighbors))
+				}
+				if underlay.EVPN == nil {
+					t.Error("expected EVPN config in underlay")
+				}
+			}
+
+			if len(cfg.L3VNIs) > 0 {
+				if len(cfg.L3VNIs) != 2 {
+					t.Errorf("expected 2 L3VNIs, got %d", len(cfg.L3VNIs))
+				}
+				// Verify L3VNI details
+				for _, vni := range cfg.L3VNIs {
+					if vni.VRF == "" {
+						t.Error("expected VRF name in L3VNI")
+					}
+					if vni.VNI == 0 {
+						t.Error("expected non-zero VNI")
+					}
+					if vni.HostSession == nil {
+						t.Error("expected HostSession in L3VNI")
+					} else {
+						if vni.HostSession.ASN == 0 {
+							t.Error("expected non-zero ASN in HostSession")
+						}
+						if vni.HostSession.LocalCIDR.IPv4 == "" && vni.HostSession.LocalCIDR.IPv6 == "" {
+							t.Error("expected at least one LocalCIDR in HostSession")
+						}
+					}
+				}
+			}
+
+			if len(cfg.L2VNIs) > 0 {
+				if len(cfg.L2VNIs) != 2 {
+					t.Errorf("expected 2 L2VNIs, got %d", len(cfg.L2VNIs))
+				}
+				// Verify L2VNI details
+				for _, vni := range cfg.L2VNIs {
+					if vni.VNI == 0 {
+						t.Error("expected non-zero VNI in L2VNI")
+					}
+					if vni.HostMaster == nil {
+						t.Error("expected HostMaster in L2VNI")
+					}
+				}
+			}
+
+			if cfg.BGPPassthrough.HostSession.ASN != 0 {
+				// Verify BGPPassthrough details
+				if cfg.BGPPassthrough.HostSession.LocalCIDR.IPv4 == "" && cfg.BGPPassthrough.HostSession.LocalCIDR.IPv6 == "" {
+					t.Error("expected at least one LocalCIDR in BGPPassthrough")
+				}
+			}
+		}
+	})
 }
