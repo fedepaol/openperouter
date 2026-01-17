@@ -18,6 +18,7 @@ package routerconfiguration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/filter"
 	"github.com/openperouter/openperouter/internal/frrconfig"
+	"github.com/openperouter/openperouter/internal/staticconfiguration"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -81,19 +83,11 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	if r.StaticConfigDir != "" {
-		// Read and merge static router configs
-		staticConfig, err := readStaticConfigs(r.StaticConfigDir)
-		if err != nil {
-			logger.Error("failed to read static configuration", "error", err, "dir", r.StaticConfigDir)
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-
-		config, err = conversion.MergeAPIConfigs(config, staticConfig)
-		if err != nil {
-			logger.Error("failed to merge static configuration and configuration from crs", "error", err)
-			return ctrl.Result{}, nil
-		}
+	if r.StaticConfigDir == "" {
+		config, err = r.mergeStaticConfig(ctx, config, logger)
+	}
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to merge static config: %w", err)
 	}
 
 	router, err := r.RouterProvider.New(ctx)
@@ -135,6 +129,27 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *PERouterReconciler) mergeStaticConfig(ctx context.Context, config conversion.ApiConfigData, logger *slog.Logger) (conversion.ApiConfigData, error) {
+	var noConfigErr *staticconfiguration.NoConfigAvailable
+	staticConfig, err := readStaticConfigs(r.StaticConfigDir)
+	if errors.As(err, &noConfigErr) {
+		logger.Info("no static configuration available", "dir", r.StaticConfigDir, "reason", noConfigErr.Error())
+		return config, nil
+	}
+	if err != nil {
+		logger.Error("failed to read static configuration", "error", err, "dir", r.StaticConfigDir)
+		return config, fmt.Errorf("failed to read static configuration: %w", err)
+	}
+
+	merged, err := conversion.MergeAPIConfigs(config, staticConfig)
+	if err != nil {
+		logger.Error("failed to merge static configuration and configuration from crs", "error", err)
+		return config, fmt.Errorf("failed to merge api config and static config: %w", err)
+	}
+
+	return merged, nil
 }
 
 func (r *PERouterReconciler) getConfigFromAPI(ctx context.Context, logger *slog.Logger) (conversion.ApiConfigData, error) {

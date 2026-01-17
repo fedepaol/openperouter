@@ -39,6 +39,7 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	logger.Info("start reconcile")
 	defer logger.Info("end reconcile")
 
+	logger.Info("using config dir", "dir", r.ConfigDir)
 	// Read and merge router configs from directory
 	apiConfig, err := readStaticConfigs(r.ConfigDir)
 	if err != nil {
