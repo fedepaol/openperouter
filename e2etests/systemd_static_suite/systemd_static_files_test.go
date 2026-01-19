@@ -31,8 +31,8 @@ var _ = Describe("Static configuration", Ordered, func() {
 				ASN:     64514,
 				HostASN: 64515,
 				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: "192.169.10.0/24",
-					IPv6: "2001:db8:1::/64",
+					IPv4: "192.170.10.0/24",
+					IPv6: "2001:db9:1::/64",
 				},
 			},
 			VNI: 100,
