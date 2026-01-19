@@ -11,11 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
-	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
-	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
-	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
-	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
-	"github.com/openperouter/openperouter/e2etests/tests"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -51,14 +46,8 @@ func TestSystemdStatic(t *testing.T) {
 
 var _ = ginkgo.BeforeSuite(func() {
 	log.SetLogger(zap.New(zap.WriteTo(ginkgo.GinkgoWriter), zap.UseDevMode(true)))
-	clientconfig := k8sclient.RestConfig()
-	var err error
-	updater, err = config.UpdaterForCRs(clientconfig, openperouter.Namespace)
-	Expect(err).NotTo(HaveOccurred())
-	tests.Updater = updater
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		ginkgo.Fail("KUBECONFIG not set")
 	}
-	tests.K8sReporter = k8s.InitReporter(kubeconfig, tests.ReportPath, openperouter.Namespace, frrk8s.Namespace)
 })
