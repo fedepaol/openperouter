@@ -308,15 +308,18 @@ e2etests: ginkgo kubectl build-validator create-export-logs
 
 # e2etests-hostmode-boot are meant to test the scenario where we run from the static configuration only first,
 # and then the k8s api becomes available. To do so they must run right after running deploy-hostmode-boot.
-# The way it works is, they run specific e2e tests meant to validate the static configuration, then they
-# run another set of tests meant to validate the interaction between the static configuration and the
-# dynamic configuration coming from k8s.
+# The way it works is, they run specific e2e tests meant to validate the static configuration
+# After that:
+#   - the kubernetes bits are deployed (and with them, the host bridge pod providing api access to the controller)
+#   - a bgp passthrough test is performed without deploying the underlay cr (because it's available as static config)
+#   - the static configuration is validated again to ensure it works even after enabling the kubernetes controller
 .PHONY: e2etests-hostmode-boot
 e2etests-hostmode-boot: ginkgo kubectl build-validator create-export-logs
 	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests/systemd_static_suite -- --kubectl=$(KUBECTL) $(TEST_ARGS)
 	# Deploy the pods so that the controller can reach the api server
 	$(MAKE) deploy-controller KUSTOMIZE_LAYER=hostmode
 	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h --label-filter="passthrough" ./e2etests/suite -- --kubectl=$(KUBECTL) $(TEST_ARGS) --skip-underlay-passthrough --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} --systemdmode 
+	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests/systemd_static_suite -- --kubectl=$(KUBECTL) $(TEST_ARGS)
 
 
 .PHONY: clab-cluster
