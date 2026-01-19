@@ -32,7 +32,7 @@ var (
 	leafBDefaultPrefixes = []string{"192.170.21.0/24"}
 )
 
-var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
+var _ = Describe("Routes between bgp and the fabric", Label("passthrough"), Ordered, func() {
 	var cs clientset.Interface
 	var routers openperouter.Routers
 
@@ -63,6 +63,9 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		routers.Dump(GinkgoWriter)
 
+		if SkipUnderlayPassthrough {
+			return
+		}
 		err = Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
 				infra.Underlay,
@@ -72,6 +75,12 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 	})
 
 	AfterAll(func() {
+		if SkipUnderlayPassthrough {
+			err := Updater.CleanButUnderlay()
+			Expect(err).NotTo(HaveOccurred())
+			return
+		}
+
 		err := Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 		By("waiting for the router pod to rollout after removing the underlay")

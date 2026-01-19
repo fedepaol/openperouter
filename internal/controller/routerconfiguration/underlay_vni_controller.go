@@ -83,11 +83,11 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	if r.StaticConfigDir == "" {
+	if r.StaticConfigDir != "" {
 		config, err = r.mergeStaticConfig(ctx, config, logger)
-	}
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to merge static config: %w", err)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to merge static config: %w", err)
+		}
 	}
 
 	router, err := r.RouterProvider.New(ctx)
@@ -150,6 +150,7 @@ func (r *PERouterReconciler) mergeStaticConfig(ctx context.Context, config conve
 		return config, fmt.Errorf("failed to merge api config and static config: %w", err)
 	}
 
+	logger.Info("merge static config using", "from api", config, "static config", staticConfig, "merged", merged)
 	return merged, nil
 }
 
