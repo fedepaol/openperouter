@@ -23,7 +23,7 @@ func checkBGPPrefixesForHostSession(frrk8s *corev1.Pod, hostSession v1alpha1.Hos
 		ipv4Routes, ipv6Routes, err := frr.BGPRoutesFor(exec)
 		Expect(err).NotTo(HaveOccurred())
 
-		ipv4Prefixes, ipv6Prefixes := separateIPFamilies(prefixes)
+		ipv4Prefixes, ipv6Prefixes := infra.SeparateIPFamilies(prefixes)
 
 		if err := checkPrefixesForIPFamily(frrk8s, ipv4Prefixes, hostSession.LocalCIDR.IPv4, "IPv4", shouldExist, ipv4Routes); err != nil {
 			return err

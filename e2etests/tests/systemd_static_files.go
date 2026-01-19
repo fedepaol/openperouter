@@ -50,19 +50,19 @@ var _ = FDescribe("Static configuration", Label("systemd"), Label("beforek8s"), 
 
 	FContext("with vnis", func() {
 		AfterEach(func() {
-			removeLeafPrefixes(infra.LeafAConfig)
-			removeLeafPrefixes(infra.LeafBConfig)
+			Expect(infra.LeafAConfig.RemovePrefixes()).To(Succeed())
+			Expect(infra.LeafBConfig.RemovePrefixes()).To(Succeed())
 		})
 
 		It("receives type 5 routes from the fabric", func() {
 			Contains := true
 
 			By("announcing type 5 routes on VNI 100 from leafA")
-			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)
+			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)).To(Succeed())
 			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
 
 			By("removing a route from leafA on vni 100")
-			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, emptyPrefixes, emptyPrefixes)
+			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())
 		})
 	})
 	// TODO Create vni blue with the api server
