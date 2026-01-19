@@ -66,3 +66,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	}
 	tests.K8sReporter = k8s.InitReporter(kubeconfig, tests.ReportPath, openperouter.Namespace, frrk8s.Namespace)
 })
+
+var _ = ginkgo.AfterSuite(func() {
+	err := updater.CleanAll()
+	Expect(err).NotTo(HaveOccurred())
+})
