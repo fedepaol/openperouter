@@ -38,7 +38,7 @@ NODE_INDEX=0
 for NODE in $NODES; do
     log_info "Creating configuration file for node $NODE with nodeIndex=$NODE_INDEX..."
 
-    docker exec "$NODE" mkdir -p /var/lib/openperouter
+    docker exec "$NODE" mkdir -p /var/lib/openperouter/configs
 
     docker exec "$NODE" bash -c "cat > /var/lib/openperouter/node-config.yaml <<EOF
 nodeIndex: $NODE_INDEX
@@ -52,8 +52,14 @@ EOF"
         for file in "$NODE_CONFIG_DIR"/*; do
             if [[ -f "$file" ]]; then
                 filename=$(basename "$file")
-                docker cp "$file" "$NODE:/var/lib/openperouter/$filename"
-                log_info "    Copied: $filename"
+                # Copy openpe_*.yaml files to configs subdirectory
+                if [[ "$filename" == openpe_*.yaml ]]; then
+                    docker cp "$file" "$NODE:/var/lib/openperouter/configs/$filename"
+                    log_info "    Copied router config: $filename -> configs/"
+                else
+                    docker cp "$file" "$NODE:/var/lib/openperouter/$filename"
+                    log_info "    Copied: $filename"
+                fi
             fi
         done
     fi

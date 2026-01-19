@@ -44,7 +44,7 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	apiConfig, err := readStaticConfigs(r.ConfigDir)
 	if err != nil {
 		logger.Error("failed to read static router configurations", "error", err, "dir", r.ConfigDir)
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("using config",

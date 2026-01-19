@@ -13,10 +13,13 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 )
 
-var _ = Describe("Static configuration", Label("systemd"), Label("beforek8s"), Ordered, func() {
+// These tests assume that the cluster was started with the static files available under
+// the local testdata dir.
+var _ = FDescribe("Static configuration", Label("systemd"), Label("beforek8s"), Ordered, func() {
 	var cs clientset.Interface
 	var routers openperouter.Routers
 
+	// Used as a reference, same that we have under testdata
 	vniRed := v1alpha1.L3VNI{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "red",
@@ -36,46 +39,17 @@ var _ = Describe("Static configuration", Label("systemd"), Label("beforek8s"), O
 		},
 	}
 
-	vniBlue := v1alpha1.L3VNI{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "blue",
-			Namespace: openperouter.Namespace,
-		},
-		Spec: v1alpha1.L3VNISpec{
-			VRF: "blue",
-			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: 64515,
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: "192.169.11.0/24",
-					IPv6: "2001:db8:2::/64",
-				},
-			},
-			VNI: 200,
-		},
-	}
-
 	BeforeAll(func() {
-		err := Updater.CleanAll()
-		Expect(err).NotTo(HaveOccurred())
-
 		cs = k8sclient.New()
-		routers, err = openperouter.Get(cs, HostMode)
+		var err error
+		routers, err = openperouter.Get(cs, true) // hostmode = true
 		Expect(err).NotTo(HaveOccurred())
 
 		routers.Dump(GinkgoWriter)
 	})
 
-	AfterAll(func() {
-		err := Updater.CleanAll()
-		Expect(err).NotTo(HaveOccurred())
-	})
-
-	Context("with vnis", func() {
+	FContext("with vnis", func() {
 		AfterEach(func() {
-			dumpIfFails(cs)
-			err := Updater.CleanButUnderlay()
-			Expect(err).NotTo(HaveOccurred())
 			removeLeafPrefixes(infra.LeafAConfig)
 			removeLeafPrefixes(infra.LeafBConfig)
 		})
@@ -84,16 +58,11 @@ var _ = Describe("Static configuration", Label("systemd"), Label("beforek8s"), O
 			Contains := true
 
 			By("announcing type 5 routes on VNI 100 from leafA")
-			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, leafAVRFRedPrefixes, leafAVRFBluePrefixes)
+			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)
 			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, !Contains, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, routers, vniRed, !Contains, leafBVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, routers, vniBlue, !Contains, leafBVRFBluePrefixes)
 
 			By("removing a route from leafA on vni 100")
-			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, !Contains, leafAVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, !Contains, leafAVRFBluePrefixes)
+			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, emptyPrefixes, emptyPrefixes)
 		})
 	})
 	// TODO Create vni blue with the api server

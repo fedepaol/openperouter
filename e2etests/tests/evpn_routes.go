@@ -16,7 +16,6 @@ import (
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
-	"github.com/openperouter/openperouter/e2etests/pkg/frr"
 	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/ipfamily"
@@ -134,47 +133,27 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		It("receives type 5 routes from the fabric", func() {
 			Contains := true
-			checkRouteFromLeaf := func(leaf infra.Leaf, vni v1alpha1.L3VNI, mustContain bool, prefixes []string) {
-				By(fmt.Sprintf("checking routes from leaf %s on vni %s, mustContain %v %v", leaf.Name, vni.Name, mustContain, prefixes))
-				Eventually(func() error {
-					for exec := range routers.GetExecutors() {
-						evpn, err := frr.EVPNInfo(exec)
-						if err != nil {
-							return fmt.Errorf("failed to get EVPN info from %s: %w", exec.Name(), err)
-						}
-						for _, prefix := range prefixes {
-							if mustContain && !evpn.ContainsType5RouteForVNI(prefix, leaf.VTEPIP, int(vni.Spec.VNI)) {
-								return fmt.Errorf("type5 route for %s - %s not found in %v in router %s", prefix, leaf.VTEPIP, evpn, exec.Name())
-							}
-							if !mustContain && evpn.ContainsType5RouteForVNI(prefix, leaf.VTEPIP, int(vni.Spec.VNI)) {
-								return fmt.Errorf("type5 route for %s - %s found in %v in router %s", prefix, leaf.VTEPIP, evpn, exec.Name())
-							}
-						}
-					}
-					return nil
-				}, 3*time.Minute, time.Second).WithOffset(1).ShouldNot(HaveOccurred())
-			}
 
 			By("announcing type 5 routes on VNI 100 from leafA")
 			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniRed, Contains, leafAVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniBlue, !Contains, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniRed, !Contains, leafBVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniBlue, !Contains, leafBVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, !Contains, leafAVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniRed, !Contains, leafBVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniBlue, !Contains, leafBVRFBluePrefixes)
 
 			By("announcing type5 route on VNI 200 from leafA")
 			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, leafAVRFRedPrefixes, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniRed, Contains, leafAVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniBlue, Contains, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniRed, !Contains, leafBVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniBlue, !Contains, leafBVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, Contains, leafAVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniRed, !Contains, leafBVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniBlue, !Contains, leafBVRFBluePrefixes)
 
 			By("announcing type5 route on both VNIs from leafB")
 			changeLeafPrefixes(infra.LeafBConfig, emptyPrefixes, leafBVRFRedPrefixes, leafBVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniRed, Contains, leafAVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafAConfig, vniBlue, Contains, leafAVRFBluePrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniRed, Contains, leafBVRFRedPrefixes)
-			checkRouteFromLeaf(infra.LeafBConfig, vniBlue, Contains, leafBVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, Contains, leafAVRFBluePrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniRed, Contains, leafBVRFRedPrefixes)
+			checkRouteFromLeaf(infra.LeafBConfig, routers, vniBlue, Contains, leafBVRFBluePrefixes)
 
 			By("removing a route from leafA on vni 100")
 			changeLeafPrefixes(infra.LeafAConfig, emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)

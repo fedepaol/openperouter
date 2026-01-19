@@ -287,7 +287,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			hostBRedIPs:  []string{infra.HostBRedIPv4, infra.HostBRedIPv6},
 			nadMaster:    "br-hs-110",
 			hostMaster: v1alpha1.HostMaster{
-				Type:       ovsBridgeHostAttachment,
+				Type: ovsBridgeHostAttachment,
 				OVSBridge: &v1alpha1.OVSBridgeConfig{
 					AutoCreate: true,
 				},
@@ -301,7 +301,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			hostBRedIPs:  []string{infra.HostBRedIPv6},
 			nadMaster:    "br-hs-110",
 			hostMaster: v1alpha1.HostMaster{
-				Type:       ovsBridgeHostAttachment,
+				Type: ovsBridgeHostAttachment,
 				OVSBridge: &v1alpha1.OVSBridgeConfig{
 					AutoCreate: true,
 				},

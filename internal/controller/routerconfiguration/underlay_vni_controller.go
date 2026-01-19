@@ -134,6 +134,7 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func (r *PERouterReconciler) mergeStaticConfig(ctx context.Context, config conversion.ApiConfigData, logger *slog.Logger) (conversion.ApiConfigData, error) {
 	var noConfigErr *staticconfiguration.NoConfigAvailable
 	staticConfig, err := readStaticConfigs(r.StaticConfigDir)
+	// if we don't have a static configuration is fair to continue and use only the dynamic one
 	if errors.As(err, &noConfigErr) {
 		logger.Info("no static configuration available", "dir", r.StaticConfigDir, "reason", noConfigErr.Error())
 		return config, nil

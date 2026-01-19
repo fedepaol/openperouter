@@ -31,7 +31,7 @@ mkdir -p "${TEMP_BASE}/run/containerd"
 mkdir -p "${TEMP_BASE}/run/netns"
 mkdir -p "${TEMP_BASE}/etc/perouter/frr"
 mkdir -p "${TEMP_BASE}/var/lib/hostbridge"
-mkdir -p "${TEMP_BASE}/var/lib/openperouter"
+mkdir -p "${TEMP_BASE}/var/lib/openperouter/configs"
 mkdir -p "${TEMP_BASE}/proc"
 mkdir -p "${TEMP_BASE}/run/dbus"
 
