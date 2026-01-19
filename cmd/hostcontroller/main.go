@@ -195,7 +195,7 @@ func main() {
 			Node:          nodeName,
 		}
 	case modeHost:
-		hostConfig, err := staticconfiguration.ReadFromFile(hostModeParams.configuration)
+		hostConfig, err := staticconfiguration.ReadNodeConfig(hostModeParams.configuration)
 		if err != nil {
 			setupLog.Error(err, "failed to load the static configuration file")
 			os.Exit(1)
