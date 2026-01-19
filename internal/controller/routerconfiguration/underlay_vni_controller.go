@@ -84,7 +84,7 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if r.StaticConfigDir != "" {
-		config, err = r.mergeStaticConfig(ctx, config, logger)
+		config, err = mergeStaticConfig(ctx, r.StaticConfigDir, config, logger)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to merge static config: %w", err)
 		}
@@ -131,16 +131,16 @@ func (r *PERouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-func (r *PERouterReconciler) mergeStaticConfig(ctx context.Context, config conversion.ApiConfigData, logger *slog.Logger) (conversion.ApiConfigData, error) {
+func mergeStaticConfig(ctx context.Context, staticConfigDir string, config conversion.ApiConfigData, logger *slog.Logger) (conversion.ApiConfigData, error) {
 	var noConfigErr *staticconfiguration.NoConfigAvailable
-	staticConfig, err := readStaticConfigs(r.StaticConfigDir)
+	staticConfig, err := readStaticConfigs(staticConfigDir)
 	// if we don't have a static configuration is fair to continue and use only the dynamic one
 	if errors.As(err, &noConfigErr) {
-		logger.Info("no static configuration available", "dir", r.StaticConfigDir, "reason", noConfigErr.Error())
+		logger.Info("no static configuration available", "dir", staticConfigDir, "reason", noConfigErr.Error())
 		return config, nil
 	}
 	if err != nil {
-		logger.Error("failed to read static configuration", "error", err, "dir", r.StaticConfigDir)
+		logger.Error("failed to read static configuration", "error", err, "dir", staticConfigDir)
 		return config, fmt.Errorf("failed to read static configuration: %w", err)
 	}
 
