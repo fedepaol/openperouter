@@ -58,7 +58,8 @@ func checkPrefixesForIPFamily(frrk8s *corev1.Pod, prefixes []string, localCIDR s
 	return nil
 }
 
-func checkRouteFromLeaf(leaf infra.Leaf, routers openperouter.Routers, vni v1alpha1.L3VNI, mustContain bool, prefixes []string) {
+// CheckRouteFromLeaf checks if the expected routes from a leaf are present in the routers' EVPN info
+func CheckRouteFromLeaf(leaf infra.Leaf, routers openperouter.Routers, vni v1alpha1.L3VNI, mustContain bool, prefixes []string) {
 	By(fmt.Sprintf("checking routes from leaf %s on vni %s, mustContain %v %v", leaf.Name, vni.Name, mustContain, prefixes))
 	Eventually(func() error {
 		for exec := range routers.GetExecutors() {

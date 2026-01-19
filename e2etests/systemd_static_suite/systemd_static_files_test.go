@@ -1,6 +1,6 @@
 // SPDX-License-Identifier:Apache-2.0
 
-package tests
+package systemd_static
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -9,13 +9,14 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
+	"github.com/openperouter/openperouter/e2etests/tests"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
 // These tests assume that the cluster was started with the static files available under
 // the local testdata dir.
-var _ = FDescribe("Static configuration", Label("systemd"), Label("beforek8s"), Ordered, func() {
+var _ = Describe("Static configuration", Label("systemd"), Label("beforek8s"), Ordered, func() {
 	var cs clientset.Interface
 	var routers openperouter.Routers
 
@@ -56,10 +57,12 @@ var _ = FDescribe("Static configuration", Label("systemd"), Label("beforek8s"), 
 
 		It("receives type 5 routes from the fabric", func() {
 			Contains := true
+			emptyPrefixes := []string{}
+			leafAVRFRedPrefixes := []string{"192.168.20.0/24", "2001:db8:20::/64"}
 
 			By("announcing type 5 routes on VNI 100 from leafA")
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)).To(Succeed())
-			CheckRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
+			tests.CheckRouteFromLeaf(infra.LeafAConfig, routers, vniRed, Contains, leafAVRFRedPrefixes)
 
 			By("removing a route from leafA on vni 100")
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())

@@ -304,7 +304,7 @@ $(APIDOCSGEN): $(LOCALBIN)
 
 .PHONY: e2etests
 e2etests: ginkgo kubectl build-validator create-export-logs
-	$(GINKGO) -v $(GINKGO_ARGS) --label-filter="!systemd" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS}
+	$(GINKGO) -v $(GINKGO_ARGS) --label-filter="!systemd" --timeout=3h ./e2etests/suite -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS}
 
 # e2etests-hostmode-boot are meant to test the scenario where we run from the static configuration only first,
 # and then the k8s api becomes available. To do so they must run right after running deploy-hostmode-boot.
@@ -313,10 +313,10 @@ e2etests: ginkgo kubectl build-validator create-export-logs
 # dynamic configuration coming from k8s.
 .PHONY: e2etests-hostmode-boot
 e2etests-hostmode-boot: ginkgo kubectl build-validator create-export-logs
-	$(GINKGO) -v $(GINKGO_ARGS) --label-filter="systemd && beforek8s" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS}
+	$(GINKGO) -v $(GINKGO_ARGS) --timeout=3h ./e2etests/systemd_static_suite -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} --systemdmode
 	# Deploy the pods so that the controller can reach the api server
 	# $(MAKE) deploy-controller KUSTOMIZE_LAYER=hostmode
-	# $(GINKGO) -v $(GINKGO_ARGS) --label-filter="systemd && afterk8s" --timeout=3h ./e2etests -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} 
+	# $(GINKGO) -v $(GINKGO_ARGS) --label-filter="systemd && afterk8s" --timeout=3h ./e2etests/suite -- --kubectl=$(KUBECTL) $(TEST_ARGS) --hostvalidator $(VALIDATOR_PATH) --reporterpath=${KIND_EXPORT_LOGS} --systemdmode 
 
 
 .PHONY: clab-cluster
