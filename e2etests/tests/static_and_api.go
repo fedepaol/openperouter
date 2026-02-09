@@ -32,26 +32,28 @@ const (
 )
 
 // This test validates hybrid mode where configuration comes from both
-// static files and Kubernetes API, testing the merge functionality.
-// This test assumes NO static files exist initially and creates them during the test.
-var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ordered, func() {
+// static files and Kubernetes API, testing the complete lifecycle:
+// 1. Start with API-only configuration (underlay + blue VNI)
+// 2. Add static file configuration (red VNI)
+// 3. Verify both work together
+// 4. Remove static file
+// 5. Verify only API configuration remains
+var _ = Describe("Hybrid mode: static files and API configuration", Label("systemdmode"), Ordered, func() {
 	var cs clientset.Interface
 	var routers openperouter.Routers
 	var configPods []*corev1.Pod
+	var frrk8sPods []*corev1.Pod
+	var frrK8sConfigBlue []frrk8sv1beta1.FRRConfiguration
+	var frrK8sConfigRed []frrk8sv1beta1.FRRConfiguration
 
-	// Static VNI configuration to be written to file
-	staticRedVNIConfig := `l3vnis:
-  - vrf: red
-    hostSession:
-      asn: 64514
-      hostASN: 64515
-      localCIDR:
-        ipv4: "192.170.10.0/24"
-        ipv6: "2001:db9:1::/64"
-    vni: 100
-`
+	// Route prefixes from leaves
+	leafAVRFBluePrefixes := []string{"192.168.21.0/24", "2001:db8:21::/64"}
+	leafBVRFBluePrefixes := []string{"192.169.21.0/24", "2001:db8:169:21::/64"}
+	leafAVRFRedPrefixes := []string{"192.168.20.0/24", "2001:db8:20::/64"}
+	leafBVRFRedPrefixes := []string{"192.169.20.0/24", "2001:db8:169:20::/64"}
+	emptyPrefixes := []string{}
 
-	// L3VNI from API (blue VRF)
+	// Blue VNI from API
 	vniBlueFromAPI := v1alpha1.L3VNI{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "blue",
@@ -63,13 +65,44 @@ var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ord
 				ASN:     64514,
 				HostASN: 64515,
 				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: "192.170.11.0/24",
-					IPv6: "2001:db9:2::/64",
+					IPv4: "192.169.11.0/24",
+					IPv6: "2001:db8:2::/64",
 				},
 			},
 			VNI: 200,
 		},
 	}
+
+	// Red VNI from static file
+	vniRedFromFile := v1alpha1.L3VNI{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "red",
+			Namespace: openperouter.Namespace,
+		},
+		Spec: v1alpha1.L3VNISpec{
+			VRF: "red",
+			HostSession: &v1alpha1.HostSession{
+				ASN:     64514,
+				HostASN: 64515,
+				LocalCIDR: v1alpha1.LocalCIDRConfig{
+					IPv4: "192.169.10.0/24",
+					IPv6: "2001:db8:1::/64",
+				},
+			},
+			VNI: 100,
+		},
+	}
+
+	staticRedVNIYAML := `l3vnis:
+  - vrf: red
+    hostSession:
+      asn: 64514
+      hostASN: 64515
+      localCIDR:
+        ipv4: "192.169.10.0/24"
+        ipv6: "2001:db8:1::/64"
+    vni: 100
+`
 
 	// Underlay from API
 	underlayFromAPI := v1alpha1.Underlay{
@@ -89,7 +122,9 @@ var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ord
 	}
 
 	BeforeAll(func() {
-		err := Updater.CleanAll()
+		var err error
+
+		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 
 		cs = k8sclient.New()
@@ -97,6 +132,18 @@ var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ord
 		Expect(err).NotTo(HaveOccurred())
 
 		routers.Dump(GinkgoWriter)
+
+		// Get FRR-K8s pods
+		frrk8sPods, err = frrk8s.Pods(cs)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(frrk8sPods).NotTo(BeEmpty(), "Need FRR-K8s pods for BGP route validation")
+
+		// Create FRR configurations for both VNIs
+		frrK8sConfigBlue, err = frrk8s.ConfigFromHostSession(*vniBlueFromAPI.Spec.HostSession, vniBlueFromAPI.Name)
+		Expect(err).NotTo(HaveOccurred())
+
+		frrK8sConfigRed, err = frrk8s.ConfigFromHostSession(*vniRedFromFile.Spec.HostSession, vniRedFromFile.Name)
+		Expect(err).NotTo(HaveOccurred())
 
 		// Create DaemonSet for config helper pods
 		By("Creating config helper DaemonSet")
@@ -123,34 +170,27 @@ var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ord
 			_, _ = execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
 		}
 
-		// Create Underlay via API first
-		By("Creating underlay via API")
+		// Create Underlay + Blue VNI via API
+		By("Creating underlay and blue VNI via API")
 		err = Updater.Update(config.Resources{
-			Underlays: []v1alpha1.Underlay{underlayFromAPI},
+			Underlays:          []v1alpha1.Underlay{underlayFromAPI},
+			L3VNIs:             []v1alpha1.L3VNI{vniBlueFromAPI},
+			FRRConfigurations:  frrK8sConfigBlue,
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		By("Creating static VNI configuration file on all nodes")
-		redVNIPath := fmt.Sprintf("%s/openpe_vni.yaml", podConfigMount)
-		for _, pod := range configPods {
-			_, err = execInConfigPod(pod, fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", redVNIPath, staticRedVNIConfig))
-			Expect(err).NotTo(HaveOccurred())
-		}
-
-		By("Creating blue VNI via API")
-		err = Updater.Update(config.Resources{
-			Underlays: []v1alpha1.Underlay{underlayFromAPI},
-			L3VNIs:    []v1alpha1.L3VNI{vniBlueFromAPI},
-		})
-		Expect(err).NotTo(HaveOccurred())
+		// Wait for blue VNI FRR sessions to be established
+		validateFRRK8sSessionForHostSession(vniBlueFromAPI.Name, *vniBlueFromAPI.Spec.HostSession, Established, frrk8sPods...)
 	})
 
 	AfterAll(func() {
+		// Clean up static files
 		By("Cleaning up static configuration files on all nodes")
 		for _, pod := range configPods {
 			_, _ = execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
 		}
 
+		// Clean up DaemonSet
 		By("Cleaning up config helper DaemonSet")
 		err := cs.AppsV1().DaemonSets(openperouter.Namespace).Delete(
 			context.Background(), "config-helper", metav1.DeleteOptions{})
@@ -158,232 +198,104 @@ var _ = Describe("Static and API configuration merge", Label("systemdmode"), Ord
 			GinkgoWriter.Printf("Warning: failed to delete DaemonSet: %v\n", err)
 		}
 
+		// Clean up leaf routes
+		Expect(infra.LeafAConfig.RemovePrefixes()).To(Succeed())
+		Expect(infra.LeafBConfig.RemovePrefixes()).To(Succeed())
+
+		// Clean up API resources
 		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Context("hybrid configuration", func() {
-		It("should have both static and API VNIs configured", func() {
-			// Verify routes from both VNIs are present
-			// We can't directly validate VNI configuration without leaf setup,
-			// but we can verify the system doesn't reject the hybrid config
-			Skip("Full route validation requires leaf infrastructure")
-			// TODO: Use checkRouteFromLeaf when leaf infra is available
-		})
+	It("works with API-only config, adds static file config, then removes it", func() {
+		ShouldExist := true
+		redVNIPath := fmt.Sprintf("%s/openpe_vni_red.yaml", podConfigMount)
 
-		It("should handle EVPN routes from both sources", func() {
-			Skip("EVPN route validation requires leaf configuration")
-			// This would test that routes are properly advertised/received
-			// for both the static VNI (red) and API VNI (blue)
-		})
+		By("Step 1: Verify API-only configuration works (blue VNI)")
+		By("advertising routes from the leaves for VRF Blue - VNI 200")
+		Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)).To(Succeed())
+		Expect(infra.LeafBConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafBVRFBluePrefixes)).To(Succeed())
 
-		It("should update configuration when API VNI is modified", func() {
-			// Modify the blue VNI from API
-			vniBlueModified := vniBlueFromAPI.DeepCopy()
-			vniBlueModified.Spec.VNI = 201
-
-			err := Updater.Update(config.Resources{
-				Underlays: []v1alpha1.Underlay{underlayFromAPI},
-				L3VNIs:    []v1alpha1.L3VNI{*vniBlueModified},
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			// Restore original VNI
-			err = Updater.Update(config.Resources{
-				Underlays: []v1alpha1.Underlay{underlayFromAPI},
-				L3VNIs:    []v1alpha1.L3VNI{vniBlueFromAPI},
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should preserve static configuration when API resources change", func() {
-			Skip("Full validation requires ability to check static VNI presence")
-			// This would verify that after modifying API resources,
-			// the static red VNI is still configured
-		})
-	})
-
-	Context("API availability transitions", func() {
-		It("should continue operating if API becomes temporarily unavailable", func() {
-			Skip("Requires infrastructure to simulate API unavailability")
-			// This would test SC-013: graceful degradation when API is lost
-		})
-	})
-
-	Context("file changes in hybrid mode", func() {
-		It("should detect static file creation while API is available", func() {
-			// Create a new static config file on all nodes
-			newVNIConfig := `l3vnis:
-  - vrf: green
-    hostSession:
-      asn: 64514
-      hostASN: 64515
-      localCIDR:
-        ipv4: "192.170.12.0/24"
-        ipv6: "2001:db9:3::/64"
-    vni: 300
-`
-			testFileName := "openpe_test_green.yaml"
-			testFilePath := fmt.Sprintf("%s/%s", podConfigMount, testFileName)
-
-			By("Creating a new static configuration file on all nodes")
-			for _, pod := range configPods {
-				_, err := execInConfigPod(pod, fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", testFilePath, newVNIConfig))
-				Expect(err).NotTo(HaveOccurred())
-			}
-
-			By("Verifying the file was created on all nodes")
-			for _, pod := range configPods {
-				output, err := execInConfigPod(pod, fmt.Sprintf("cat %s", testFilePath))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(output).To(ContainSubstring("green"))
-			}
-
-			// TODO: Add validation that the new VNI is picked up by the controller
-			// This would require waiting for reconciliation and checking FRR state
-
-			By("Cleaning up the test file on all nodes")
-			for _, pod := range configPods {
-				_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s", testFilePath))
-				Expect(err).NotTo(HaveOccurred())
-			}
-		})
-
-		It("should detect static file deletion while API is available", func() {
-			// This test demonstrates file deletion detection
-			// In a real scenario, we'd verify that the configuration is removed
-			Skip("Full validation requires monitoring FRR configuration changes")
-		})
-
-		It("should handle modification of existing static files while API is available", func() {
-			// This test demonstrates file modification detection
-			// We would modify an existing file and verify the change is picked up
-			Skip("Full validation requires monitoring FRR configuration changes")
-		})
-	})
-
-	Context("EVPN route translation with static files", func() {
-		var frrk8sPods []*corev1.Pod
-		var frrK8sConfigRed []frrk8sv1beta1.FRRConfiguration
-
-		// Route prefixes from leaves
-		leafAVRFRedPrefixes := []string{"192.168.20.0/24", "2001:db8:20::/64"}
-		leafBVRFRedPrefixes := []string{"192.169.20.0/24", "2001:db8:169:20::/64"}
-		emptyPrefixes := []string{}
-
-		// Static Red VNI that will be created from file
-		staticRedVNI := v1alpha1.L3VNI{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "red",
-				Namespace: openperouter.Namespace,
-			},
-			Spec: v1alpha1.L3VNISpec{
-				VRF: "red",
-				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: 64515,
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: "192.169.10.0/24",
-						IPv6: "2001:db8:1::/64",
-					},
-				},
-				VNI: 100,
-			},
+		By("checking blue VNI routes are propagated via BGP")
+		for _, frrk8sPod := range frrk8sPods {
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafAVRFBluePrefixes, ShouldExist)
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafBVRFBluePrefixes, ShouldExist)
 		}
 
-		staticRedVNIYAML := `l3vnis:
-  - vrf: red
-    hostSession:
-      asn: 64514
-      hostASN: 64515
-      localCIDR:
-        ipv4: "192.169.10.0/24"
-        ipv6: "2001:db8:1::/64"
-    vni: 100
-`
-
-		BeforeAll(func() {
-			var err error
-
-			// Get FRR-K8s pods
-			frrk8sPods, err = frrk8s.Pods(cs)
+		By("Step 2: Add red VNI via static file")
+		By("creating static red VNI file on all nodes")
+		for _, pod := range configPods {
+			_, err := execInConfigPod(pod, fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", redVNIPath, staticRedVNIYAML))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(frrk8sPods).NotTo(BeEmpty(), "Need FRR-K8s pods for BGP route validation")
+		}
 
-			// Create FRR configurations for the red VNI host session
-			frrK8sConfigRed, err = frrk8s.ConfigFromHostSession(*staticRedVNI.Spec.HostSession, staticRedVNI.Name)
+		By("verifying static files were created on all nodes")
+		for _, pod := range configPods {
+			Eventually(func() error {
+				output, err := execInConfigPod(pod, fmt.Sprintf("cat %s", redVNIPath))
+				if err != nil {
+					return err
+				}
+				if !strings.Contains(output, "red") {
+					return fmt.Errorf("file does not contain expected content")
+				}
+				return nil
+			}, "10s", "1s").Should(Succeed())
+		}
+
+		By("applying FRR configuration for red VNI")
+		err := Updater.Update(config.Resources{
+			Underlays:          []v1alpha1.Underlay{underlayFromAPI},
+			L3VNIs:             []v1alpha1.L3VNI{vniBlueFromAPI},
+			FRRConfigurations:  append(frrK8sConfigBlue, frrK8sConfigRed...),
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		By("waiting for red VNI FRR sessions to be established")
+		validateFRRK8sSessionForHostSession(vniRedFromFile.Name, *vniRedFromFile.Spec.HostSession, Established, frrk8sPods...)
+
+		By("Step 3: Verify both VNIs work together")
+		By("advertising routes from the leaves for both VRFs")
+		Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, leafAVRFRedPrefixes, leafAVRFBluePrefixes)).To(Succeed())
+		Expect(infra.LeafBConfig.ChangePrefixes(emptyPrefixes, leafBVRFRedPrefixes, leafBVRFBluePrefixes)).To(Succeed())
+
+		By("checking both blue and red VNI routes are propagated via BGP")
+		for _, frrk8sPod := range frrk8sPods {
+			// Blue VNI routes
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafAVRFBluePrefixes, ShouldExist)
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafBVRFBluePrefixes, ShouldExist)
+			// Red VNI routes
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafAVRFRedPrefixes, ShouldExist)
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafBVRFRedPrefixes, ShouldExist)
+		}
+
+		By("Step 4: Remove static file")
+		By("deleting static red VNI file from all nodes")
+		for _, pod := range configPods {
+			_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s", redVNIPath))
 			Expect(err).NotTo(HaveOccurred())
+		}
 
-			// Apply FRR configurations
-			err = Updater.Update(config.Resources{
-				FRRConfigurations: frrK8sConfigRed,
-			})
-			Expect(err).NotTo(HaveOccurred())
+		By("verifying files were deleted from all nodes")
+		for _, pod := range configPods {
+			Eventually(func() bool {
+				_, err := execInConfigPod(pod, fmt.Sprintf("test -f %s", redVNIPath))
+				return err != nil // File should not exist (command fails)
+			}, "10s", "1s").Should(BeTrue())
+		}
 
-			// Wait for FRR sessions to be established
-			validateFRRK8sSessionForHostSession(staticRedVNI.Name, *staticRedVNI.Spec.HostSession, Established, frrk8sPods...)
-		})
+		By("Step 5: Verify only API configuration works (blue VNI)")
+		By("checking red VNI routes are NO LONGER propagated via BGP")
+		for _, frrk8sPod := range frrk8sPods {
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafAVRFRedPrefixes, !ShouldExist)
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafBVRFRedPrefixes, !ShouldExist)
+		}
 
-		AfterAll(func() {
-			// Clean up leaf routes
-			Expect(infra.LeafAConfig.RemovePrefixes()).To(Succeed())
-			Expect(infra.LeafBConfig.RemovePrefixes()).To(Succeed())
-		})
-
-		It("translates EVPN incoming routes as BGP routes, then removes them when static file is deleted", func() {
-			ShouldExist := true
-			redVNIPath := fmt.Sprintf("%s/openpe_vni_red.yaml", podConfigMount)
-
-			By("creating static VNI file on all nodes")
-			for _, pod := range configPods {
-				_, err := execInConfigPod(pod, fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", redVNIPath, staticRedVNIYAML))
-				Expect(err).NotTo(HaveOccurred())
-			}
-
-			By("verifying static files were created on all nodes")
-			for _, pod := range configPods {
-				Eventually(func() error {
-					output, err := execInConfigPod(pod, fmt.Sprintf("cat %s", redVNIPath))
-					if err != nil {
-						return err
-					}
-					if !strings.Contains(output, "red") {
-						return fmt.Errorf("file does not contain expected content")
-					}
-					return nil
-				}, "10s", "1s").Should(Succeed())
-			}
-
-			By("advertising routes from the leaves for VRF Red - VNI 100")
-			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, leafAVRFRedPrefixes, emptyPrefixes)).To(Succeed())
-			Expect(infra.LeafBConfig.ChangePrefixes(emptyPrefixes, leafBVRFRedPrefixes, emptyPrefixes)).To(Succeed())
-
-			By("checking routes are propagated via BGP")
-			for _, frrk8sPod := range frrk8sPods {
-				checkBGPPrefixesForHostSession(frrk8sPod, *staticRedVNI.Spec.HostSession, leafAVRFRedPrefixes, ShouldExist)
-				checkBGPPrefixesForHostSession(frrk8sPod, *staticRedVNI.Spec.HostSession, leafBVRFRedPrefixes, ShouldExist)
-			}
-
-			By("deleting static VNI file from all nodes")
-			for _, pod := range configPods {
-				_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s", redVNIPath))
-				Expect(err).NotTo(HaveOccurred())
-			}
-
-			By("verifying files were deleted from all nodes")
-			for _, pod := range configPods {
-				Eventually(func() bool {
-					_, err := execInConfigPod(pod, fmt.Sprintf("test -f %s", redVNIPath))
-					return err != nil // File should not exist (command fails)
-				}, "10s", "1s").Should(BeTrue())
-			}
-
-			By("checking routes are NO LONGER propagated via BGP after file deletion")
-			for _, frrk8sPod := range frrk8sPods {
-				checkBGPPrefixesForHostSession(frrk8sPod, *staticRedVNI.Spec.HostSession, leafAVRFRedPrefixes, !ShouldExist)
-				checkBGPPrefixesForHostSession(frrk8sPod, *staticRedVNI.Spec.HostSession, leafBVRFRedPrefixes, !ShouldExist)
-			}
-		})
+		By("checking blue VNI routes still exist")
+		for _, frrk8sPod := range frrk8sPods {
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafAVRFBluePrefixes, ShouldExist)
+			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafBVRFBluePrefixes, ShouldExist)
+		}
 	})
 })
 
