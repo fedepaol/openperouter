@@ -46,6 +46,7 @@ import (
 	"github.com/openperouter/openperouter/api/static"
 	periov1alpha1 "github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/controller/routerconfiguration"
+	"github.com/openperouter/openperouter/internal/filewatcher"
 	"github.com/openperouter/openperouter/internal/hostnetwork"
 	"github.com/openperouter/openperouter/internal/logging"
 	"github.com/openperouter/openperouter/internal/pods"
@@ -359,6 +360,16 @@ func runStaticConfigReconciler(ctx context.Context,
 	}
 	if err = staticReconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller: %w", err)
+	}
+
+	// Setup file watcher for static configuration changes
+	fw, err := filewatcher.New(hostModeParams.configurationDir, staticReconciler.TriggerChan, logger)
+	if err != nil {
+		return fmt.Errorf("unable to create file watcher: %w", err)
+	}
+
+	if err := fw.Start(ctx); err != nil {
+		return fmt.Errorf("unable to start file watcher: %w", err)
 	}
 
 	// +kubebuilder:scaffold:builder

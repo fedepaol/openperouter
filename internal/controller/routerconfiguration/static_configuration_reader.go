@@ -3,6 +3,7 @@
 package routerconfiguration
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/openperouter/openperouter/api/static"
@@ -10,6 +11,7 @@ import (
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/staticconfiguration"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func readStaticConfigs(configDir string) (conversion.ApiConfigData, error) {
@@ -96,4 +98,19 @@ func staticConfigToAPIConfig(staticConfig *static.PERouterConfig) conversion.Api
 		L2VNIs:        l2vnis,
 		L3Passthrough: l3passthrough,
 	}
+}
+
+// readAPIConfigs reads configuration from Kubernetes API
+// Returns empty config if client is nil (API not available)
+//
+//nolint:unused,unparam // Will be used in Phase 4 (US2) for API merge
+func readAPIConfigs(ctx context.Context, client client.Client, namespace string) (conversion.ApiConfigData, error) {
+	if client == nil {
+		// API not available, return empty config
+		return conversion.ApiConfigData{}, nil
+	}
+
+	// Placeholder for now - will be implemented in US2
+	// This function will read L3VNI, L2VNI, Underlay resources from API
+	return conversion.ApiConfigData{}, nil
 }

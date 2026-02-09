@@ -66,5 +66,42 @@ var _ = Describe("Static configuration", Ordered, func() {
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())
 		})
 	})
+
+	Context("file watching", func() {
+		It("detects static file modifications", func() {
+			Skip("E2E test implementation pending - requires test infrastructure setup")
+			// This test will verify that modifying a static config file
+			// triggers reconciliation and route updates without process restart
+			// TODO: Implement actual test logic:
+			// 1. Deploy OpenPERouter in systemd mode with static files
+			// 2. Verify initial routes are programmed
+			// 3. Modify a static config file
+			// 4. Wait up to 5 seconds
+			// 5. Verify routes updated without process restart
+		})
+
+		It("detects static file creation", func() {
+			Skip("E2E test implementation pending - requires test infrastructure setup")
+			// This test will verify that adding a new static config file
+			// triggers reconciliation and new routes appear
+			// TODO: Implement actual test logic:
+			// 1. Deploy OpenPERouter in systemd mode
+			// 2. Add a new openpe_*.yaml file to config directory
+			// 3. Wait up to 5 seconds
+			// 4. Verify new routes appear
+		})
+
+		It("detects static file deletion", func() {
+			Skip("E2E test implementation pending - requires test infrastructure setup")
+			// This test will verify that deleting a static config file
+			// triggers reconciliation and routes are removed
+			// TODO: Implement actual test logic:
+			// 1. Deploy OpenPERouter in systemd mode with multiple files
+			// 2. Verify initial routes from both files
+			// 3. Delete one config file
+			// 4. Wait up to 5 seconds
+			// 5. Verify routes from deleted file are removed
+		})
+	})
 	// TODO Create vni blue with the api server
 })
