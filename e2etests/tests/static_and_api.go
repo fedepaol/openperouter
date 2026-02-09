@@ -133,24 +133,20 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 
 		routers.Dump(GinkgoWriter)
 
-		// Get FRR-K8s pods
 		frrk8sPods, err = frrk8s.Pods(cs)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(frrk8sPods).NotTo(BeEmpty(), "Need FRR-K8s pods for BGP route validation")
 
-		// Create FRR configurations for both VNIs
 		frrK8sConfigBlue, err = frrk8s.ConfigFromHostSession(*vniBlueFromAPI.Spec.HostSession, vniBlueFromAPI.Name)
 		Expect(err).NotTo(HaveOccurred())
 
 		frrK8sConfigRed, err = frrk8s.ConfigFromHostSession(*vniRedFromFile.Spec.HostSession, vniRedFromFile.Name)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Create DaemonSet for config helper pods
 		By("Creating config helper DaemonSet")
 		err = createConfigHelperDaemonSet(cs)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Wait for DaemonSet to be ready and get the pods
 		By("Waiting for config helper pods to be ready")
 		Eventually(func() error {
 			pods, err := getConfigHelperPods(cs)
@@ -164,18 +160,18 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 			return nil
 		}, "2m", "5s").Should(Succeed())
 
-		// Clean any existing static files on all nodes
 		By("Cleaning any existing static configuration files on all nodes")
 		for _, pod := range configPods {
-			_, _ = execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
+			_, err = execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
+			Expect(err).NotTo(HaveOccurred())
 		}
 
 		// Create Underlay + Blue VNI via API
 		By("Creating underlay and blue VNI via API")
 		err = Updater.Update(config.Resources{
-			Underlays:          []v1alpha1.Underlay{underlayFromAPI},
-			L3VNIs:             []v1alpha1.L3VNI{vniBlueFromAPI},
-			FRRConfigurations:  frrK8sConfigBlue,
+			Underlays:         []v1alpha1.Underlay{underlayFromAPI},
+			L3VNIs:            []v1alpha1.L3VNI{vniBlueFromAPI},
+			FRRConfigurations: frrK8sConfigBlue,
 		})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -187,7 +183,8 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		// Clean up static files
 		By("Cleaning up static configuration files on all nodes")
 		for _, pod := range configPods {
-			_, _ = execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
+			_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
+			Expect(err).NotTo(HaveOccurred())
 		}
 
 		// Clean up DaemonSet
@@ -245,9 +242,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 
 		By("applying FRR configuration for red VNI")
 		err := Updater.Update(config.Resources{
-			Underlays:          []v1alpha1.Underlay{underlayFromAPI},
-			L3VNIs:             []v1alpha1.L3VNI{vniBlueFromAPI},
-			FRRConfigurations:  append(frrK8sConfigBlue, frrK8sConfigRed...),
+			Underlays:         []v1alpha1.Underlay{underlayFromAPI},
+			L3VNIs:            []v1alpha1.L3VNI{vniBlueFromAPI},
+			FRRConfigurations: append(frrK8sConfigBlue, frrK8sConfigRed...),
 		})
 		Expect(err).NotTo(HaveOccurred())
 
