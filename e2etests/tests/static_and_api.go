@@ -167,26 +167,22 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 	})
 
 	AfterAll(func() {
-		// Clean up static files
-		By("Cleaning up static configuration files on all nodes")
+		By("Removing static configuration files on all nodes")
 		for _, pod := range configPods {
 			_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s/openpe_*.yaml", podConfigMount))
 			Expect(err).NotTo(HaveOccurred())
 		}
 
-		// Clean up DaemonSet
-		By("Cleaning up config helper DaemonSet")
+		By("Deleting config helper DaemonSet")
 		err := cs.AppsV1().DaemonSets(openperouter.Namespace).Delete(
 			context.Background(), "config-helper", metav1.DeleteOptions{})
 		if err != nil {
 			GinkgoWriter.Printf("Warning: failed to delete DaemonSet: %v\n", err)
 		}
 
-		// Clean up leaf routes
 		Expect(infra.LeafAConfig.RemovePrefixes()).To(Succeed())
 		Expect(infra.LeafBConfig.RemovePrefixes()).To(Succeed())
 
-		// Clean up API resources
 		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -195,7 +191,6 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		ShouldExist := true
 		redVNIPath := fmt.Sprintf("%s/openpe_vni_red.yaml", podConfigMount)
 
-		By("Step 1: Verify API-only configuration works (blue VNI)")
 		By("advertising routes from the leaves for VRF Blue - VNI 200")
 		Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)).To(Succeed())
 		Expect(infra.LeafBConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafBVRFBluePrefixes)).To(Succeed())
@@ -206,7 +201,6 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 			checkBGPPrefixesForHostSession(frrk8sPod, *vniBlueFromAPI.Spec.HostSession, leafBVRFBluePrefixes, ShouldExist)
 		}
 
-		By("Step 2: Add red VNI via static file")
 		By("creating static red VNI file on all nodes")
 		for _, pod := range configPods {
 			_, err := execInConfigPod(pod, fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", redVNIPath, staticRedVNIYAML))
@@ -238,7 +232,6 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		By("waiting for red VNI FRR sessions to be established")
 		validateFRRK8sSessionForHostSession(vniRedFromFile.Name, *vniRedFromFile.Spec.HostSession, Established, frrk8sPods...)
 
-		By("Step 3: Verify both VNIs work together")
 		By("advertising routes from the leaves for both VRFs")
 		Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, leafAVRFRedPrefixes, leafAVRFBluePrefixes)).To(Succeed())
 		Expect(infra.LeafBConfig.ChangePrefixes(emptyPrefixes, leafBVRFRedPrefixes, leafBVRFBluePrefixes)).To(Succeed())
@@ -253,22 +246,12 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafBVRFRedPrefixes, ShouldExist)
 		}
 
-		By("Step 4: Remove static file")
 		By("deleting static red VNI file from all nodes")
 		for _, pod := range configPods {
 			_, err := execInConfigPod(pod, fmt.Sprintf("rm -f %s", redVNIPath))
 			Expect(err).NotTo(HaveOccurred())
 		}
 
-		By("verifying files were deleted from all nodes")
-		for _, pod := range configPods {
-			Eventually(func() bool {
-				_, err := execInConfigPod(pod, fmt.Sprintf("test -f %s", redVNIPath))
-				return err != nil // File should not exist (command fails)
-			}, "10s", "1s").Should(BeTrue())
-		}
-
-		By("Step 5: Verify only API configuration works (blue VNI)")
 		By("checking red VNI routes are NO LONGER propagated via BGP")
 		for _, frrk8sPod := range frrk8sPods {
 			checkBGPPrefixesForHostSession(frrk8sPod, *vniRedFromFile.Spec.HostSession, leafAVRFRedPrefixes, !ShouldExist)
