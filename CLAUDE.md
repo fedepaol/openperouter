@@ -67,6 +67,7 @@ go test ./e2etests/...
 
 - 001-static-file-watch (Phase 3): Static file watching MVP complete
 - 001-static-file-watch (Phase 4): API merge and reconciler transition complete
+- 001-static-file-watch (Phase 5): Continuous runtime updates complete (via Phase 4)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

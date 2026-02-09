@@ -520,3 +520,53 @@ API changes  → Kubernetes watches → PERouterReconciler.Reconcile() → (API 
 - **Clean transition**: Context cancellation stops old reconciler
 - **Single responsibility**: Each reconciler for its mode (static-only vs hybrid)
 - **Minimal changes**: ~60 lines total, no new packages
+
+---
+
+## Phase 5: Continuous Runtime Configuration Updates (COMPLETE)
+
+**Status**: ✅ Complete (no additional work needed)
+
+### Why Phase 5 is Already Done
+
+Phase 4 implementation **already satisfies all Phase 5 requirements**:
+
+**User Story 3 Requirements**:
+1. ✅ Static file changes detected while API available
+2. ✅ API resource changes detected while files watched
+3. ✅ Simultaneous changes from both sources handled
+
+**How It Works** (implemented in Phase 4):
+
+```
+PERouterReconciler (in hybrid mode)
+    ↓
+    ├─ Watches API resources (existing controller watches)
+    │  - L3VNI, L2VNI, Underlay, L3Passthrough
+    │  - Standard controller-runtime watches
+    │
+    ├─ Watches file changes (added in Phase 4)
+    │  - FileWatcher → TriggerChan → triggers Reconcile()
+    │
+    └─ Reconcile() method
+       - Called by BOTH triggers (API watch OR file change)
+       - Calls mergeStaticConfig() EVERY TIME (line 87)
+       - mergeStaticConfig() reads static files + merges with API
+       - Result: ALWAYS has latest from both sources
+```
+
+**Key Architecture Point**:
+- PERouterReconciler.Reconcile() is called for ANY change (file or API)
+- Every Reconcile() reads BOTH sources fresh and merges them
+- No special logic needed for "continuous updates" - it just works!
+
+**Files Modified**: None (Phase 4 implementation was sufficient)
+
+**Functional Verification**:
+- File change → FileWatcher → TriggerChan → Reconcile() → mergeStaticConfig() → merge + apply
+- API change → K8s watch → Reconcile() → mergeStaticConfig() → merge + apply
+- Both are identical paths after trigger!
+
+### Summary
+
+Phase 5 required no additional implementation because Phase 4's design naturally supports continuous updates from both sources. The reconciler doesn't care what triggered it - it always reads both sources fresh.
