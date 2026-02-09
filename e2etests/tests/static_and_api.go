@@ -143,22 +143,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		frrK8sConfigRed, err = frrk8s.ConfigFromHostSession(*vniRedFromFile.Spec.HostSession, vniRedFromFile.Name)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("Creating config helper DaemonSet")
-		err = createConfigHelperDaemonSet(cs)
+		By("Creating config helper DaemonSet and waiting for pods to be ready")
+		configPods, err = createConfigHelperDaemonSet(cs)
 		Expect(err).NotTo(HaveOccurred())
-
-		By("Waiting for config helper pods to be ready")
-		Eventually(func() error {
-			pods, err := getConfigHelperPods(cs)
-			if err != nil {
-				return err
-			}
-			if len(pods) == 0 {
-				return fmt.Errorf("no config helper pods found")
-			}
-			configPods = pods
-			return nil
-		}, "2m", "5s").Should(Succeed())
 
 		By("Cleaning any existing static configuration files on all nodes")
 		for _, pod := range configPods {
@@ -297,8 +284,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 })
 
 // createConfigHelperDaemonSet creates a DaemonSet that can manipulate static configuration files
-// by mounting the host's configuration directory on every node.
-func createConfigHelperDaemonSet(cs clientset.Interface) error {
+// by mounting the host's configuration directory on every node. It waits for the pods to be ready
+// and returns them.
+func createConfigHelperDaemonSet(cs clientset.Interface) ([]*corev1.Pod, error) {
 	daemonSet := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "config-helper",
@@ -351,7 +339,25 @@ func createConfigHelperDaemonSet(cs clientset.Interface) error {
 
 	_, err := cs.AppsV1().DaemonSets(openperouter.Namespace).Create(
 		context.Background(), daemonSet, metav1.CreateOptions{})
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for pods to be ready
+	var readyPods []*corev1.Pod
+	Eventually(func() error {
+		pods, err := getConfigHelperPods(cs)
+		if err != nil {
+			return err
+		}
+		if len(pods) == 0 {
+			return fmt.Errorf("no config helper pods found")
+		}
+		readyPods = pods
+		return nil
+	}, "2m", "5s").Should(Succeed())
+
+	return readyPods, nil
 }
 
 // getConfigHelperPods returns all pods created by the config-helper DaemonSet that are ready.
