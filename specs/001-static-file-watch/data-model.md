@@ -99,14 +99,13 @@ type ApiConfigData struct {
 
 ---
 
-### 1.3 Integration with Existing StaticConfigReconciler
+### 1.3 Integration with Reconcilers
 
-**Key Insight**: StaticConfigReconciler already has the necessary infrastructure - no struct changes needed.
+**Key Insight**: Use different reconcilers for different modes, reusing existing infrastructure.
 
-**Existing Structure** (no changes):
+**StaticConfigReconciler** (for static-only mode):
 
 ```go
-// StaticConfigReconciler - NO CHANGES to struct
 type StaticConfigReconciler struct {
     Scheme          *runtime.Scheme
     Logger          *slog.Logger
@@ -117,14 +116,37 @@ type StaticConfigReconciler struct {
     RouterProvider  RouterProvider
     ConfigDir       string
 
-    TriggerChan chan event.GenericEvent  // Already exists - used by both sources
+    TriggerChan chan event.GenericEvent  // Receives file watch events
+}
+```
+
+**PERouterReconciler** (for hybrid mode - EXTENDED):
+
+```go
+type PERouterReconciler struct {
+    client.Client
+    Scheme             *runtime.Scheme
+    MyNode             string
+    MyNamespace        string
+    LogLevel           string
+    Logger             *slog.Logger
+    UnderlayFromMultus bool
+    FRRConfigPath      string
+    FRRReloadSocket    string
+    StaticConfigDir    string  // Already existed!
+    NodeConfigPath     string
+    RouterProvider     RouterProvider
+
+    // NEW: Receives file watch events in host mode
+    TriggerChan chan event.GenericEvent
 }
 
-// TriggerReconcile() - Already exists - called by both sources
-func (r *StaticConfigReconciler) TriggerReconcile() {
+// NEW: TriggerReconcile() method
+func (r *PERouterReconciler) TriggerReconcile() {
+    if r.TriggerChan == nil { return }
     select {
     case r.TriggerChan <- event.GenericEvent{...}:
-        r.Logger.Info("triggered reconciliation")
+        r.Logger.Info("triggered reconciliation from file change")
     default:
         r.Logger.Debug("reconciliation already queued")
     }
@@ -133,30 +155,37 @@ func (r *StaticConfigReconciler) TriggerReconcile() {
 
 **Integration Points**:
 
-1. **FileWatcher → StaticConfigReconciler**: FileWatcher calls `TriggerReconcile()` on file events
-2. **API Controller → StaticConfigReconciler**: Underlay/VNI controller calls `TriggerReconcile()` on API events
-3. **Reconcile() Method**: Modified to read both sources and merge when API available
+1. **FileWatcher → StaticConfigReconciler**: In static-only mode (before API)
+2. **FileWatcher → PERouterReconciler**: In hybrid mode (after API available)
+3. **API Watches → PERouterReconciler**: API resource changes trigger via standard watches
+4. **Merge Logic**: PERouterReconciler.mergeStaticConfig() already exists!
 
-**State Machine** (simplified):
+**State Machine** (actual implementation):
 
 ```
-┌─────────────────┐
-│  Static-Only    │  File events → TriggerReconcile()
-│  Mode           │  (API not available)
-│                 │
-│ - File watching │
-│ - Static config │
-└────────┬────────┘
-         │
-         │ API becomes available
-         ▼
-┌─────────────────┐
-│  Hybrid Mode    │  File events → TriggerReconcile()
-│                 │  API events → TriggerReconcile()
-│ - File watching │  (same trigger channel for both!)
-│ - API watching  │
-│ - Merged config │
-└─────────────────┘
+┌─────────────────────────────┐
+│  Static-Only Mode           │
+│  (API not available)        │
+│                             │
+│  StaticConfigReconciler     │  FileWatcher #1 → TriggerChan
+│  + FileWatcher #1           │  ↓
+│                             │  Reconcile (static only)
+└────────────┬────────────────┘
+             │
+             │ API detected → cancelStatic()
+             │
+             ↓ StaticConfigReconciler stops
+             ↓ FileWatcher #1 stops
+             ↓
+┌─────────────────────────────┐
+│  Hybrid Mode                │
+│  (API available)            │
+│                             │
+│  PERouterReconciler         │  FileWatcher #2 → TriggerChan
+│  + FileWatcher #2           │  API watches → Reconcile
+│                             │  ↓
+│  mergeStaticConfig() exists │  Reconcile (API + static merge)
+└─────────────────────────────┘
 ```
 
 ---

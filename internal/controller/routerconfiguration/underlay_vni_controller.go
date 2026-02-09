@@ -25,11 +25,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/conversion"
@@ -52,6 +54,9 @@ type PERouterReconciler struct {
 	StaticConfigDir    string
 	NodeConfigPath     string
 	RouterProvider     RouterProvider
+
+	// TriggerChan receives events from FileWatcher (in host mode)
+	TriggerChan chan event.GenericEvent
 }
 
 type requestKey string
@@ -269,7 +274,8 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := setPodNodeNameIndex(mgr); err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Underlay{}).
 		Watches(&v1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&v1.Pod{}, &handler.EnqueueRequestForObject{}).
@@ -278,8 +284,14 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&v1alpha1.L3Passthrough{}, &handler.EnqueueRequestForObject{}).
 		WithEventFilter(filterNonRouterPods).
 		WithEventFilter(filterUpdates).
-		Named("routercontroller").
-		Complete(r)
+		Named("routercontroller")
+
+	// In host mode, watch for file system events via TriggerChan
+	if r.TriggerChan != nil {
+		builder = builder.WatchesRawSource(source.Channel(r.TriggerChan, &handler.EnqueueRequestForObject{}))
+	}
+
+	return builder.Complete(r)
 }
 
 func setPodNodeNameIndex(mgr ctrl.Manager) error {
@@ -301,4 +313,30 @@ func setPodNodeNameIndex(mgr ctrl.Manager) error {
 		return fmt.Errorf("failed to set node indexer %w", err)
 	}
 	return nil
+}
+
+// TriggerReconcile sends an event to trigger reconciliation.
+// Used by FileWatcher in host mode to trigger reconciliation on file changes.
+func (r *PERouterReconciler) TriggerReconcile() {
+	if r.TriggerChan == nil {
+		return
+	}
+
+	select {
+	case r.TriggerChan <- event.GenericEvent{
+		Object: &metav1.PartialObjectMetadata{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "file-change-trigger",
+				Namespace: "default",
+			},
+		},
+	}:
+		r.Logger.Info("triggered reconciliation from file change")
+	default:
+		r.Logger.Debug("reconciliation already queued, skipping trigger")
+	}
 }

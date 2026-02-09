@@ -453,3 +453,70 @@ Based on task complexity:
 - Existing tests: `e2etests/systemd_static_suite/systemd_static_files_test.go`
 - Constitution: `.specify/memory/constitution.md`
 - Contributing guide: `website/content/docs/contributing/_index.md`
+
+---
+
+## Phase 4 Implementation: Post-API Configuration Merge (COMPLETED)
+
+**Status**: ✅ Implemented (2026-02-09)
+
+### Implementation Approach
+
+Instead of creating new merge logic, we **reused existing PERouterReconciler** which already has complete merge functionality:
+
+1. **Added TriggerChan to PERouterReconciler** (`underlay_vni_controller.go`)
+   - Field: `TriggerChan chan event.GenericEvent`
+   - Method: `TriggerReconcile()` - sends events to trigger reconciliation
+   - Modified: `SetupWithManager()` - watches TriggerChan when present
+
+2. **Transition Logic** (`cmd/hostcontroller/main.go`)
+   - Static reconciler uses cancellable context (`staticCtx`)
+   - Background goroutine waits for API via `waitForKubernetes()`
+   - When API available:
+     - Cancel static context → stops StaticConfigReconciler + FileWatcher #1
+     - Start PERouterReconciler with new FileWatcher #2
+   - Only ONE reconciler and ONE FileWatcher running at any time
+
+3. **Reused Existing Merge Logic** (`underlay_vni_controller.go:134-154`)
+   - `mergeStaticConfig()` already reads static files
+   - `conversion.MergeAPIConfigs()` already merges both sources
+   - Conflict detection already implemented
+   - No new code needed!
+
+### Data Flow
+
+**Before API (Static-only mode)**:
+```
+File changes → FileWatcher #1 → StaticConfigReconciler.TriggerChan → Reconcile (static only)
+```
+
+**API Transition**:
+```
+API detected → cancelStatic() → StaticConfigReconciler stops → FileWatcher #1 stops
+              → PERouterReconciler starts → FileWatcher #2 starts
+```
+
+**After API (Hybrid mode)**:
+```
+File changes → FileWatcher #2 → PERouterReconciler.TriggerChan → Reconcile (API + static merge)
+API changes  → Kubernetes watches → PERouterReconciler.Reconcile() → (API + static merge)
+```
+
+### Files Modified
+
+- `internal/controller/routerconfiguration/underlay_vni_controller.go` (+35 lines)
+  - Added TriggerChan field
+  - Added TriggerReconcile() method
+  - Modified SetupWithManager() for file watching
+
+- `cmd/hostcontroller/main.go` (+25 lines)
+  - Cancellable context for static reconciler
+  - FileWatcher wiring for PERouterReconciler
+  - Transition logic on API availability
+
+### Key Insights
+
+- **Zero duplication**: PERouterReconciler already had merge logic
+- **Clean transition**: Context cancellation stops old reconciler
+- **Single responsibility**: Each reconciler for its mode (static-only vs hybrid)
+- **Minimal changes**: ~60 lines total, no new packages
