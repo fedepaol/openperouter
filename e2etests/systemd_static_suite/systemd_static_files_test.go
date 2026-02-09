@@ -4,7 +4,6 @@ package systemd_static
 
 import (
 	"fmt"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -112,9 +111,6 @@ var _ = Describe("Static configuration", Ordered, func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
-			By("waiting for file watcher to detect the new file and apply configuration")
-			time.Sleep(10 * time.Second)
-
 			By("announcing type 5 routes on VNI 200 from leafA")
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)).To(Succeed())
 
@@ -126,9 +122,6 @@ var _ = Describe("Static configuration", Ordered, func() {
 				_, err := router.Exec("rm", "-f", configFilePath)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
-			By("waiting for file watcher to detect file removal")
-			time.Sleep(10 * time.Second)
 
 			By("validating blue VNI routes are no longer received")
 			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, shouldNotContain, leafAVRFBluePrefixes)
