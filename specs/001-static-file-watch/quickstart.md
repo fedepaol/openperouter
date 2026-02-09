@@ -2,10 +2,17 @@
 
 **Feature**: 001-static-file-watch
 **Date**: 2026-02-06
+**Status**: ✅ MVP Complete with E2E Tests
 
 ## Overview
 
 This quickstart guide demonstrates the static file configuration watching feature in OpenPERouter's systemd mode. You'll test file watching before the API server is available, then observe the transition to hybrid mode when the API becomes available.
+
+**Note**: Automated E2E tests are available:
+- `make e2etest` - Run `e2etests/systemd_static_suite/systemd_static_files_test.go` for static-only mode
+- `make e2etest` - Run `e2etests/tests/static_and_api.go` for hybrid mode (requires label: "systemdmode")
+
+The manual scenarios below are useful for local development and debugging.
 
 ---
 

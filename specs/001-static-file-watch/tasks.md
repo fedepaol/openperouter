@@ -86,12 +86,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] ~~Unit test for API config reading~~ (not needed - existing PERouterReconciler already tested)
-- [ ] T022 [P] [US2] ~~Unit test for merge conflict detection~~ (not needed - existing merge logic already tested)
-- [ ] T023 [P] [US2] ~~Unit test for ConfigMetadata population~~ (deferred - not needed for hybrid mode)
-- [ ] T024 [P] [US2] E2E test for non-conflicting merge in e2etests/tests/hybrid_config_test.go
-- [ ] T025 [P] [US2] E2E test for conflict detection and error reporting in e2etests/tests/hybrid_config_test.go
-- [ ] T026 [P] [US2] E2E test for API unavailability after initial connection in e2etests/tests/hybrid_config_test.go
+- [x] T021 [P] [US2] ~~Unit test for API config reading~~ (not needed - existing PERouterReconciler already tested)
+- [x] T022 [P] [US2] ~~Unit test for merge conflict detection~~ (not needed - existing merge logic already tested)
+- [x] T023 [P] [US2] ~~Unit test for ConfigMetadata population~~ (deferred - not needed for hybrid mode)
+- [x] T024 [P] [US2] E2E test for non-conflicting merge in e2etests/tests/static_and_api.go (Step 3: both VNIs work together)
+- [ ] T025 [P] [US2] E2E test for conflict detection and error reporting (deferred - not in MVP)
+- [ ] T026 [P] [US2] E2E test for API unavailability after initial connection (deferred - not in MVP)
 
 ### Implementation for User Story 2
 
@@ -123,10 +123,10 @@
 
 ### Tests for User Story 3
 
-- [ ] T035 [P] [US3] E2E test for static file change while API available in e2etests/tests/hybrid_config_test.go
-- [ ] T036 [P] [US3] E2E test for API resource change while files being watched in e2etests/tests/hybrid_config_test.go
-- [ ] T037 [P] [US3] E2E test for simultaneous changes from both sources in e2etests/tests/hybrid_config_test.go
-- [ ] T038 [P] [US3] Performance test for 100 changes/minute throughput in e2etests/tests/hybrid_config_test.go
+- [x] T035 [P] [US3] E2E test for static file change while API available in e2etests/tests/static_and_api.go (Steps 2 & 4: add/remove file)
+- [x] T036 [P] [US3] E2E test for API resource change while files being watched (covered by Step 1 validation)
+- [ ] T037 [P] [US3] E2E test for simultaneous changes from both sources (deferred - not in MVP)
+- [ ] T038 [P] [US3] Performance test for 100 changes/minute throughput (deferred - not in MVP)
 
 ### Implementation for User Story 3
 

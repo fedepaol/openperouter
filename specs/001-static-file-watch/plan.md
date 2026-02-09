@@ -20,8 +20,8 @@ Enable OpenPERouter running in systemd mode to continuously watch static configu
 **Storage**: File system (static configuration directory), in-memory merge state
 **Testing**:
 - Unit tests: Go testing framework via `make test`
-- E2E tests: Existing systemd_static_suite extended for file watching before API availability
-- E2E tests: Existing e2etests/tests extended for merged mode behavior after API availability
+- E2E tests: systemd_static_suite extended for file watching before API availability ✅
+- E2E tests: e2etests/tests/static_and_api.go for hybrid mode (API + static files) ✅
 
 **Target Platform**: Linux (systemd mode)
 **Project Type**: Single project (OpenPERouter monorepo)
@@ -83,8 +83,8 @@ Enable OpenPERouter running in systemd mode to continuously watch static configu
 ### V. Testing Strategy ✅
 
 - **Unit Tests**: File watcher logic unit tested with mock file system events
-- **E2E Tests**: systemd_static_suite extended for pre-API file watching behavior
-- **E2E Tests**: e2etests/tests extended for post-API merge behavior
+- **E2E Tests**: systemd_static_suite extended for pre-API file watching behavior ✅
+- **E2E Tests**: e2etests/tests/static_and_api.go for hybrid mode (API + static files) ✅
 - **Coverage Requirements**: New file watching and merge logic fully covered
 - **Test Organization**: Test functions first, helper functions at bottom
 
@@ -245,7 +245,7 @@ No constitutional violations - this section intentionally empty.
 
 1. **internal/filewatcher/filewatcher.go**: File watching implementation
 2. **internal/filewatcher/filewatcher_test.go**: Unit tests
-3. **e2etests/tests/hybrid_config_test.go**: E2E tests for hybrid mode
+3. **e2etests/tests/static_and_api.go**: E2E tests for hybrid mode (API + static files)
 
 ### Files to Modify
 
@@ -570,3 +570,71 @@ PERouterReconciler (in hybrid mode)
 ### Summary
 
 Phase 5 required no additional implementation because Phase 4's design naturally supports continuous updates from both sources. The reconciler doesn't care what triggered it - it always reads both sources fresh.
+
+---
+
+## Overall Implementation Status
+
+**Date**: 2026-02-09
+**Status**: ✅ MVP Complete - All Three User Stories Implemented with E2E Tests
+
+### Completed Phases
+
+| Phase | User Story | Status | Test Coverage |
+|-------|-----------|--------|--------------|
+| Phase 3 | US1: Early Boot Configuration Updates | ✅ Complete | e2etests/systemd_static_suite/systemd_static_files_test.go |
+| Phase 4 | US2: Post-API Configuration Merge | ✅ Complete | e2etests/tests/static_and_api.go |
+| Phase 5 | US3: Continuous Runtime Updates | ✅ Complete | e2etests/tests/static_and_api.go |
+
+### Test Coverage Summary
+
+**Unit Tests**:
+- `internal/filewatcher/filewatcher_test.go` - FileWatcher event detection, debouncing, lifecycle
+
+**E2E Tests**:
+- `e2etests/systemd_static_suite/systemd_static_files_test.go` - File watching in static-only mode
+- `e2etests/tests/static_and_api.go` - Complete hybrid mode lifecycle:
+  - Step 1: API-only configuration (blue VNI)
+  - Step 2: Add static file configuration (red VNI)
+  - Step 3: Verify both work together (hybrid mode with route validation)
+  - Step 4: Remove static file
+  - Step 5: Verify API-only configuration remains
+
+### Key Implementation Details
+
+**Files Created**:
+- `internal/filewatcher/filewatcher.go` - File watching with fsnotify and debouncing
+- `internal/filewatcher/filewatcher_test.go` - Unit tests for FileWatcher
+- `e2etests/tests/static_and_api.go` - Hybrid mode E2E test with DaemonSet-based file manipulation
+
+**Files Modified**:
+- `cmd/hostcontroller/main.go` - Wire FileWatcher to reconcilers
+- `internal/controller/routerconfiguration/underlay_vni_controller.go` - Add TriggerChan support
+- `internal/controller/routerconfiguration/static_configuration_reader.go` - Namespace awareness
+- `internal/conversion/api.go` - Namespace support for static config
+
+**Architecture Decisions**:
+- Use separate reconcilers for different modes (StaticConfigReconciler vs PERouterReconciler)
+- Context-based lifecycle management for clean transitions
+- Channel-based triggering for file changes (integrates with controller-runtime)
+- DaemonSet approach for multi-node E2E test file manipulation
+- No metadata tracking needed (YAGNI - existing merge logic sufficient)
+
+### Deferred Items (Not in MVP)
+
+- T025: Conflict detection E2E test (existing validation logic handles conflicts)
+- T026: API unavailability test (graceful degradation already works)
+- T037: Simultaneous changes from both sources test
+- T038: Performance test for 100 changes/minute
+- Edge case handling (Phase 6 from tasks.md):
+  - Partial file writes with retry logic
+  - Large file size warnings
+  - Directory deletion detection
+
+### Next Steps
+
+If further work is desired:
+1. Add conflict detection E2E test (T025)
+2. Add edge case handling from Phase 6
+3. Add performance benchmarking (T038)
+4. Update architecture documentation in website/content/docs/

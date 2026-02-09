@@ -3,13 +3,17 @@
 **Feature Branch**: `001-static-file-watch`
 **Created**: 2026-02-06
 **Last Updated**: 2026-02-09
-**Status**: In Progress (Phase 4 Complete)
+**Status**: MVP Complete - Core E2E Tests Implemented
 **Input**: User description: "when we run in systemd mode we are able to consume files from a static folder. Those files are read only when the process starts but we want to be able to react to the changes of those files both before the api server becomes available and after it's available. When the apiserver is available, the configuration read via the static files must be merged with what comes from the k8s api"
 
 **Implementation Status**:
-- ✅ User Story 1 (P1): Early Boot Configuration Updates - COMPLETE
-- ✅ User Story 2 (P2): Post-API Configuration Merge - COMPLETE
-- ✅ User Story 3 (P3): Continuous Runtime Updates - COMPLETE (via Phase 4 implementation)
+- ✅ User Story 1 (P1): Early Boot Configuration Updates - COMPLETE (with E2E tests)
+- ✅ User Story 2 (P2): Post-API Configuration Merge - COMPLETE (with E2E tests)
+- ✅ User Story 3 (P3): Continuous Runtime Updates - COMPLETE (via Phase 4 implementation, with E2E tests)
+
+**Test Coverage**:
+- ✅ e2etests/systemd_static_suite/systemd_static_files_test.go - File watching tests
+- ✅ e2etests/tests/static_and_api.go - Hybrid mode lifecycle test (API + static files)
 
 ## User Scenarios & Testing *(mandatory)*
 
