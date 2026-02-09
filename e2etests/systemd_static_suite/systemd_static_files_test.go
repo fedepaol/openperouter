@@ -3,6 +3,9 @@
 package systemd_static
 
 import (
+	"fmt"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openperouter/openperouter/api/v1alpha1"
@@ -65,43 +68,73 @@ var _ = Describe("Static configuration", Ordered, func() {
 			By("removing a route from leafA on vni 100")
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())
 		})
+
+		It("dynamically adds and removes a VNI via file watching", func() {
+			// Define blue VNI
+			vniBlue := v1alpha1.L3VNI{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "blue",
+					Namespace: openperouter.Namespace,
+				},
+				Spec: v1alpha1.L3VNISpec{
+					VRF: "blue",
+					HostSession: &v1alpha1.HostSession{
+						ASN:     64514,
+						HostASN: 64515,
+						LocalCIDR: v1alpha1.LocalCIDRConfig{
+							IPv4: "192.169.11.0/24",
+							IPv6: "2001:db8:2::/64",
+						},
+					},
+					VNI: 200,
+				},
+			}
+
+			staticBlueVNIYAML := `l3vnis:
+  - vrf: blue
+    hostSession:
+      asn: 64514
+      hostASN: 64515
+      localCIDR:
+        ipv4: "192.169.11.0/24"
+        ipv6: "2001:db8:2::/64"
+    vni: 200
+`
+
+			emptyPrefixes := []string{}
+			leafAVRFBluePrefixes := []string{"192.168.21.0/24", "2001:db8:21::/64"}
+			configFilePath := "/etc/openperouter/configs/openpe_blue.yaml"
+
+			By("creating blue VNI file on all router containers")
+			for router := range routers.GetExecutors() {
+				cmd := fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", configFilePath, staticBlueVNIYAML)
+				_, err := router.Exec("sh", "-c", cmd)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			By("waiting for file watcher to detect the new file and apply configuration")
+			time.Sleep(10 * time.Second)
+
+			By("announcing type 5 routes on VNI 200 from leafA")
+			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, leafAVRFBluePrefixes)).To(Succeed())
+
+			By("validating blue VNI routes are received")
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, mustContain, leafAVRFBluePrefixes)
+
+			By("removing blue VNI file from all router containers")
+			for router := range routers.GetExecutors() {
+				_, err := router.Exec("rm", "-f", configFilePath)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			By("waiting for file watcher to detect file removal")
+			time.Sleep(10 * time.Second)
+
+			By("validating blue VNI routes are no longer received")
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniBlue, shouldNotContain, leafAVRFBluePrefixes)
+
+			By("cleaning up routes from leafA")
+			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())
+		})
 	})
-
-	Context("file watching", func() {
-		It("detects static file modifications", func() {
-			Skip("E2E test implementation pending - requires test infrastructure setup")
-			// This test will verify that modifying a static config file
-			// triggers reconciliation and route updates without process restart
-			// TODO: Implement actual test logic:
-			// 1. Deploy OpenPERouter in systemd mode with static files
-			// 2. Verify initial routes are programmed
-			// 3. Modify a static config file
-			// 4. Wait up to 5 seconds
-			// 5. Verify routes updated without process restart
-		})
-
-		It("detects static file creation", func() {
-			Skip("E2E test implementation pending - requires test infrastructure setup")
-			// This test will verify that adding a new static config file
-			// triggers reconciliation and new routes appear
-			// TODO: Implement actual test logic:
-			// 1. Deploy OpenPERouter in systemd mode
-			// 2. Add a new openpe_*.yaml file to config directory
-			// 3. Wait up to 5 seconds
-			// 4. Verify new routes appear
-		})
-
-		It("detects static file deletion", func() {
-			Skip("E2E test implementation pending - requires test infrastructure setup")
-			// This test will verify that deleting a static config file
-			// triggers reconciliation and routes are removed
-			// TODO: Implement actual test logic:
-			// 1. Deploy OpenPERouter in systemd mode with multiple files
-			// 2. Verify initial routes from both files
-			// 3. Delete one config file
-			// 4. Wait up to 5 seconds
-			// 5. Verify routes from deleted file are removed
-		})
-	})
-	// TODO Create vni blue with the api server
 })
