@@ -104,23 +104,6 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
     vni: 100
 `
 
-	// Underlay from API
-	underlayFromAPI := v1alpha1.Underlay{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: openperouter.Namespace,
-		},
-		Spec: v1alpha1.UnderlaySpec{
-			ASN: 64512,
-			Neighbors: []v1alpha1.Neighbor{
-				{
-					ASN:     64513,
-					Address: "192.168.1.1",
-				},
-			},
-		},
-	}
-
 	BeforeAll(func() {
 		var err error
 
@@ -156,7 +139,7 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		// Create Underlay + Blue VNI via API
 		By("Creating underlay and blue VNI via API")
 		err = Updater.Update(config.Resources{
-			Underlays:         []v1alpha1.Underlay{underlayFromAPI},
+			Underlays:         []v1alpha1.Underlay{infra.Underlay},
 			L3VNIs:            []v1alpha1.L3VNI{vniBlueFromAPI},
 			FRRConfigurations: frrK8sConfigBlue,
 		})
@@ -223,7 +206,7 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 
 		By("applying FRR configuration for red VNI")
 		err := Updater.Update(config.Resources{
-			Underlays:         []v1alpha1.Underlay{underlayFromAPI},
+			Underlays:         []v1alpha1.Underlay{infra.Underlay},
 			L3VNIs:            []v1alpha1.L3VNI{vniBlueFromAPI},
 			FRRConfigurations: append(frrK8sConfigBlue, frrK8sConfigRed...),
 		})
