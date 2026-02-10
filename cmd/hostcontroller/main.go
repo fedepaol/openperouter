@@ -205,39 +205,41 @@ func runHostMode(
 	}
 
 	staticControllerCtx, stopStaticReconciler := context.WithCancel(ctx)
+	defer stopStaticReconciler()
 
-	// Wait for K8s API and transition to API reconciler when available
 	go func() {
-		logger.Info("waiting for kubernetes API")
-		k8sConfig, err := waitForKubernetes(context.Background(), hostModeParams.k8sWaitInterval)
-		if err != nil {
-			logger.Error("failed to connect to kubernetes API, will continue with static config only", "error", err)
+		logger.Info("creating static configuration controller for host mode")
+		err := runStaticConfigReconciler(
+			staticControllerCtx, args, hostModeParams, nodeConfig, logger, args.probeAddr,
+		)
+		if errors.Is(err, context.Canceled) {
+			logger.Info("static config reconciler stopped (API became available)")
 			return
 		}
-
-		logger.Info("kubernetes API is now available, stopping static reconciler and starting k8s reconciler")
-
-		// Stop static reconciler and its FileWatcher
-		stopStaticReconciler()
-
-		// Start API reconciler (with new FileWatcher)
-		if err := runK8sConfigReconcilerHostMode(
-			ctx, args, hostModeParams, nodeConfig, k8sConfig, logger,
-		); err != nil {
-			logger.Error("failed to enable k8s reconciler", "error", err)
-			return
+		if err != nil {
+			logger.Error("failed to run static config reconciler", "error", err)
 		}
 	}()
 
-	// Host mode: create static manager first, then wait for k8s in background
-	logger.Info("creating static configuration controller for host mode")
-	if err := runStaticConfigReconciler(staticControllerCtx, args, hostModeParams, nodeConfig, logger, args.probeAddr); err != nil {
-		// Only exit if it's not due to context cancellation (API becoming available)
-		if !errors.Is(err, context.Canceled) {
-			logger.Error("failed to run static config reconciler", "error", err)
-			os.Exit(1)
-		}
-		logger.Info("static config reconciler stopped (API became available)")
+	// Wait for K8s API in main thread (blocking)
+	logger.Info("waiting for kubernetes API")
+	k8sConfig, err := waitForKubernetes(ctx, hostModeParams.k8sWaitInterval)
+	if err != nil {
+		logger.Error("failed to connect to kubernetes API, will continue with static config only", "error", err)
+		<-ctx.Done()
+		return
+	}
+
+	logger.Info("kubernetes API is now available, stopping static reconciler and starting k8s reconciler")
+
+	stopStaticReconciler()
+
+	// Start API reconciler in main thread (blocking) - keeps process alive
+	if err := runK8sConfigReconcilerHostMode(
+		ctx, args, hostModeParams, nodeConfig, k8sConfig, logger,
+	); err != nil {
+		logger.Error("failed to enable k8s reconciler", "error", err)
+		os.Exit(1)
 	}
 }
 
