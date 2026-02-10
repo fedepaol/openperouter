@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	// Static configuration directory on the host (default from cmd/hostcontroller)
-	hostConfigDir = "/etc/openperouter/configs"
+	// Static configuration directory on the host (from systemdmode/generate_systemd.sh)
+	// The systemd setup mounts /var/lib/openperouter -> /etc/openperouter in the container
+	hostConfigDir = "/var/lib/openperouter/configs"
 	// Mount path inside the helper pod
 	podConfigMount = "/configs"
 )
