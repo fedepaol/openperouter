@@ -8,49 +8,20 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/frr"
 )
 
-const (
-	ClabPrefix = "clab-kind-"
-	KindLeaf   = ClabPrefix + "leafkind"
-	LeafA      = ClabPrefix + "leafA"
-	LeafB      = ClabPrefix + "leafB"
+var (
+	ClabPrefix string
+	KindLeaf   string
+	LeafA      string
+	LeafB      string
 )
 
 var (
-	KindLeafContainer = frr.Container{
-		Name:       KindLeaf,
-		ConfigPath: "leafkind",
-	}
-	LeafAContainer = frr.Container{
-		Name:       LeafA,
-		ConfigPath: "leafA",
-	}
-
-	LeafBContainer = frr.Container{
-		Name:       LeafB,
-		ConfigPath: "leafB",
-	}
+	KindLeafContainer frr.Container
+	LeafAContainer    frr.Container
+	LeafBContainer    frr.Container
 )
 
 var links linksForRouters
-
-func init() {
-	links = linksForRouters{
-		nodes: map[string]node{},
-	}
-	links.Add("clab-kind-leafkind", "pe-kind-control-plane", "192.168.11.2", "192.168.11.3")
-	links.Add("clab-kind-leafkind", "pe-kind-worker", "192.168.11.2", "192.168.11.4")
-	links.Add("clab-kind-leafkind", "clab-kind-spine", "192.168.1.5", "192.168.1.4")
-	links.Add("clab-kind-leafA", "clab-kind-spine", "192.168.1.1", "192.168.1.0")
-	links.Add("clab-kind-leafB", "clab-kind-spine", "192.168.1.3", "192.168.1.2")
-	links.Add("clab-kind-leafA", "clab-kind-hostA_red", "192.168.20.1", HostARedIPv4)
-	links.Add("clab-kind-leafA", "clab-kind-hostA_blue", "192.168.21.1", HostABlueIPv4)
-	links.Add("clab-kind-leafB", "clab-kind-hostB_red", "192.169.20.1", HostBRedIPv4)
-	links.Add("clab-kind-leafB", "clab-kind-hostB_blue", "192.169.21.1", HostBBlueIPv4)
-}
-
-type linksForRouters struct {
-	nodes map[string]node
-}
 
 func NeighborIP(from, to string) (string, error) {
 	fromNeighbors, ok := links.nodes[from]
@@ -65,6 +36,10 @@ func NeighborIP(from, to string) (string, error) {
 		return "", fmt.Errorf("node %s has no neighbor %s", from, to)
 	}
 	return toIP, nil
+}
+
+type linksForRouters struct {
+	nodes map[string]node
 }
 
 func (l *linksForRouters) Add(first, second, addressFirst, addressSecond string) {

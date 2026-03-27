@@ -2,7 +2,7 @@
 
 package infra
 
-const (
+var (
 	KindControlPlane = "pe-kind-control-plane"
 	KindWorker       = "pe-kind-worker"
 )

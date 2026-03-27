@@ -14,33 +14,23 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	HostARedIPv4     = "192.168.20.2"
-	HostABlueIPv4    = "192.168.21.2"
-	HostADefaultIPv4 = "192.168.22.2"
-	HostBRedIPv4     = "192.169.20.2"
-	HostBBlueIPv4    = "192.169.21.2"
+var (
+	HostARedIPv4     string
+	HostABlueIPv4    string
+	HostADefaultIPv4 string
+	HostBRedIPv4     string
+	HostBBlueIPv4    string
 
-	HostARedIPv6  = "2001:db8:20::2"
-	HostABlueIPv6 = "2001:db8:21::2"
-	HostBRedIPv6  = "2001:db8:169:20::2"
-	HostBBlueIPv6 = "2001:db8:169:21::2"
+	HostARedIPv6  string
+	HostABlueIPv6 string
+	HostBRedIPv6  string
+	HostBBlueIPv6 string
 )
 
 var (
-	LeafAConfig = Leaf{
-		VTEPIP:       "100.64.0.1",
-		SpineAddress: "192.168.1.0",
-		Container:    LeafAContainer,
-	}
-	LeafBConfig = Leaf{
-		VTEPIP:       "100.64.0.2",
-		SpineAddress: "192.168.1.2",
-		Container:    LeafBContainer,
-	}
-	LeafKindConfig = LeafKind{
-		Container: KindLeafContainer,
-	}
+	LeafAConfig    Leaf
+	LeafBConfig    Leaf
+	LeafKindConfig LeafKind
 )
 
 type LeafConfiguration struct {
@@ -51,6 +41,10 @@ type LeafConfiguration struct {
 }
 
 type LeafKindConfiguration struct {
+	ASN                   uint32
+	SpineASN              uint32
+	SpineAddress          string
+	PeerASN               uint32
 	EnableBFD             bool
 	RedistributeConnected bool
 	Neighbors             []string
@@ -64,11 +58,16 @@ type Addresses struct {
 
 type Leaf struct {
 	VTEPIP       string
+	ASN          uint32
+	SpineASN     uint32
 	SpineAddress string
 	frr.Container
 }
 
 type LeafKind struct {
+	ASN          uint32
+	SpineASN     uint32
+	SpineAddress string
 	frr.Container
 }
 
@@ -139,8 +138,12 @@ func UpdateLeafKindConfig(nodes []corev1.Node, enableBFD bool) error {
 	}
 
 	config := LeafKindConfiguration{
-		EnableBFD: enableBFD,
-		Neighbors: neighbors,
+		ASN:          LeafKindConfig.ASN,
+		SpineASN:     LeafKindConfig.SpineASN,
+		SpineAddress: LeafKindConfig.SpineAddress,
+		PeerASN:      Underlay.Spec.ASN,
+		EnableBFD:    enableBFD,
+		Neighbors:    neighbors,
 	}
 
 	configString, err := LeafKindConfigToFRR(config)

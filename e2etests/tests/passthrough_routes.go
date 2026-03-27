@@ -236,7 +236,7 @@ var _ = Describe("Routes between bgp and the fabric", Label("passthrough"), Orde
 			Expect(err).NotTo(HaveOccurred())
 
 			podExecutor := executor.ForPod(testPod.Namespace, testPod.Name, "agnhost")
-			externalHostExecutor := executor.ForContainer("clab-kind-hostA_default")
+			externalHostExecutor := executor.ForContainer(infra.ContainerName("hostA_default"))
 
 			Eventually(func() error {
 				externalHostIP := infra.HostADefaultIPv4

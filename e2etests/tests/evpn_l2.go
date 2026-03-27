@@ -178,7 +178,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 
 		podExecutor := executor.ForPod(firstPod.Namespace, firstPod.Name, "agnhost")
 		secondPodExecutor := executor.ForPod(secondPod.Namespace, secondPod.Name, "agnhost")
-		hostARedExecutor := executor.ForContainer("clab-kind-hostA_red")
+		hostARedExecutor := executor.ForContainer(infra.ContainerName("hostA_red"))
 
 		tests := []struct {
 			exec    executor.Executor

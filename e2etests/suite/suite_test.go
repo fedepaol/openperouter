@@ -12,6 +12,7 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
+	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
@@ -24,6 +25,8 @@ var (
 	updater *config.Updater
 )
 
+var devenvState string
+
 // handleFlags sets up all flags and parses the command line.
 func handleFlags() {
 	flag.StringVar(&executor.Kubectl, "kubectl", "kubectl", "the path for the kubectl binary")
@@ -31,6 +34,7 @@ func handleFlags() {
 	flag.StringVar(&tests.ReportPath, "reporterpath", "/tmp", "the path for the reporter")
 	flag.BoolVar(&tests.HostMode, "systemdmode", false, "tells if openperouter is running on the host")
 	flag.BoolVar(&tests.SkipUnderlayPassthrough, "skip-underlay-passthrough", false, "skip creating underlay in passthrough tests")
+	flag.StringVar(&devenvState, "devenv-state", "", "path to the devenv state file for topology data")
 	flag.Parse()
 }
 
@@ -55,6 +59,15 @@ func TestE2E(t *testing.T) {
 
 var _ = ginkgo.BeforeSuite(func() {
 	log.SetLogger(zap.New(zap.WriteTo(ginkgo.GinkgoWriter), zap.UseDevMode(true)))
+
+	if devenvState == "" {
+		devenvState = os.Getenv("DEVENV_STATE")
+	}
+	if devenvState != "" {
+		err := infra.Init(devenvState)
+		Expect(err).NotTo(HaveOccurred(), "failed to load devenv state")
+	}
+
 	clientconfig := k8sclient.RestConfig()
 	var err error
 	updater, err = config.UpdaterForCRs(clientconfig, openperouter.Namespace)

@@ -36,6 +36,10 @@ func redistributeConnectedForLeafKind(nodes []corev1.Node) {
 	}
 
 	config := infra.LeafKindConfiguration{
+		ASN:                   infra.LeafKindConfig.ASN,
+		SpineASN:              infra.LeafKindConfig.SpineASN,
+		SpineAddress:          infra.LeafKindConfig.SpineAddress,
+		PeerASN:               infra.Underlay.Spec.ASN,
 		RedistributeConnected: true,
 		Neighbors:             neighbors,
 	}

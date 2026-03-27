@@ -323,15 +323,13 @@ var _ = Describe("Underlay BFD Configuration", Ordered, func() {
 					Namespace: openperouter.Namespace,
 				},
 				Spec: v1alpha1.UnderlaySpec{
-					ASN:  64514,
-					Nics: []string{"toswitch"},
-					EVPN: &v1alpha1.EVPNConfig{
-						VTEPCIDR: "100.65.0.0/24",
-					},
+					ASN:  infra.Underlay.Spec.ASN,
+					Nics: infra.Underlay.Spec.Nics,
+					EVPN: infra.Underlay.Spec.EVPN,
 					Neighbors: []v1alpha1.Neighbor{
 						{
-							ASN:     64512,
-							Address: "192.168.11.2",
+							ASN:     infra.Underlay.Spec.Neighbors[0].ASN,
+							Address: infra.Underlay.Spec.Neighbors[0].Address,
 							BFD:     &v1alpha1.BFDSettings{},
 						},
 					},
@@ -344,15 +342,13 @@ var _ = Describe("Underlay BFD Configuration", Ordered, func() {
 					Namespace: openperouter.Namespace,
 				},
 				Spec: v1alpha1.UnderlaySpec{
-					ASN:  64514,
-					Nics: []string{"toswitch"},
-					EVPN: &v1alpha1.EVPNConfig{
-						VTEPCIDR: "100.65.0.0/24",
-					},
+					ASN:  infra.Underlay.Spec.ASN,
+					Nics: infra.Underlay.Spec.Nics,
+					EVPN: infra.Underlay.Spec.EVPN,
 					Neighbors: []v1alpha1.Neighbor{
 						{
-							ASN:     64512,
-							Address: "192.168.11.2",
+							ASN:     infra.Underlay.Spec.Neighbors[0].ASN,
+							Address: infra.Underlay.Spec.Neighbors[0].Address,
 							BFD: &v1alpha1.BFDSettings{
 								TransmitInterval: ptr.To(uint32(90)),
 								ReceiveInterval:  ptr.To(uint32(80)),

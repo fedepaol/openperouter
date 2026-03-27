@@ -137,7 +137,7 @@ var _ = Describe("North/south traffic after FRR container restart", Ordered, fun
 		By("removing the default gateway via the primary interface")
 		Expect(removeGatewayFromPod(clientPod)).To(Succeed())
 
-		hostARedExecutor := executor.ForContainer("clab-kind-hostA_red")
+		hostARedExecutor := executor.ForContainer(infra.ContainerName("hostA_red"))
 
 		By("verifying north south traffic works before FRR restart")
 		firstPodIP := "192.171.24.2"

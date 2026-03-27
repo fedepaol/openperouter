@@ -611,3 +611,7 @@ deploy-olm: operator-sdk ## deploys OLM on the cluster
 
 build-and-push-bundle-images: bundle-build bundle-push catalog-build catalog-push
 
+.PHONY: devenv
+devenv: ## Build the devenv CLI tool
+	go build -o $(LOCALBIN)/devenv ./cmd/devenv/
+

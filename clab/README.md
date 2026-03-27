@@ -4,6 +4,8 @@ The test environment supports two different topologies:
 1. [Single Cluster Topology](singlecluster/README.md) - Uses one Kind cluster connected to the fabric
 2. [Multi Cluster Topology](multicluster/README.md) - Uses two Kind clusters (Leaf Kind A and Leaf Kind B) connected to separate leaf switches
 
+See [DEVENV.md](DEVENV.md) for the declarative topology configuration tool (`devenv`) that automates IP allocation, FRR config generation, and topology state management.
+
 ## FRR-K8s
 
 FRR-K8s is a Kubernetes controller that allows you to run FRR in a Kubernetes cluster. Given the low level nature of its API, it's deployed on the test environent to validate the interaction between the Open PE router and a BGP speaking component running on the host.

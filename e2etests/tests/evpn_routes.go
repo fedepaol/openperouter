@@ -32,10 +32,11 @@ import (
 var (
 	// NOTE: we can't advertise any ip via EVPN from the leaves, they
 	// must be reacheable otherwise FRR will skip them.
-	leafAVRFRedPrefixes  = []string{"192.168.20.0/24", "2001:db8:20::/64"}
-	leafAVRFBluePrefixes = []string{"192.168.21.0/24", "2001:db8:21::/64"}
-	leafBVRFRedPrefixes  = []string{"192.169.20.0/24", "2001:db8:169:20::/64"}
-	leafBVRFBluePrefixes = []string{"192.169.21.0/24", "2001:db8:169:21::/64"}
+	// These are derived from devenv link subnet data between leaves and hosts.
+	leafAVRFRedPrefixes  = infra.LinkPrefixList("leafA", "hostA_red")
+	leafAVRFBluePrefixes = infra.LinkPrefixList("leafA", "hostA_blue")
+	leafBVRFRedPrefixes  = infra.LinkPrefixList("leafB", "hostB_red")
+	leafBVRFBluePrefixes = infra.LinkPrefixList("leafB", "hostB_blue")
 	emptyPrefixes        = []string{}
 )
 
@@ -367,7 +368,7 @@ var _ = Describe("Routes between bgp and the fabric", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			podExecutor := executor.ForPod(testPod.Namespace, testPod.Name, "agnhost")
-			externalHostExecutor := executor.ForContainer("clab-kind-" + hostName)
+			externalHostExecutor := executor.ForContainer(infra.ContainerName(hostName))
 
 			Eventually(func() error {
 				By(fmt.Sprintf("trying to hit hosts %s on the %s network", externalHostIP, vni.Name))
