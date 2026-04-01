@@ -1,0 +1,58 @@
+! OpenPERouter FRR EVPN Configuration Template
+! This template is filled by setup-vpn.sh with node-specific values
+!
+! Generated on: {{TIMESTAMP}}
+! Node: {{NODE_NAME}}
+
+frr version 8.0
+frr defaults traditional
+hostname {{NODE_NAME}}
+log file /etc/frr/frr.log informational
+
+! Router ID derived from VTEP IP
+router bgp {{LOCAL_AS}}
+ bgp router-id {{ROUTER_ID}}
+ no bgp ebgp-requires-policy
+ no bgp network import-check
+ no bgp default ipv4-unicast
+
+ ! TOR switch neighbor (underlay)
+ neighbor {{TOR_IP}} remote-as {{TOR_AS}}
+
+ ! IPv4 unicast address family (underlay)
+ address-family ipv4 unicast
+  neighbor {{TOR_IP}} activate
+  network {{VTEP_IP}}/32
+ exit-address-family
+
+ ! L2VPN EVPN address family (overlay)
+ address-family l2vpn evpn
+  neighbor {{TOR_IP}} activate
+  advertise-all-vni
+  advertise-svi-ip
+ exit-address-family
+exit
+
+! L3VNI VRF configuration
+vrf {{VRF_NAME}}
+ vni {{L3_VNI}}
+exit-vrf
+
+! L3VNI BGP instance
+router bgp {{LOCAL_AS}} vrf {{VRF_NAME}}
+ address-family ipv4 unicast
+  redistribute connected
+ exit-address-family
+
+ address-family l2vpn evpn
+  advertise ipv4 unicast
+ exit-address-family
+exit
+
+! L2VNI bridge interface (where gateway IP is assigned)
+interface br-pe-{{L2_VNI}}
+ ip address {{L2_GATEWAY_IP}}
+exit
+
+line vty
+exit
