@@ -1,0 +1,49 @@
+# OpenPERouter Static Configuration Template
+# This template is filled by setup-vpn.sh with node-specific values
+#
+# Placeholders:
+#   {{VTEP_IP}}        - VTEP IP derived from br0 (10.0.0.X format)
+#   {{UNDERLAY_NIC}}   - Physical NIC for underlay
+#   {{TOR_IP}}         - TOR switch IP address
+#   {{TOR_AS}}         - TOR switch AS number
+#   {{LOCAL_AS}}       - Local BGP AS number
+#   {{VRF_NAME}}       - VRF name
+#   {{L3_VNI}}         - L3VPN VXLAN VNI
+#   {{L2_VNI}}         - L2VPN VXLAN VNI
+#   {{VXLAN_PORT}}     - VXLAN UDP port
+#   {{L2_GATEWAY_IP}}  - L2VPN gateway IP
+
+underlays:
+  - asn: {{LOCAL_AS}}
+    evpn:
+      vtepcidr: {{VTEP_IP}}/24
+    nics:
+      - {{UNDERLAY_NIC}}
+    neighbors:
+      - asn: {{TOR_AS}}
+        address: {{TOR_IP}}
+
+l3vnis:
+  - vrf: {{VRF_NAME}}
+    vni: {{L3_VNI}}
+    vxlanport: {{VXLAN_PORT}}
+
+l2vnis:
+  - vni: {{L2_VNI}}
+    vrf: {{VRF_NAME}}
+    vxlanport: {{VXLAN_PORT}}
+    l2gatewayips:
+      - "{{L2_GATEWAY_IP}}"
+    hostmaster:
+      type: linux-bridge
+      linuxBridge:
+        name: br0
+
+rawfrrconfigs:
+  - priority: 100
+    rawConfig: |
+      ! EVPN SVI IP advertisement
+      router bgp {{LOCAL_AS}}
+        address-family l2vpn evpn
+          advertise-svi-ip
+        exit-address-family

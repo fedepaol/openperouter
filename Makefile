@@ -203,6 +203,10 @@ deploy-hostmode-boot: export KUSTOMIZE_LAYER=hostmode
 deploy-hostmode-boot: kind deploy-cluster setup-hostmode-boot ## Deploy cluster in hostmode with static config, without deploying controller (boot mode).
 	./systemdmode/deploy.sh $(KIND_CLUSTER_NAME)
 
+.PHONY: deploy-vpn-setup
+deploy-vpn-setup: ## Deploy VPN setup script to all nodes in the cluster.
+	./systemdmode/deploy-vpn-setup.sh $(KIND_CLUSTER_NAME)
+
 .PHONY: deploy-multi
 deploy-multi: kind deploy-multi-cluster deploy-controller-multi ## Deploy cluster and controller.
 
