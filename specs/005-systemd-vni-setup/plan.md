@@ -7,7 +7,7 @@
 
 ## Summary
 
-Create a bash script that runs as a systemd oneshot service **inside containerlab kind nodes** to automatically configure L2VPN (VNI 210) and L3VPN (VNI 100) networks in systemd mode. The script waits for FRR container readiness, derives node-specific VTEP IP from br0's last octet, generates static configuration YAML from a template, moves the host NIC into the FRR namespace for underlay connectivity. The controller reads the static configuration and renders FRR EVPN configuration. Deployment follows existing patterns from `systemdmode/deploy.sh` - copying script, template, and service unit to each kind node. Configuration uses environment variables with hardcoded defaults; fails fast on error without rollback (development/testing environment).
+Create two bash scripts that run as systemd oneshot services **inside containerlab kind nodes** to automatically configure L2VPN (VNI 210) and L3VPN (VNI 100) networks in systemd mode. The first unit (`setup-underlay.service`) waits for FRR container readiness, derives node-specific VTEP IP from br0's last octet, moves the host NIC into the FRR namespace for underlay connectivity, and saves variables to a file. The second unit (`generate-config.service`) reads the saved variables, generates static configuration YAML from a template (including a rawfrrconfigs entry with full EVPN BGP configuration), and writes to `/var/lib/openperouter/configs/`. The controller reads the static configuration and processes the rawfrrconfigs entry to render and apply FRR EVPN configuration. Deployment follows existing patterns from `systemdmode/deploy.sh` - copying scripts, template, and service units to each kind node. Configuration uses environment variables with hardcoded defaults; fails fast on error without rollback (development/testing environment).
 
 ## Technical Context
 
@@ -70,7 +70,8 @@ specs/005-systemd-vni-setup/
 ```text
 systemdmode/
 ├── common.sh                         # Existing utilities (frr_netns_pid, inns, isfrr_ready)
-├── setup-vpn.sh                      # NEW: Main VPN setup script
+├── setup-underlay.sh                 # NEW: Underlay setup (wait FRR, move NIC, derive VTEP)
+├── generate-config.sh                # NEW: Config generation (render template, write YAML)
 ├── openpe_evpn.yaml.template         # NEW: Static config template with placeholders
 ├── frrconfig/
 │   ├── daemons                       # Existing FRR daemons config
@@ -78,10 +79,13 @@ systemdmode/
 └── quadlets/
     ├── routerpod.pod                 # Existing router pod definition
     ├── frr.container                 # Existing FRR container
-    └── vpn-setup.service             # NEW: Systemd oneshot service unit
+    ├── setup-underlay.service        # NEW: Systemd unit for underlay setup
+    └── generate-config.service       # NEW: Systemd unit for config generation
 
-/var/lib/openperouter/configs/        # Runtime configuration directory (host)
-└── openpe_evpn.yaml                  # Generated from template by setup-vpn.sh
+/var/lib/openperouter/                # Runtime directory (host)
+├── configs/
+│   └── openpe_evpn.yaml              # Generated YAML config (by generate-config.sh)
+└── vpn-setup.vars                    # Variables saved by setup-underlay.sh
 
 config/samples/
 ├── l2vni.yaml                        # Existing L2VNI CRD reference
@@ -89,10 +93,14 @@ config/samples/
 ```
 
 **Structure Decision**: 
-- Extend systemdmode/ with setup script, YAML template, and systemd service unit
+- Extend systemdmode/ with two setup scripts, YAML template, and two systemd service units
+- **Two-unit approach**:
+  1. `setup-underlay.service`: Waits for FRR, derives VTEP IP, moves NIC, saves variables
+  2. `generate-config.service`: Reads variables, renders template, writes YAML config
 - Use OpenPERouter's static configuration infrastructure (`/var/lib/openperouter/configs/openpe_*.yaml`)
-- Script generates configuration from template, filling in node-specific values (VTEP IP, NIC name)
-- Controller reads static config and renders to FRR configuration
+- Variables saved to `/var/lib/openperouter/vpn-setup.vars` (passed between units)
+- Template includes rawfrrconfigs entry with complete FRR EVPN configuration (no podman cp needed)
+- Controller reads static config, processes rawfrrconfigs entry, and renders/applies to FRR configuration
 - Manual/bash-based testing only (no automated e2e tests)
 
 ## Deployment Model

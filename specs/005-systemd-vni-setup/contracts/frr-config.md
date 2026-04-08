@@ -205,10 +205,13 @@ rawfrrconfigs:
 - `priority`: Controls ordering when multiple snippets exist
 
 **Use Cases**:
+- **Complete EVPN configuration**: Full BGP and EVPN setup including underlay sessions, VTEP config, VRF definitions, and bridge interfaces
 - EVPN route policies
 - BFD configuration
 - Advanced BGP tuning
 - Route maps
+
+**Note**: In this implementation, `rawfrrconfigs` contains the complete FRR EVPN configuration, eliminating the need to copy configuration files with `podman cp`. The controller processes the `rawConfig` string and applies it to FRR.
 
 ## Template File
 
@@ -251,11 +254,61 @@ l2vnis:
 rawfrrconfigs:
   - priority: 100
     rawConfig: |
-      ! EVPN SVI IP advertisement
+      ! OpenPERouter FRR EVPN Configuration
+      ! Generated from template with node-specific values
+      
+      frr version 8.0
+      frr defaults traditional
+      hostname {{NODE_NAME}}
+      log file /etc/frr/frr.log informational
+      
+      ! Router ID derived from VTEP IP
       router bgp {{LOCAL_AS}}
-        address-family l2vpn evpn
-          advertise-svi-ip
-        exit-address-family
+       bgp router-id {{VTEP_IP}}
+       no bgp ebgp-requires-policy
+       no bgp network import-check
+       no bgp default ipv4-unicast
+      
+       ! TOR switch neighbor (underlay)
+       neighbor {{TOR_IP}} remote-as {{TOR_AS}}
+      
+       ! IPv4 unicast address family (underlay)
+       address-family ipv4 unicast
+        neighbor {{TOR_IP}} activate
+        network {{VTEP_IP}}/32
+       exit-address-family
+      
+       ! L2VPN EVPN address family (overlay)
+       address-family l2vpn evpn
+        neighbor {{TOR_IP}} activate
+        advertise-all-vni
+        advertise-svi-ip
+       exit-address-family
+      exit
+      
+      ! L3VNI VRF configuration
+      vrf {{VRF_NAME}}
+       vni {{L3_VNI}}
+      exit-vrf
+      
+      ! L3VNI BGP instance
+      router bgp {{LOCAL_AS}} vrf {{VRF_NAME}}
+       address-family ipv4 unicast
+        redistribute connected
+       exit-address-family
+      
+       address-family l2vpn evpn
+        advertise ipv4 unicast
+       exit-address-family
+      exit
+      
+      ! L2VNI bridge interface (where gateway IP is assigned)
+      interface br-pe-{{L2_VNI}}
+       ip address {{L2_GATEWAY_IP}}
+      exit
+      
+      line vty
+      exit
 ```
 
 ### Placeholder Variables
@@ -364,49 +417,111 @@ l2vnis:
 rawfrrconfigs:
   - priority: 100
     rawConfig: |
-      ! EVPN SVI IP advertisement
+      ! OpenPERouter FRR EVPN Configuration
+      frr version 8.0
+      frr defaults traditional
+      hostname node1
+      
       router bgp 64514
-        address-family l2vpn evpn
-          advertise-svi-ip
-        exit-address-family
+       bgp router-id 10.0.0.5
+       no bgp ebgp-requires-policy
+       no bgp network import-check
+       no bgp default ipv4-unicast
+       
+       neighbor 10.1.1.254 remote-as 65000
+       
+       address-family ipv4 unicast
+        neighbor 10.1.1.254 activate
+        network 10.0.0.5/32
+       exit-address-family
+       
+       address-family l2vpn evpn
+        neighbor 10.1.1.254 activate
+        advertise-all-vni
+        advertise-svi-ip
+       exit-address-family
+      exit
+      
+      vrf red
+       vni 100
+      exit-vrf
+      
+      router bgp 64514 vrf red
+       address-family ipv4 unicast
+        redistribute connected
+       exit-address-family
+       address-family l2vpn evpn
+        advertise ipv4 unicast
+       exit-address-family
+      exit
+      
+      interface br-pe-210
+       ip address 192.168.110.1/24
+      exit
 ```
 
 ### Expected FRR Output
 
-The controller renders this to FRR configuration like:
+The controller processes the `rawfrrconfigs` entry and applies it directly to FRR. Since the raw configuration is comprehensive, the controller primarily:
+1. Parses the underlays/l2vnis/l3vnis sections to create network infrastructure (VRFs, bridges, VXLAN interfaces, veth pairs)
+2. Applies the `rawConfig` string from `rawfrrconfigs` to FRR daemon
+
+The resulting FRR configuration is the expanded `rawConfig` content:
 
 ```frr
-! Underlay configuration
-router bgp 64514
-  bgp router-id 10.0.0.5
-  neighbor 10.1.1.254 remote-as 65000
-  address-family ipv4 unicast
-    network 10.0.0.5/32
-  exit-address-family
-  address-family l2vpn evpn
-    neighbor 10.1.1.254 activate
-    advertise-all-vni
-  exit-address-family
+! OpenPERouter FRR EVPN Configuration
+frr version 8.0
+frr defaults traditional
+hostname node1
+log file /etc/frr/frr.log informational
 
-! L3VNI configuration
+! Router ID derived from VTEP IP
+router bgp 64514
+ bgp router-id 10.0.0.5
+ no bgp ebgp-requires-policy
+ no bgp network import-check
+ no bgp default ipv4-unicast
+ 
+ ! TOR switch neighbor (underlay)
+ neighbor 10.1.1.254 remote-as 65000
+ 
+ ! IPv4 unicast address family (underlay)
+ address-family ipv4 unicast
+  neighbor 10.1.1.254 activate
+  network 10.0.0.5/32
+ exit-address-family
+ 
+ ! L2VPN EVPN address family (overlay)
+ address-family l2vpn evpn
+  neighbor 10.1.1.254 activate
+  advertise-all-vni
+  advertise-svi-ip
+ exit-address-family
+exit
+
+! L3VNI VRF configuration
 vrf red
-  vni 100
+ vni 100
 exit-vrf
 
+! L3VNI BGP instance
 router bgp 64514 vrf red
-  address-family l2vpn evpn
-    advertise ipv4 unicast
-  exit-address-family
+ address-family ipv4 unicast
+  redistribute connected
+ exit-address-family
+ 
+ address-family l2vpn evpn
+  advertise ipv4 unicast
+ exit-address-family
+exit
 
-! L2VNI bridge
-interface br-210
-  ip address 192.168.110.1/24
+! L2VNI bridge interface (where gateway IP is assigned)
+interface br-pe-210
+ ip address 192.168.110.1/24
+exit
 
-! Raw config snippet
-router bgp 64514
-  address-family l2vpn evpn
-    advertise-svi-ip
-  exit-address-family
+line vty
+exit
 ```
 
 ## CRD Equivalence
