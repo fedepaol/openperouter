@@ -1,19 +1,61 @@
 # Raw FRR Configuration Approach
 
-This document describes the raw FRR configuration approach for OpenPERouter systemd mode, which bypasses the controller and provides direct control over FRR configuration and network infrastructure.
+This document describes the evolution of FRR configuration approaches for OpenPERouter systemd mode.
 
 ## Overview
 
-**Old Approach** (controller-based):
-1. Generate YAML configuration file
-2. Controller reads YAML and converts to FRR config
+**Controller-based Approach** (Kubernetes mode):
+1. Create CRD resources (Underlay, L2VNI, L3VNI)
+2. Controller watches CRDs and converts to FRR config
 3. Controller creates network infrastructure (VRFs, bridges, VXLAN, veths)
 4. FRR applies configuration
 
-**New Approach** (raw FRR):
+**Raw FRR with `podman cp`** (deprecated):
 1. Manually create network infrastructure with bash scripts
-2. Generate raw FRR configuration directly
-3. Apply configuration directly to FRR daemon
+2. Generate raw FRR configuration file from template
+3. Copy configuration file to FRR container with `podman cp`
+4. Reload FRR daemon
+
+**Current Approach** (rawfrrconfigs in YAML):
+1. Generate static YAML configuration from template
+2. Include complete FRR config in `rawfrrconfigs` section
+3. Controller reads YAML, creates network infrastructure, and applies rawfrrconfigs to FRR
+4. No `podman cp` needed - controller handles FRR configuration
+
+## Migration from podman cp to rawfrrconfigs
+
+The `podman cp` approach has been replaced with the `rawfrrconfigs` field in static YAML configuration:
+
+**Old Way** (podman cp):
+```bash
+# Generate FRR config file
+sed -e "s|{{VTEP_IP}}|${VTEP_IP}|g" \
+    frr-evpn.conf.template > /tmp/frr.conf
+
+# Copy to FRR container
+podman cp /tmp/frr.conf frr:/etc/frr/frr.conf
+
+# Reload FRR
+podman exec frr pkill -HUP bgpd
+```
+
+**New Way** (rawfrrconfigs):
+```bash
+# Generate YAML config with embedded FRR config
+sed -e "s|{{VTEP_IP}}|${VTEP_IP}|g" \
+    openpe_evpn.yaml.template > /var/lib/openperouter/configs/openpe_evpn.yaml
+
+# Controller automatically reads and applies
+# No podman cp or manual reload needed
+```
+
+### Benefits of rawfrrconfigs Approach
+
+1. **Unified configuration**: Single YAML file contains both declarative config (underlays, VNIs) and raw FRR config
+2. **Controller-managed**: Controller handles FRR configuration rendering and reloading
+3. **No container exec**: No need for `podman cp` or `podman exec` commands
+4. **Consistent with CRD mode**: Same `rawfrrconfigs` field used in both Kubernetes and systemd modes
+5. **Template-based**: Still uses templates for node-specific values
 
 ## Components
 

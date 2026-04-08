@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+# setup-underlay.sh - Set up underlay infrastructure for OpenPERouter
+#
+# This script:
+# 1. Waits for FRR container to be ready
+# 2. Derives VTEP IP from br0
+# 3. Moves underlay NIC to FRR namespace
+# 4. Saves variables for config generation
+#
+# Usage: Executed by systemd service setup-underlay.service
+#
+# Exit codes:
+#   0   - Success
+#   1   - General error
+#   124 - Timeout waiting for FRR
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source common utilities
+if [[ ! -f "$SCRIPT_DIR/common.sh" ]]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: common.sh not found at $SCRIPT_DIR/common.sh" >&2
+    exit 1
+fi
+
+source "$SCRIPT_DIR/common.sh"
+
+# Verify required functions
+for func in frr_netns_pid inns isfrr_ready; do
+    if ! declare -f "$func" >/dev/null 2>&1; then
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Required function $func not found in common.sh" >&2
+        exit 1
+    fi
+done
+
+# Load environment variables with defaults
+UNDERLAY_NIC="${UNDERLAY_NIC:-eth1}"
+FRR_READY_TIMEOUT="${FRR_READY_TIMEOUT:-60}"
+NODE_NAME="${NODE_NAME:-$(hostname)}"
+
+# Output file for variables
+VARS_FILE="${VARS_FILE:-/var/lib/openperouter/vpn-setup.vars}"
+
+# Logging functions
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+}
+
+error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
+}
+
+log_step() {
+    local step="$1"
+    log "=== Step: $step ==="
+}
+
+exit_success() {
+    log "Underlay setup completed successfully"
+    exit 0
+}
+
+exit_error() {
+    local msg="$1"
+    error "$msg"
+    exit 1
+}
+
+exit_timeout() {
+    error "Operation timed out"
+    exit 124
+}
+
+# Start main execution
+log "Starting underlay setup"
+log "Configuration: UNDERLAY_NIC=$UNDERLAY_NIC, NODE_NAME=$NODE_NAME"
+
+#
+# STEP 1: Wait for FRR container to be ready
+#
+log_step "Waiting for FRR container"
+log "Timeout configured: ${FRR_READY_TIMEOUT}s"
+ELAPSED=0
+INTERVAL=2
+
+while ! isfrr_ready 2>/dev/null; do
+    if [ $ELAPSED -ge $FRR_READY_TIMEOUT ]; then
+        error "FRR not ready after ${FRR_READY_TIMEOUT}s timeout"
+        error "Check FRR container: podman ps | grep frr"
+        error "Check FRR logs: podman logs frr"
+        exit_timeout
+    fi
+    if [ $((ELAPSED % 10)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+        log "Still waiting for FRR... (${ELAPSED}s elapsed)"
+    fi
+    sleep $INTERVAL
+    ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+log "FRR container is ready (bgpd operational)"
+
+#
+# STEP 2: Derive VTEP IP from br0
+#
+log_step "Deriving VTEP IP from br0"
+
+if ! ip link show br0 >/dev/null 2>&1; then
+    error "br0 bridge does not exist"
+    error "Create br0 with: ip link add br0 type bridge && ip addr add <ip>/<cidr> dev br0 && ip link set br0 up"
+    exit_error "Missing prerequisite: br0 bridge"
+fi
+
+BR0_IP=$(ip -4 addr show br0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
+
+if [[ -z "$BR0_IP" ]]; then
+    error "br0 bridge does not have an IP address assigned"
+    error "Assign an IP to br0 with: ip addr add <ip>/<cidr> dev br0"
+    exit_error "br0 must have an IP address configured"
+fi
+
+# Extract last octet for VTEP IP
+LAST_OCTET=$(echo "$BR0_IP" | cut -d. -f4)
+VTEP_IP="10.0.0.${LAST_OCTET}"
+
+log "br0 IP address: $BR0_IP"
+log "Derived VTEP IP: $VTEP_IP (last octet: $LAST_OCTET)"
+
+#
+# STEP 3: Move host NIC to FRR namespace
+#
+log_step "Moving host NIC to FRR namespace"
+
+if ! ip link show "$UNDERLAY_NIC" >/dev/null 2>&1; then
+    error "Host NIC $UNDERLAY_NIC not found"
+    error "Available NICs:"
+    ip -br link show | head -10 | while read line; do
+        error "  $line"
+    done
+    exit_error "Host NIC $UNDERLAY_NIC not found"
+fi
+
+log "Found host NIC: $UNDERLAY_NIC"
+
+NIC_IP=$(ip -4 addr show "$UNDERLAY_NIC" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || true)
+if [[ -z "$NIC_IP" ]]; then
+    log "WARNING: Host NIC $UNDERLAY_NIC does not have an IP address configured"
+else
+    log "Host NIC IP address: $NIC_IP (will be preserved when moved)"
+fi
+
+FRR_PID=$(frr_netns_pid)
+if [[ -z "$FRR_PID" || "$FRR_PID" == "0" ]]; then
+    error "Failed to get FRR container PID"
+    exit_error "Cannot determine FRR namespace"
+fi
+
+log "FRR container PID: $FRR_PID"
+
+# Move NIC to FRR namespace
+log "Moving $UNDERLAY_NIC to FRR namespace (PID: $FRR_PID)..."
+ip link set "$UNDERLAY_NIC" netns "$FRR_PID" 2>/dev/null || {
+    log "WARNING: Failed to move $UNDERLAY_NIC to namespace (may already be there)"
+}
+
+# Bring up NIC in FRR namespace
+log "Bringing up $UNDERLAY_NIC in FRR namespace..."
+inns ip link set "$UNDERLAY_NIC" up 2>/dev/null || {
+    log "WARNING: Failed to bring up $UNDERLAY_NIC in FRR namespace"
+}
+
+log "Host NIC $UNDERLAY_NIC configured in FRR namespace"
+
+#
+# STEP 4: Save variables for config generation
+#
+log_step "Saving variables for config generation"
+
+# Create directory if needed
+mkdir -p "$(dirname "$VARS_FILE")"
+
+# Write variables (will be sourced by generate-config.sh)
+cat > "$VARS_FILE" <<EOF
+# OpenPERouter VPN Setup Variables
+# Generated by setup-underlay.sh on $(date +'%Y-%m-%d %H:%M:%S')
+
+# Derived values
+VTEP_IP="$VTEP_IP"
+BR0_IP="$BR0_IP"
+LAST_OCTET="$LAST_OCTET"
+NODE_NAME="$NODE_NAME"
+
+# Underlay configuration
+UNDERLAY_NIC="$UNDERLAY_NIC"
+FRR_PID="$FRR_PID"
+EOF
+
+chmod 644 "$VARS_FILE"
+
+log "Variables saved to $VARS_FILE"
+log "  VTEP_IP=$VTEP_IP"
+log "  NODE_NAME=$NODE_NAME"
+log "  UNDERLAY_NIC=$UNDERLAY_NIC"
+
+exit_success

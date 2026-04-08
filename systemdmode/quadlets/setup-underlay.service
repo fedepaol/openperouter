@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenPERouter Underlay Setup
+Documentation=https://github.com/openperouter/openperouter
+After=network-online.target routerpod-pod.service frr.service
+Requires=routerpod-pod.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+
+# Environment configuration (optional file)
+EnvironmentFile=-/etc/openperouter/vpn-setup.env
+
+# Script execution
+ExecStart=/usr/local/bin/setup-underlay.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=setup-underlay
+
+# Timeouts
+TimeoutStartSec=180
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

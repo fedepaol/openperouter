@@ -1,0 +1,29 @@
+[Unit]
+Description=OpenPERouter Configuration Generator
+Documentation=https://github.com/openperouter/openperouter
+After=setup-underlay.service
+Requires=setup-underlay.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+
+# Environment configuration (optional file)
+EnvironmentFile=-/etc/openperouter/vpn-setup.env
+
+# Script execution
+ExecStart=/usr/local/bin/generate-config.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=generate-config
+
+# Timeouts
+TimeoutStartSec=60
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
