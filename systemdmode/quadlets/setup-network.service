@@ -1,8 +1,8 @@
 [Unit]
-Description=OpenPERouter Configuration Generator
+Description=OpenPERouter Network Infrastructure Setup
 Documentation=https://github.com/openperouter/openperouter
-After=setup-network.service
-Requires=setup-network.service
+After=setup-underlay.service
+Requires=setup-underlay.service
 
 [Service]
 Type=oneshot
@@ -14,15 +14,15 @@ Group=root
 EnvironmentFile=-/etc/openperouter/vpn-setup.env
 
 # Script execution
-ExecStart=/usr/local/bin/generate-config.sh
+ExecStart=/usr/local/bin/setup-network.sh
 
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=generate-config
+SyslogIdentifier=setup-network
 
 # Timeouts
-TimeoutStartSec=60
+TimeoutStartSec=120
 TimeoutStopSec=10
 
 [Install]

@@ -26,9 +26,11 @@ echo ""
 # Install scripts
 echo "Installing scripts to /usr/local/bin..."
 install -m 755 "$INSTALL_DIR/usr/local/bin/setup-underlay.sh" /usr/local/bin/
+install -m 755 "$INSTALL_DIR/usr/local/bin/setup-network.sh" /usr/local/bin/
 install -m 755 "$INSTALL_DIR/usr/local/bin/generate-config.sh" /usr/local/bin/
 install -m 755 "$INSTALL_DIR/usr/local/bin/common.sh" /usr/local/bin/
 echo "  ✓ Installed setup-underlay.sh"
+echo "  ✓ Installed setup-network.sh"
 echo "  ✓ Installed generate-config.sh"
 echo "  ✓ Installed common.sh"
 
@@ -36,8 +38,10 @@ echo "  ✓ Installed common.sh"
 echo ""
 echo "Installing systemd units to /etc/systemd/system..."
 install -m 644 "$INSTALL_DIR/etc/systemd/system/setup-underlay.service" /etc/systemd/system/
+install -m 644 "$INSTALL_DIR/etc/systemd/system/setup-network.service" /etc/systemd/system/
 install -m 644 "$INSTALL_DIR/etc/systemd/system/generate-config.service" /etc/systemd/system/
 echo "  ✓ Installed setup-underlay.service"
+echo "  ✓ Installed setup-network.service"
 echo "  ✓ Installed generate-config.service"
 
 # Install template
@@ -83,17 +87,19 @@ echo "   sudo vi /etc/openperouter/vpn-setup.env"
 echo ""
 echo "2. Enable services to start on boot:"
 echo "   sudo systemctl enable setup-underlay.service"
+echo "   sudo systemctl enable setup-network.service"
 echo "   sudo systemctl enable generate-config.service"
 echo ""
 echo "3. Start services now:"
 echo "   sudo systemctl start setup-underlay.service"
+echo "   sudo systemctl start setup-network.service"
 echo "   sudo systemctl start generate-config.service"
 echo ""
 echo "4. Check status:"
-echo "   sudo systemctl status setup-underlay.service generate-config.service"
+echo "   sudo systemctl status setup-underlay.service setup-network.service generate-config.service"
 echo ""
 echo "5. View logs:"
-echo "   sudo journalctl -u setup-underlay.service -u generate-config.service"
+echo "   sudo journalctl -u setup-underlay.service -u setup-network.service -u generate-config.service"
 echo ""
 echo "6. Verify configuration:"
 echo "   cat /var/lib/openperouter/vpn-setup.vars"

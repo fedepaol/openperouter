@@ -21,14 +21,15 @@ echo ""
 
 # Stop and disable services
 echo "Stopping and disabling services..."
-systemctl stop setup-underlay.service generate-config.service 2>/dev/null || true
-systemctl disable setup-underlay.service generate-config.service 2>/dev/null || true
+systemctl stop setup-underlay.service setup-network.service generate-config.service 2>/dev/null || true
+systemctl disable setup-underlay.service setup-network.service generate-config.service 2>/dev/null || true
 echo "  ✓ Services stopped and disabled"
 
 # Remove systemd units
 echo ""
 echo "Removing systemd units..."
 rm -f /etc/systemd/system/setup-underlay.service
+rm -f /etc/systemd/system/setup-network.service
 rm -f /etc/systemd/system/generate-config.service
 echo "  ✓ Removed systemd units"
 
@@ -36,6 +37,7 @@ echo "  ✓ Removed systemd units"
 echo ""
 echo "Removing scripts..."
 rm -f /usr/local/bin/setup-underlay.sh
+rm -f /usr/local/bin/setup-network.sh
 rm -f /usr/local/bin/generate-config.sh
 echo "  ✓ Removed scripts (kept common.sh as it may be used elsewhere)"
 

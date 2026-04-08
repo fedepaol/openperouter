@@ -27,9 +27,11 @@ check:
 	@echo "Checking deployment package..."
 	@for file in \
 		usr/local/bin/setup-underlay.sh \
+		usr/local/bin/setup-network.sh \
 		usr/local/bin/generate-config.sh \
 		usr/local/bin/common.sh \
 		etc/systemd/system/setup-underlay.service \
+		etc/systemd/system/setup-network.service \
 		etc/systemd/system/generate-config.service \
 		etc/openperouter/templates/openpe_evpn.yaml.template \
 		etc/openperouter/vpn-setup.env.example \

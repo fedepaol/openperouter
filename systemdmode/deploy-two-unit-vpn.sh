@@ -1,11 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# deploy-two-unit-vpn.sh - Deploy two-unit VPN setup to kind nodes
+# deploy-two-unit-vpn.sh - Deploy three-unit VPN setup to kind nodes
 #
-# This script deploys the two-unit VPN setup approach:
-# 1. setup-underlay.service - Underlay infrastructure setup
-# 2. generate-config.service - Configuration generation
+# This script deploys the three-unit VPN setup approach:
+# 1. setup-underlay.service - Underlay infrastructure setup (move NIC, derive VTEP)
+# 2. setup-network.service - Network infrastructure (VRFs, bridges, VXLAN, veths)
+# 3. generate-config.service - Configuration generation (YAML with rawfrrconfigs)
 #
 # Usage: ./deploy-two-unit-vpn.sh [cluster-name]
 
@@ -40,12 +41,14 @@ for NODE in $NODES; do
     # Copy scripts
     echo "  Copying scripts..."
     docker cp "$SCRIPT_DIR/setup-underlay.sh" "$NODE:/usr/local/bin/"
+    docker cp "$SCRIPT_DIR/setup-network.sh" "$NODE:/usr/local/bin/"
     docker cp "$SCRIPT_DIR/generate-config.sh" "$NODE:/usr/local/bin/"
     docker cp "$SCRIPT_DIR/common.sh" "$NODE:/usr/local/bin/"
 
     # Make scripts executable
     echo "  Making scripts executable..."
     docker exec "$NODE" chmod +x /usr/local/bin/setup-underlay.sh \
+                                  /usr/local/bin/setup-network.sh \
                                   /usr/local/bin/generate-config.sh \
                                   /usr/local/bin/common.sh
 
@@ -56,6 +59,7 @@ for NODE in $NODES; do
     # Copy systemd units
     echo "  Copying systemd units..."
     docker cp "$SCRIPT_DIR/quadlets/setup-underlay.service" "$NODE:/etc/systemd/system/"
+    docker cp "$SCRIPT_DIR/quadlets/setup-network.service" "$NODE:/etc/systemd/system/"
     docker cp "$SCRIPT_DIR/quadlets/generate-config.service" "$NODE:/etc/systemd/system/"
 
     # Create environment file (optional)
@@ -88,6 +92,7 @@ EOF
     # Enable services
     echo "  Enabling services..."
     docker exec "$NODE" systemctl enable setup-underlay.service
+    docker exec "$NODE" systemctl enable setup-network.service
     docker exec "$NODE" systemctl enable generate-config.service
 
     echo "  ✓ Deployed to $NODE"
@@ -99,14 +104,15 @@ echo ""
 echo "To start the services on all nodes:"
 echo "  for NODE in \$(kind get nodes --name $CLUSTER_NAME); do"
 echo "    docker exec \$NODE systemctl start setup-underlay.service"
+echo "    docker exec \$NODE systemctl start setup-network.service"
 echo "    docker exec \$NODE systemctl start generate-config.service"
 echo "  done"
 echo ""
 echo "To check status:"
-echo "  docker exec <node-name> systemctl status setup-underlay.service generate-config.service"
+echo "  docker exec <node-name> systemctl status setup-underlay.service setup-network.service generate-config.service"
 echo ""
 echo "To view logs:"
-echo "  docker exec <node-name> journalctl -u setup-underlay.service -u generate-config.service --no-pager"
+echo "  docker exec <node-name> journalctl -u setup-underlay.service -u setup-network.service -u generate-config.service --no-pager"
 echo ""
 echo "To verify configuration:"
 echo "  docker exec <node-name> cat /var/lib/openperouter/vpn-setup.vars"
