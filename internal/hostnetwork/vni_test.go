@@ -850,8 +850,8 @@ func setupFakeUnderlay(ns netns.NsHandle, name string, mtu int) {
 		if err != nil {
 			return fmt.Errorf("failed to get fake underlay dummy %s: %w", name, err)
 		}
-		if err := assignIPToInterface(link, underlayInterfaceSpecialAddr); err != nil {
-			return fmt.Errorf("failed to assign underlay special addr to %s: %w", name, err)
+		if err := netlink.LinkSetGroup(link, int(underlayGroupID)); err != nil {
+			return fmt.Errorf("failed to set underlay group ID on %s: %w", name, err)
 		}
 		return nil
 	})

@@ -39,22 +39,25 @@ type UnderlaySpec struct {
 	// +optional
 	RouterIDCIDR *string `json:"routeridcidr,omitempty"`
 
+	// neighbors is the list of external BGP neighbors to peer with.
 	// Note: MaxItems=128 is arbitrarily chosen to keep total CEL cost low
 	// Note: kubeapilinter complained about 'the struct has no required fields', but CEL enforces either/or choices
 	// for Address and Interface.
-
-	// neighbors is the list of external neighbors to peer with.
+	// Multiple neighbors are supported for connecting to multiple TOR switches
+	// or establishing redundant BGP sessions. Each neighbor address must be unique.
+	// At least one neighbor is required.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=128
-	// +optional
+	// +required
 	// +listType=atomic
 	Neighbors []Neighbor `json:"neighbors,omitempty"` //nolint:kubeapilinter
 
 	// nics is the list of physical nics to move under the PERouter namespace to connect
-	// to external routers. This field is optional when using Multus networks for TOR connectivity.
+	// to external routers. At least one NIC is required.
+	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:items:Pattern=`^[a-zA-Z][a-zA-Z0-9._-]*$`
 	// +kubebuilder:validation:items:MaxLength=15
-	// +optional
+	// +required
 	// +listType=atomic
 	Nics []string `json:"nics,omitempty"`
 

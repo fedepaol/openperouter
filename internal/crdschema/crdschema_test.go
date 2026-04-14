@@ -272,14 +272,22 @@ func TestValidateSuccessful(t *testing.T) {
 			gvk:  underlayGVK,
 			obj: newUnstructured("Underlay", map[string]any{
 				"asn":  int64(65000),
+				"nics": []any{"eth0"},
 				"evpn": map[string]any{"vtepCIDR": "10.10.0.0/24"},
+				"neighbors": []any{
+					map[string]any{
+						"address": "192.168.1.1",
+						"asn":     int64(65001),
+					},
+				},
 			}),
 		},
 		{
 			name: "Underlay Neighbor without hostasn",
 			gvk:  underlayGVK,
 			obj: newUnstructured("Underlay", map[string]any{
-				"asn": int64(65000),
+				"asn":  int64(65000),
+				"nics": []any{"eth0"},
 				"neighbors": []any{
 					map[string]any{
 						"address": "192.168.1.1",
@@ -292,7 +300,8 @@ func TestValidateSuccessful(t *testing.T) {
 			name: "Underlay Neighbor with different hostasn and asn",
 			gvk:  underlayGVK,
 			obj: newUnstructured("Underlay", map[string]any{
-				"asn": int64(65000),
+				"asn":  int64(65000),
+				"nics": []any{"eth0"},
 				"neighbors": []any{
 					map[string]any{
 						"address": "192.168.1.1",
