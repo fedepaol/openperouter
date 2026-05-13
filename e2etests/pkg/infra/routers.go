@@ -11,15 +11,20 @@ import (
 
 const (
 	ClabPrefix = "clab-kind-"
-	KindLeaf   = ClabPrefix + "leafkind"
+	KindLeaf   = ClabPrefix + "leafkind1"
+	KindLeaf2  = ClabPrefix + "leafkind2"
 	LeafA      = ClabPrefix + "leafA"
 	LeafB      = ClabPrefix + "leafB"
 )
 
 var (
-	KindLeafContainer = frr.Container{
+	KindLeaf1Container = frr.Container{
 		Name:       KindLeaf,
-		ConfigPath: "leafkind",
+		ConfigPath: "leafkind1",
+	}
+	KindLeaf2Container = frr.Container{
+		Name:       KindLeaf2,
+		ConfigPath: "leafkind2",
 	}
 	LeafAContainer = frr.Container{
 		Name:       LeafA,
@@ -36,13 +41,26 @@ var linksForFamily map[ipfamily.Family]map[link]linkAddresses
 
 func init() {
 	linksForFamily = map[ipfamily.Family]map[link]linkAddresses{}
-	addLinkIPs("clab-kind-leafkind", "pe-kind-control-plane", "192.168.11.2", "192.168.11.3")
-	addLinkIPv6s("clab-kind-leafkind", "pe-kind-control-plane", "2001:db8:11::2", "2001:db8:11::3")
-	addLinkInterfaces("clab-kind-leafkind", "pe-kind-control-plane", "toleafkind", "tokindctrlpl")
-	addLinkIPs("clab-kind-leafkind", "pe-kind-worker", "192.168.11.2", "192.168.11.4")
-	addLinkIPv6s("clab-kind-leafkind", "pe-kind-worker", "2001:db8:11::2", "2001:db8:11::4")
-	addLinkInterfaces("clab-kind-leafkind", "pe-kind-worker", "toleafkind", "tokindworker")
-	addLinkIPs("clab-kind-leafkind", "clab-kind-spine", "192.168.1.5", "192.168.1.4")
+
+	// leafkind1 links
+	addLinkIPs("clab-kind-leafkind1", "pe-kind-control-plane", "192.168.11.2", "192.168.11.3")
+	addLinkIPv6s("clab-kind-leafkind1", "pe-kind-control-plane", "2001:db8:11::2", "2001:db8:11::3")
+	addLinkInterfaces("clab-kind-leafkind1", "pe-kind-control-plane", "toswitch1", "toswitch1")
+	addLinkIPs("clab-kind-leafkind1", "pe-kind-worker", "192.168.11.2", "192.168.11.4")
+	addLinkIPv6s("clab-kind-leafkind1", "pe-kind-worker", "2001:db8:11::2", "2001:db8:11::4")
+	addLinkInterfaces("clab-kind-leafkind1", "pe-kind-worker", "toswitch1", "toswitch1")
+	addLinkIPs("clab-kind-leafkind1", "clab-kind-spine", "192.168.1.5", "192.168.1.4")
+
+	// leafkind2 links
+	addLinkIPs("clab-kind-leafkind2", "pe-kind-control-plane", "192.168.12.2", "192.168.12.3")
+	addLinkIPv6s("clab-kind-leafkind2", "pe-kind-control-plane", "2001:db8:12::2", "2001:db8:12::3")
+	addLinkInterfaces("clab-kind-leafkind2", "pe-kind-control-plane", "toswitch2", "toswitch2")
+	addLinkIPs("clab-kind-leafkind2", "pe-kind-worker", "192.168.12.2", "192.168.12.4")
+	addLinkIPv6s("clab-kind-leafkind2", "pe-kind-worker", "2001:db8:12::2", "2001:db8:12::4")
+	addLinkInterfaces("clab-kind-leafkind2", "pe-kind-worker", "toswitch2", "toswitch2")
+	addLinkIPs("clab-kind-leafkind2", "clab-kind-spine", "192.168.1.7", "192.168.1.6")
+
+	// Other leaf links
 	addLinkIPs("clab-kind-leafA", "clab-kind-spine", "192.168.1.1", "192.168.1.0")
 	addLinkIPs("clab-kind-leafB", "clab-kind-spine", "192.168.1.3", "192.168.1.2")
 	addLinkIPs("clab-kind-leafA", "clab-kind-hostA_red", "192.168.20.1", HostARedIPv4)

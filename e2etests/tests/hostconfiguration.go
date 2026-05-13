@@ -47,7 +47,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 		},
 		Spec: v1alpha1.UnderlaySpec{
 			ASN:  64514,
-			Nics: []string{"toswitch"},
+			Nics: []string{"toswitch1"},
 			Neighbors: []v1alpha1.Neighbor{
 				{
 					ASN:     new(int64(64517)),
@@ -203,7 +203,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -288,7 +288,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -356,7 +356,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -395,7 +395,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 					ginkgo.By(fmt.Sprintf("validating underlay for pod %s", p.Name))
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 						EVPN: &evpnParams{
 							VtepIP: vtepIP,
 						},
@@ -458,7 +458,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -495,7 +495,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -653,7 +653,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -680,7 +680,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -711,7 +711,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -767,7 +767,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -839,7 +839,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -897,7 +897,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating Underlay for pod %s", p.Name))
 
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -992,7 +992,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -1021,7 +1021,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -1052,7 +1052,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 
 				vtepIP := vtepIPForPod(cs, underlay.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -1114,7 +1114,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 					ginkgo.By(fmt.Sprintf("validating underlay1 configured on node %s", p.Spec.NodeName))
 					vtepIP := vtepIPForPod(cs, underlay1WithNodeSelector.Spec.EVPN.VTEPCIDR, p)
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 						EVPN: &evpnParams{
 							VtepIP: vtepIP,
 						},
@@ -1123,7 +1123,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 					ginkgo.By(fmt.Sprintf("validating underlay2 configured on node %s", p.Spec.NodeName))
 					vtepIP := vtepIPForPod(cs, underlay2WithNodeSelector.Spec.EVPN.VTEPCIDR, p)
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 						EVPN: &evpnParams{
 							VtepIP: vtepIP,
 						},
@@ -1131,7 +1131,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				default:
 					ginkgo.By(fmt.Sprintf("validating underlay is not configured for pod %q on node %s", p.Name, p.Spec.NodeName))
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 					}, underlayNotConfiguredTestSelector, p)
 				}
 			}
@@ -1145,7 +1145,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 			for _, p := range routerPods {
 				if p.Spec.NodeName == nodes[1].Name {
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch"},
 					}, underlayNotConfiguredTestSelector, p)
 				}
 			}
@@ -1156,7 +1156,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 					ginkgo.By(fmt.Sprintf("validating underlay1 configured on node %s", p.Spec.NodeName))
 					vtepIP := vtepIPForPod(cs, underlay1WithNodeSelector.Spec.EVPN.VTEPCIDR, p)
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 						EVPN: &evpnParams{
 							VtepIP: vtepIP,
 						},
@@ -1164,7 +1164,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				} else {
 					ginkgo.By(fmt.Sprintf("validating underlay is not configured on node %s", p.Spec.NodeName))
 					validateConfig(underlayParams{
-						UnderlayInterface: "toswitch",
+						UnderlayInterfaces: []string{"toswitch1"},
 					}, underlayNotConfiguredTestSelector, p)
 				}
 			}
@@ -1182,7 +1182,7 @@ var _ = ginkgo.Describe("Router Host configuration", func() {
 				ginkgo.By(fmt.Sprintf("validating underlay1 configured on node %q", p.Spec.NodeName))
 				vtepIP := vtepIPForPod(cs, underlay1WithNodeSelector.Spec.EVPN.VTEPCIDR, p)
 				validateConfig(underlayParams{
-					UnderlayInterface: "toswitch",
+					UnderlayInterfaces: []string{"toswitch1"},
 					EVPN: &evpnParams{
 						VtepIP: vtepIP,
 					},
@@ -1321,8 +1321,8 @@ type l2vniParams struct {
 }
 
 type underlayParams struct {
-	UnderlayInterface string      `json:"underlay_interface"`
-	EVPN              *evpnParams `json:"evpn"`
+	UnderlayInterfaces []string    `json:"underlay_interfaces"`
+	EVPN               *evpnParams `json:"evpn"`
 }
 
 type evpnParams struct {

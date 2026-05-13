@@ -292,13 +292,15 @@ var _ = Describe("Beta: Named netns auto-rebuilds after deletion", Ordered, func
 			neighbors = append(neighbors, infra.Neighbor{ID: neighborIP})
 		}
 		leafConfig := infra.LeafKindConfiguration{
-			PERouterASN: 64514,
-			NextHopSelf: true,
-			Neighbors:   neighbors,
+			ASN:              infra.LeafKind1Config.ASN,
+			SpinePeerAddress: infra.LeafKind1Config.SpinePeerAddress,
+			PERouterASN:      64514,
+			NextHopSelf:      true,
+			Neighbors:        neighbors,
 		}
 		configString, err := infra.LeafKindConfigToFRR(leafConfig)
 		Expect(err).NotTo(HaveOccurred())
-		err = infra.LeafKindConfig.ReloadConfig(configString)
+		err = infra.LeafKind1Config.ReloadConfig(configString)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting for BGP sessions to establish after underlay creation")

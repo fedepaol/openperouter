@@ -59,10 +59,10 @@ func UnderlayConfigured(nodeName string) bool {
 // either in the default netns or inside the perouter netns.
 func UnderlayVethExists(nodeName string) bool {
 	exec := executor.ForContainer(nodeName)
-	if _, err := exec.Exec("ip", "link", "show", "toswitch"); err == nil {
+	if _, err := exec.Exec("ip", "link", "show", "toswitch1"); err == nil {
 		return true
 	}
-	if _, err := exec.Exec("ip", "netns", "exec", namedNetns, "ip", "link", "show", "toswitch"); err == nil {
+	if _, err := exec.Exec("ip", "netns", "exec", namedNetns, "ip", "link", "show", "toswitch1"); err == nil {
 		return true
 	}
 	return false

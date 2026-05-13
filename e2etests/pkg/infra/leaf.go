@@ -39,8 +39,15 @@ var (
 		SpineAddress: "192.168.1.2",
 		Container:    LeafBContainer,
 	}
-	LeafKindConfig = LeafKind{
-		Container: KindLeafContainer,
+	LeafKind1Config = LeafKind{
+		ASN:              64512,
+		SpinePeerAddress: "192.168.1.4",
+		Container:        KindLeaf1Container,
+	}
+	LeafKind2Config = LeafKind{
+		ASN:              64513,
+		SpinePeerAddress: "192.168.1.6",
+		Container:        KindLeaf2Container,
 	}
 
 	EmptyLeafConfig = LeafConfiguration{
@@ -69,6 +76,8 @@ type LeafConfiguration struct {
 }
 
 type LeafKindConfiguration struct {
+	ASN                   int
+	SpinePeerAddress      string
 	EnableBFD             bool
 	RedistributeConnected bool
 	Neighbors             []Neighbor
@@ -103,6 +112,8 @@ type Leaf struct {
 }
 
 type LeafKind struct {
+	ASN              int
+	SpinePeerAddress string
 	frr.Container
 }
 
@@ -160,10 +171,10 @@ func LeafKindConfigToFRR(config LeafKindConfiguration) (string, error) {
 
 const EnableBFD = true
 
-// UpdateLeafKindConfig updates the leafkind configuration file with the given configuration.
+// UpdateConfig updates the leafkind configuration file with the given configuration.
 // It takes nodes and automatically builds the neighbors list from their IPs.
 // The behavior can be modified via options.
-func UpdateLeafKindConfig(nodes []corev1.Node, config LeafKindConfiguration) error {
+func (l LeafKind) UpdateConfig(nodes []corev1.Node, config LeafKindConfiguration) error {
 	if config.AddressFamily == "" {
 		config.AddressFamily = ipfamily.IPv4
 	}
@@ -186,7 +197,7 @@ func UpdateLeafKindConfig(nodes []corev1.Node, config LeafKindConfiguration) err
 		return err
 	}
 
-	return LeafKindConfig.ReloadConfig(configString)
+	return l.ReloadConfig(configString)
 }
 
 func (l Leaf) Configure(LeafConfig LeafConfiguration) error {
@@ -219,6 +230,11 @@ func (l Leaf) RedistributeConnected() error {
 		Blue:    Addresses{RedistributeConnected: true},
 		Default: Addresses{RedistributeConnected: true},
 	})
+}
+
+// RemovePrefixes removes all prefixes from the leaf configuration.
+func (l Leaf) RemovePrefixes() error {
+	return l.ChangePrefixes([]string{}, []string{}, []string{})
 }
 
 // Reset resets Leaf configuration to default values.
