@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -13,6 +14,10 @@ import (
 	"github.com/openperouter/openperouter/api/static"
 	"github.com/openperouter/openperouter/api/v1alpha1"
 )
+
+const testFamilyIPv4 = "ipv4"
+
+func intPtr(i int) *int { return &i }
 
 func TestReadNodeConfig(t *testing.T) {
 	tests := []struct {
@@ -24,17 +29,17 @@ func TestReadNodeConfig(t *testing.T) {
 		{
 			name:     "valid yaml config",
 			content:  "nodeIndex: 42\nlogLevel: debug\n",
-			expected: &static.NodeConfig{NodeIndex: 42, LogLevel: "debug"},
+			expected: &static.NodeConfig{NodeIndex: intPtr(42), LogLevel: "debug"},
 		},
 		{
 			name:     "valid yaml with zero value",
 			content:  "nodeIndex: 0\nlogLevel: info\n",
-			expected: &static.NodeConfig{NodeIndex: 0, LogLevel: "info"},
+			expected: &static.NodeConfig{NodeIndex: intPtr(0), LogLevel: "info"},
 		},
 		{
 			name:     "valid yaml with only nodeIndex",
 			content:  "nodeIndex: 1\n",
-			expected: &static.NodeConfig{NodeIndex: 1, LogLevel: ""},
+			expected: &static.NodeConfig{NodeIndex: intPtr(1), LogLevel: ""},
 		},
 		{
 			name:        "invalid yaml",
@@ -65,8 +70,11 @@ func TestReadNodeConfig(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if config.NodeIndex != tt.expected.NodeIndex {
-				t.Errorf("expected NodeIndex %d, got %d", tt.expected.NodeIndex, config.NodeIndex)
+			if (config.NodeIndex == nil) != (tt.expected.NodeIndex == nil) {
+				t.Fatalf("expected NodeIndex nil=%v, got nil=%v", tt.expected.NodeIndex == nil, config.NodeIndex == nil)
+			}
+			if config.NodeIndex != nil && *config.NodeIndex != *tt.expected.NodeIndex {
+				t.Errorf("expected NodeIndex %d, got %d", *tt.expected.NodeIndex, *config.NodeIndex)
 			}
 
 			if config.LogLevel != tt.expected.LogLevel {
@@ -177,6 +185,10 @@ func assertConfigTypes(t *testing.T, configs []*static.PERouterConfig) {
 
 func TestReadRouterConfigsFromFiles(t *testing.T) {
 	testdataDir := "./testdata"
+
+	if _, err := os.Stat(testdataDir); os.IsNotExist(err) {
+		t.Skip("testdata directory not available (running as compiled binary)")
+	}
 
 	configs, err := ReadRouterConfigs(testdataDir)
 	if err != nil {
@@ -321,5 +333,184 @@ func TestReadRouterConfigsFromFiles(t *testing.T) {
 	}
 	if !cmp.Equal(wantBGPPassthrough, *bgpPassthrough) {
 		t.Errorf("BGP passthrough mismatch (-want +got):\n%s", cmp.Diff(wantBGPPassthrough, *bgpPassthrough))
+	}
+}
+
+func TestResolveNodeIndex_ExplicitIndex(t *testing.T) {
+	config := &static.NodeConfig{NodeIndex: intPtr(42)}
+	idx, err := ResolveNodeIndex(config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if idx != 42 {
+		t.Errorf("expected 42, got %d", idx)
+	}
+}
+
+func TestResolveNodeIndex_ExplicitZero(t *testing.T) {
+	config := &static.NodeConfig{NodeIndex: intPtr(0)}
+	idx, err := ResolveNodeIndex(config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if idx != 0 {
+		t.Errorf("expected 0, got %d", idx)
+	}
+}
+
+func TestResolveNodeIndex_ExplicitTakesPrecedence(t *testing.T) {
+	config := &static.NodeConfig{
+		NodeIndex: intPtr(99),
+		NodeIndexFromInterface: &static.NodeIndexFromInterface{
+			Interface: "eth0",
+			Len:       24,
+			Family:    testFamilyIPv4,
+		},
+	}
+	idx, err := ResolveNodeIndex(config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if idx != 99 {
+		t.Errorf("expected 99, got %d", idx)
+	}
+}
+
+func TestResolveNodeIndex_NeitherSet(t *testing.T) {
+	config := &static.NodeConfig{}
+	_, err := ResolveNodeIndex(config)
+	if err == nil {
+		t.Fatal("expected error when neither nodeIndex nor nodeIndexFromInterface is set")
+	}
+}
+
+func TestValidateNodeIndexFromInterface(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       *static.NodeIndexFromInterface
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "empty interface",
+			cfg:       &static.NodeIndexFromInterface{Interface: "", Len: 24, Family: testFamilyIPv4},
+			expectErr: true,
+			errMsg:    "interface must not be empty",
+		},
+		{
+			name:      "invalid family",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 24, Family: "ipv5"},
+			expectErr: true,
+			errMsg:    "family must be",
+		},
+		{
+			name:      "ipv4 len too low",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 0, Family: testFamilyIPv4},
+			expectErr: true,
+			errMsg:    "len must be between 1 and 31",
+		},
+		{
+			name:      "ipv4 len too high",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 32, Family: testFamilyIPv4},
+			expectErr: true,
+			errMsg:    "len must be between 1 and 31",
+		},
+		{
+			name:      "ipv6 len too low",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 0, Family: "ipv6"},
+			expectErr: true,
+			errMsg:    "len must be between 1 and 127",
+		},
+		{
+			name:      "ipv6 len too high",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 128, Family: "ipv6"},
+			expectErr: true,
+			errMsg:    "len must be between 1 and 127",
+		},
+		{
+			name:      "invalid network CIDR",
+			cfg:       &static.NodeIndexFromInterface{Interface: "eth0", Len: 24, Family: testFamilyIPv4, Network: "not-a-cidr"},
+			expectErr: true,
+			errMsg:    "invalid network CIDR",
+		},
+		{
+			name: "valid ipv4 config",
+			cfg:  &static.NodeIndexFromInterface{Interface: "eth0", Len: 24, Family: testFamilyIPv4},
+		},
+		{
+			name: "valid ipv6 config",
+			cfg:  &static.NodeIndexFromInterface{Interface: "eth0", Len: 64, Family: "ipv6"},
+		},
+		{
+			name: "valid with network filter",
+			cfg:  &static.NodeIndexFromInterface{Interface: "eth0", Len: 24, Family: testFamilyIPv4, Network: "192.168.1.0/24"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNodeIndexFromInterface(tt.cfg)
+			if tt.expectErr {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("expected error containing %q, got %q", tt.errMsg, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestResolveNodeIndex_InterfaceNotFound(t *testing.T) {
+	config := &static.NodeConfig{
+		NodeIndexFromInterface: &static.NodeIndexFromInterface{
+			Interface: "nonexistent99",
+			Len:       24,
+			Family:    testFamilyIPv4,
+		},
+	}
+	_, err := ResolveNodeIndex(config)
+	if err == nil {
+		t.Fatal("expected error for non-existent interface")
+	}
+	if !strings.Contains(err.Error(), "nonexistent99") {
+		t.Errorf("error should mention interface name, got: %v", err)
+	}
+}
+
+func TestReadNodeConfig_WithNodeIndexFromInterface(t *testing.T) {
+	content := "nodeIndexFromInterface:\n  interface: eth0\n  len: 24\n  family: ipv4\n  network: 192.168.1.0/24\n"
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "node-config.yaml")
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	config, err := ReadNodeConfig(configPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.NodeIndex != nil {
+		t.Errorf("expected nil NodeIndex, got %d", *config.NodeIndex)
+	}
+	if config.NodeIndexFromInterface == nil {
+		t.Fatal("expected NodeIndexFromInterface to be set")
+	}
+	if config.NodeIndexFromInterface.Interface != "eth0" {
+		t.Errorf("expected interface eth0, got %s", config.NodeIndexFromInterface.Interface)
+	}
+	if config.NodeIndexFromInterface.Len != 24 {
+		t.Errorf("expected len 24, got %d", config.NodeIndexFromInterface.Len)
+	}
+	if config.NodeIndexFromInterface.Family != testFamilyIPv4 {
+		t.Errorf("expected family ipv4, got %s", config.NodeIndexFromInterface.Family)
+	}
+	if config.NodeIndexFromInterface.Network != "192.168.1.0/24" {
+		t.Errorf("expected network 192.168.1.0/24, got %s", config.NodeIndexFromInterface.Network)
 	}
 }

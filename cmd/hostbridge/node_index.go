@@ -30,6 +30,11 @@ func annotateCurrentNode(ctx context.Context, nodeConfigPath, nodeName string) e
 		return fmt.Errorf("failed to read node configuration from %s: %w", nodeConfigPath, err)
 	}
 
+	nodeIndex, err := staticconfiguration.ResolveNodeIndex(nodeConfig)
+	if err != nil {
+		return fmt.Errorf("failed to resolve node index: %w", err)
+	}
+
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get in-cluster config: %w", err)
@@ -44,7 +49,7 @@ func annotateCurrentNode(ctx context.Context, nodeConfigPath, nodeName string) e
 	patchData := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
-				OpenpeNodeIndex: strconv.Itoa(nodeConfig.NodeIndex),
+				OpenpeNodeIndex: strconv.Itoa(nodeIndex),
 			},
 		},
 	}

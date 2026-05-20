@@ -198,6 +198,14 @@ func runHostMode(
 		logger.Error("failed to load the node configuration file", "error", err)
 		os.Exit(1)
 	}
+
+	nodeIndex, err := staticconfiguration.ResolveNodeIndex(nodeConfig)
+	if err != nil {
+		logger.Error("failed to resolve node index", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("resolved node index", "nodeIndex", nodeIndex)
+
 	if err := overrideHostMode(&args, *nodeConfig); err != nil {
 		logger.Error("failed to override host mode arguments", "error", err)
 		os.Exit(1)
@@ -211,7 +219,7 @@ func runHostMode(
 		defer close(staticDone)
 		logger.Info("creating static configuration controller for host mode")
 		err := runStaticConfigReconciler(
-			staticControllerCtx, args, hostModeParams, nodeConfig, logger, args.probeAddr,
+			staticControllerCtx, args, hostModeParams, nodeIndex, logger, args.probeAddr,
 		)
 		if errors.Is(err, context.Canceled) {
 			logger.Info("static config reconciler stopped (API became available)")
@@ -241,7 +249,7 @@ func runHostMode(
 
 	// Start API reconciler in main thread (blocking) - keeps process alive
 	if err := runK8sConfigReconcilerHostMode(
-		ctx, args, hostModeParams, nodeConfig, k8sConfig, logger,
+		ctx, args, hostModeParams, nodeIndex, k8sConfig, logger,
 	); err != nil {
 		logger.Error("failed to enable k8s reconciler", "error", err)
 		os.Exit(1)
@@ -251,7 +259,7 @@ func runHostMode(
 func runK8sConfigReconcilerHostMode(ctx context.Context,
 	args parameters,
 	hostModeParams hostModeParameters,
-	nodeConfig *static.NodeConfig,
+	nodeIndex int,
 	k8sConfig *rest.Config,
 	logger *slog.Logger) error {
 
@@ -265,7 +273,7 @@ func runK8sConfigReconcilerHostMode(ctx context.Context,
 	routerProvider := &routerconfiguration.RouterHostProvider{
 		FRRConfigPath:         args.frrConfigPath,
 		RouterPidFilePath:     hostModeParams.hostContainerPidPath,
-		CurrentNodeIndex:      nodeConfig.NodeIndex,
+		CurrentNodeIndex:      nodeIndex,
 		SystemdSocketPath:     hostModeParams.systemdSocketPath,
 		RouterHealthCheckPort: hostModeParams.routerHealthCheckPort,
 	}
@@ -360,7 +368,7 @@ func runK8sConfigReconciler(ctx context.Context,
 func runStaticConfigReconciler(ctx context.Context,
 	args parameters,
 	hostModeParams hostModeParameters,
-	nodeConfig *static.NodeConfig,
+	nodeIndex int,
 	logger *slog.Logger,
 	probeAddr string) error {
 	mgr, err := ctrl.NewManager(&rest.Config{}, ctrl.Options{
@@ -378,7 +386,7 @@ func runStaticConfigReconciler(ctx context.Context,
 	staticRouterProvider := &routerconfiguration.RouterHostProvider{
 		FRRConfigPath:         args.frrConfigPath,
 		RouterPidFilePath:     hostModeParams.hostContainerPidPath,
-		CurrentNodeIndex:      nodeConfig.NodeIndex,
+		CurrentNodeIndex:      nodeIndex,
 		SystemdSocketPath:     hostModeParams.systemdSocketPath,
 		RouterHealthCheckPort: hostModeParams.routerHealthCheckPort,
 	}
@@ -386,7 +394,7 @@ func runStaticConfigReconciler(ctx context.Context,
 	staticReconciler := &routerconfiguration.StaticConfigReconciler{
 		Scheme:          mgr.GetScheme(),
 		Logger:          logger,
-		NodeIndex:       nodeConfig.NodeIndex,
+		NodeIndex:       nodeIndex,
 		LogLevel:        args.logLevel,
 		FRRConfigPath:   args.frrConfigPath,
 		FRRReloadSocket: args.reloaderSocket,
