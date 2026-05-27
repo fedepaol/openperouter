@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -162,32 +163,39 @@ func mergeStaticConfig(staticConfigDir string, config conversion.APIConfigData, 
 }
 
 func (r *PERouterReconciler) getConfigFromAPI(ctx context.Context, logger *slog.Logger) (conversion.APIConfigData, error) {
+	notMirroredReq, err := labels.NewRequirement(LabelMirrored, selection.NotEquals, []string{LabelValueMirrored})
+	if err != nil {
+		return conversion.APIConfigData{}, fmt.Errorf("failed to create label requirement: %w", err)
+	}
+	notMirroredSelector := labels.NewSelector().Add(*notMirroredReq)
+	listOpts := &client.ListOptions{LabelSelector: notMirroredSelector}
+
 	var underlays v1alpha1.UnderlayList
-	if err := r.List(ctx, &underlays); err != nil {
+	if err := r.List(ctx, &underlays, listOpts); err != nil {
 		slog.Error("failed to list underlays", "error", err)
 		return conversion.APIConfigData{}, err
 	}
 
 	var l3vnis v1alpha1.L3VNIList
-	if err := r.List(ctx, &l3vnis); err != nil {
+	if err := r.List(ctx, &l3vnis, listOpts); err != nil {
 		slog.Error("failed to list l3vnis", "error", err)
 		return conversion.APIConfigData{}, err
 	}
 
 	var l2vnis v1alpha1.L2VNIList
-	if err := r.List(ctx, &l2vnis); err != nil {
+	if err := r.List(ctx, &l2vnis, listOpts); err != nil {
 		slog.Error("failed to list l2vnis", "error", err)
 		return conversion.APIConfigData{}, err
 	}
 
 	var l3passthrough v1alpha1.L3PassthroughList
-	if err := r.List(ctx, &l3passthrough); err != nil {
+	if err := r.List(ctx, &l3passthrough, listOpts); err != nil {
 		slog.Error("failed to list l3passthrough", "error", err)
 		return conversion.APIConfigData{}, err
 	}
 
 	var rawFRRConfigs v1alpha1.RawFRRConfigList
-	if err := r.List(ctx, &rawFRRConfigs); err != nil {
+	if err := r.List(ctx, &rawFRRConfigs, listOpts); err != nil {
 		slog.Error("failed to list rawfrrconfigs", "error", err)
 		return conversion.APIConfigData{}, err
 	}
@@ -290,6 +298,10 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	notMirrored := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetLabels()[LabelMirrored] != LabelValueMirrored
+	})
+
 	if err := setPodNodeNameIndex(mgr); err != nil {
 		return err
 	}
@@ -304,6 +316,7 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&v1alpha1.RawFRRConfig{}, &handler.EnqueueRequestForObject{}).
 		WithEventFilter(filterNonRouterPods).
 		WithEventFilter(filterUpdates).
+		WithEventFilter(notMirrored).
 		Named("routercontroller")
 
 	// In host mode, watch for file system events via TriggerChan

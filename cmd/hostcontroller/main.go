@@ -270,8 +270,32 @@ func runK8sConfigReconcilerHostMode(ctx context.Context,
 		RouterHealthCheckPort: hostModeParams.routerHealthCheckPort,
 	}
 
-	// Create trigger channel for file watcher
-	triggerChan := make(chan event.GenericEvent, 1)
+	// Fan-out pattern: one upstream channel feeds both PERouterReconciler and ConfigMirrorController
+	upstreamTrigger := make(chan event.GenericEvent, 1)
+	reconcilerTrigger := make(chan event.GenericEvent, 1)
+	mirrorTrigger := make(chan event.GenericEvent, 1)
+
+	// Start fan-out goroutine
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-upstreamTrigger:
+				if !ok {
+					return
+				}
+				select {
+				case reconcilerTrigger <- ev:
+				default:
+				}
+				select {
+				case mirrorTrigger <- ev:
+				default:
+				}
+			}
+		}
+	}()
 
 	apiReconciler := &routerconfiguration.PERouterReconciler{
 		Client:          mgr.GetClient(),
@@ -284,15 +308,28 @@ func runK8sConfigReconcilerHostMode(ctx context.Context,
 		RouterProvider:  routerProvider,
 		StaticConfigDir: hostModeParams.configurationDir,
 		NodeConfigPath:  hostModeParams.nodeConfigPath,
-		TriggerChan:     triggerChan,
+		TriggerChan:     reconcilerTrigger,
 	}
 
 	if err := apiReconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller: %w", err)
 	}
 
-	// Setup file watcher to trigger API reconciler on static file changes
-	fw, err := filewatcher.New(hostModeParams.configurationDir, triggerChan, logger)
+	mirrorController := &routerconfiguration.ConfigMirrorController{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Logger:      logger,
+		NodeName:    args.nodeName,
+		Namespace:   args.namespace,
+		ConfigDir:   hostModeParams.configurationDir,
+		TriggerChan: mirrorTrigger,
+	}
+	if err := mirrorController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create mirror controller: %w", err)
+	}
+
+	// Setup file watcher to trigger both controllers via fan-out
+	fw, err := filewatcher.New(hostModeParams.configurationDir, upstreamTrigger, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create file watcher for API reconciler: %w", err)
 	}
