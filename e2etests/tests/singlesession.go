@@ -38,7 +38,7 @@ var singleSessionUnderlay = v1alpha1.Underlay{
 		Neighbors: []v1alpha1.Neighbor{
 			{
 				ASN:     ptr.To(int64(64512)),
-				Address: "192.168.11.2",
+				Address: new("192.168.11.2"),
 			},
 		},
 		EVPN: &v1alpha1.EVPNConfig{

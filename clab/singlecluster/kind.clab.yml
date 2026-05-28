@@ -84,10 +84,10 @@ topology:
     - endpoints: ["leafkind1:toswitch1", "leafkind1-sw:leaf1"]
     - endpoints: ["leafkind2:toswitch2", "leafkind2-sw:leaf2"]
     # Point to point links for IPv6 unnumbered BGP sessions.
-    - endpoints: ["leafkind1:tokindworker", "pe-kind-worker:toleafkind"]
-    - endpoints: ["leafkind2:tokindworker", "pe-kind-worker:toleafkind"]
-    - endpoints: ["leafkind1:tokindctrlpl", "pe-kind-control-plane:toleafkind"]
-    - endpoints: ["leafkind2:tokindctrlpl", "pe-kind-control-plane:toleafkind"]
+    - endpoints: ["leafkind1:tokindworker", "pe-kind-worker:toleafkind1"]
+    - endpoints: ["leafkind2:tokindworker", "pe-kind-worker:toleafkind2"]
+    - endpoints: ["leafkind1:tokindctrlpl", "pe-kind-control-plane:toleafkind1"]
+    - endpoints: ["leafkind2:tokindctrlpl", "pe-kind-control-plane:toleafkind2"]
 
     # All kind nodes connect to both leaf switches for redundancy
     - endpoints: ["pe-kind-control-plane:toswitch1", "leafkind1-sw:kindctrlpl1"]

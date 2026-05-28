@@ -579,7 +579,8 @@ var _ = Describe("Underlay external and internal configuration", Ordered, func()
 
 	AfterEach(func() {
 		dumpIfFails(cs)
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
 		err := Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -595,7 +596,8 @@ var _ = Describe("Underlay external and internal configuration", Ordered, func()
 
 	It("peers with the tor with BGP external", func() {
 		By("ensuring leafkind expects eBGP with PE ASN 64514")
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
 
 		underlay := *infra.Underlay.DeepCopy()
 		underlay.Spec.Neighbors[0].ASN = nil
@@ -611,7 +613,8 @@ var _ = Describe("Underlay external and internal configuration", Ordered, func()
 
 	It("peers with the tor with BGP internal", func() {
 		By("reconfiguring leafkind for iBGP (PERouterASN=64512)")
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
 
 		underlay := *infra.Underlay.DeepCopy()
 		underlay.Spec.ASN = 64512
@@ -628,7 +631,8 @@ var _ = Describe("Underlay external and internal configuration", Ordered, func()
 
 	It("peers with the tor with iBGP with ASN number", func() {
 		By("reconfiguring leafkind for iBGP (PERouterASN=64512)")
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
 
 		underlay := *infra.Underlay.DeepCopy()
 		underlay.Spec.ASN = int64(64512)
@@ -880,7 +884,7 @@ var _ = Describe("Add extra neighbor", Ordered, func() {
 				Neighbors: []v1alpha1.Neighbor{
 					{
 						ASN:     new(int64(64512)),
-						Address: "192.168.11.2",
+						Address: new("192.168.11.2"),
 					},
 				},
 				EVPN: &v1alpha1.EVPNConfig{
@@ -915,7 +919,7 @@ var _ = Describe("Add extra neighbor", Ordered, func() {
 		twoNeighborUnderlay := singleNeighborUnderlay.DeepCopy()
 		twoNeighborUnderlay.Spec.Neighbors = append(twoNeighborUnderlay.Spec.Neighbors, v1alpha1.Neighbor{
 			ASN:     new(int64(64513)),
-			Address: "192.168.12.2",
+			Address: new("192.168.12.2"),
 		})
 		twoNeighborUnderlay.Spec.Nics = []string{"toswitch1", "toswitch2"}
 		err = Updater.Update(config.Resources{

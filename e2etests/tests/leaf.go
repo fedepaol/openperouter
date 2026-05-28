@@ -36,11 +36,11 @@ func redistributeConnectedForLeafKind(nodes []corev1.Node) {
 		{infra.LeafKind2Config, infra.KindLeaf2},
 	}
 	for _, lk := range leafKinds {
-		neighbors := []string{}
+		neighbors := []infra.Neighbor{}
 		for _, node := range nodes {
 			neighborIP, err := infra.NeighborIP(lk.name, node.Name)
 			Expect(err).NotTo(HaveOccurred())
-			neighbors = append(neighbors, neighborIP)
+			neighbors = append(neighbors, infra.Neighbor{ID: neighborIP})
 		}
 		config := infra.LeafKindConfiguration{
 			ASN:                   lk.config.ASN,
@@ -65,11 +65,11 @@ func ibgpForLeafKind(nodes []corev1.Node) {
 		{infra.LeafKind2Config, infra.KindLeaf2},
 	}
 	for _, lk := range leafKinds {
-		neighbors := []string{}
+		neighbors := []infra.Neighbor{}
 		for _, node := range nodes {
 			neighborIP, err := infra.NeighborIP(lk.name, node.Name)
 			Expect(err).NotTo(HaveOccurred())
-			neighbors = append(neighbors, neighborIP)
+			neighbors = append(neighbors, infra.Neighbor{ID: neighborIP})
 		}
 		config := infra.LeafKindConfiguration{
 			ASN:              64512,
@@ -86,8 +86,8 @@ func ibgpForLeafKind(nodes []corev1.Node) {
 }
 
 func resetLeafKindConfig(nodes []corev1.Node) {
-	err := infra.LeafKind1Config.UpdateConfig(nodes, false)
+	err := infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})
 	Expect(err).NotTo(HaveOccurred())
-	err = infra.LeafKind2Config.UpdateConfig(nodes, false)
+	err = infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})
 	Expect(err).NotTo(HaveOccurred())
 }

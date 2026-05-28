@@ -326,7 +326,8 @@ var _ = Describe("Beta: Named netns auto-rebuilds after deletion", Ordered, func
 		By("resetting leafkind config to defaults")
 		nodes, err := k8s.GetNodes(cs)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
 
 		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())

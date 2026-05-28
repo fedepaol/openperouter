@@ -64,7 +64,7 @@ var UnderlayUnnumbered = v1alpha1.Underlay{
 			},
 			{
 				ASN:     new(int64(64513)),
-				Address: "192.168.12.2",
+				Address: new("192.168.12.2"),
 			},
 		},
 		EVPN: &v1alpha1.EVPNConfig{

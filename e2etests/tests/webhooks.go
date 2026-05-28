@@ -609,7 +609,7 @@ var _ = Describe("Webhooks", func() {
 						VTEPCIDR: new("notacidr"),
 					},
 					Neighbors: []v1alpha1.Neighbor{
-						{ASN: ptr.To(int64(65001)), Address: "192.168.1.1"},
+						{ASN: ptr.To(int64(65001)), Address: ptr.To("192.168.1.1")},
 					},
 				},
 			}, "invalid vtep CIDR"),
@@ -630,19 +630,19 @@ var _ = Describe("Webhooks", func() {
 					Neighbors: []v1alpha1.Neighbor{
 						{
 							ASN:     ptr.To(int64(65001)),
-							Address: "192.168.1.1",
+							Address: ptr.To("192.168.1.1"),
 						},
 						{
 							ASN:     ptr.To(int64(65002)),
-							Address: "192.168.1.2",
+							Address: ptr.To("192.168.1.2"),
 						},
 						{
 							ASN:     ptr.To(int64(65003)),
-							Address: "192.168.2.1",
+							Address: ptr.To("192.168.2.1"),
 						},
 						{
 							ASN:     ptr.To(int64(65004)),
-							Address: "192.168.2.2",
+							Address: ptr.To("192.168.2.2"),
 						},
 					},
 				},
@@ -668,7 +668,7 @@ var _ = Describe("Webhooks", func() {
 						VTEPCIDR: new("192.168.1.0/24"),
 					},
 					Neighbors: []v1alpha1.Neighbor{
-						{ASN: ptr.To(int64(65001)), Address: "192.168.1.1"},
+						{ASN: ptr.To(int64(65001)), Address: ptr.To("192.168.1.1")},
 					},
 				},
 			}
@@ -700,7 +700,7 @@ var _ = Describe("Webhooks", func() {
 								VTEPCIDR: new("192.168.2.0/24"),
 							},
 							Neighbors: []v1alpha1.Neighbor{
-								{ASN: ptr.To(int64(65002)), Address: "192.168.2.1"},
+								{ASN: ptr.To(int64(65002)), Address: ptr.To("192.168.2.1")},
 							},
 						},
 					},
@@ -721,7 +721,7 @@ var _ = Describe("Webhooks", func() {
 								VTEPCIDR: new("notacidr"),
 							},
 							Neighbors: []v1alpha1.Neighbor{
-								{ASN: ptr.To(int64(65001)), Address: "192.168.1.1"},
+								{ASN: ptr.To(int64(65001)), Address: new("192.168.1.1")},
 							},
 						},
 					},

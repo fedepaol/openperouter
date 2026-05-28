@@ -478,7 +478,12 @@ var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integr
 		By("setting iBGP next-hop-self force on leaf kind")
 		nodes, err = k8s.GetNodes(cs)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{PERouterASN: 64512, NextHopSelf: true})).To(Succeed())
+		Expect(
+			infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{NextHopSelf: true}),
+		).To(Succeed())
+		Expect(
+			infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{NextHopSelf: true}),
+		).To(Succeed())
 
 		err = Updater.Update(config.Resources{
 			Underlays: []v1alpha1.Underlay{
@@ -488,8 +493,12 @@ var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integr
 		Expect(err).NotTo(HaveOccurred())
 
 		By("setting redistribute connected on leaves")
-		Expect(infra.LeafAConfig.RedistributeConnected()).To(Succeed())
-		Expect(infra.LeafBConfig.RedistributeConnected()).To(Succeed())
+		Expect(
+			infra.LeafAConfig.RedistributeConnected(),
+		).To(Succeed())
+		Expect(
+			infra.LeafBConfig.RedistributeConnected(),
+		).To(Succeed())
 
 		By("Creating the test namespace")
 		_, err = k8s.CreateNamespace(cs, testNamespace)
@@ -531,7 +540,8 @@ var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integr
 		Expect(infra.LeafAConfig.Reset()).To(Succeed())
 		Expect(infra.LeafBConfig.Reset()).To(Succeed())
 
-		Expect(infra.UpdateLeafKindConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
+		Expect(infra.LeafKind2Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
 
 		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
