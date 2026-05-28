@@ -285,22 +285,17 @@ var _ = Describe("Beta: Named netns auto-rebuilds after deletion", Ordered, func
 		By("configuring leafkind with BGP graceful-restart and next-hop-self")
 		nodes, err := k8s.GetNodes(cs)
 		Expect(err).NotTo(HaveOccurred())
-		neighbors := []infra.Neighbor{}
-		for _, node := range nodes {
-			neighborIP, err := infra.NeighborIP(infra.KindLeaf, node.Name)
-			Expect(err).NotTo(HaveOccurred())
-			neighbors = append(neighbors, infra.Neighbor{ID: neighborIP})
-		}
-		leafConfig := infra.LeafKindConfiguration{
-			ASN:              infra.LeafKind1Config.ASN,
-			SpinePeerAddress: infra.LeafKind1Config.SpinePeerAddress,
-			PERouterASN:      64514,
-			NextHopSelf:      true,
-			Neighbors:        neighbors,
-		}
-		configString, err := infra.LeafKindConfigToFRR(leafConfig)
-		Expect(err).NotTo(HaveOccurred())
-		err = infra.LeafKind1Config.ReloadConfig(configString)
+
+		err = infra.LeafKind1Config.UpdateConfig(
+			nodes,
+			infra.LeafKindConfiguration{
+				ASN:              infra.LeafKind1Config.ASN,
+				SpinePeerAddress: infra.LeafKind1Config.SpinePeerAddress,
+				PERouterASN:      64514,
+				NextHopSelf:      true,
+			},
+		)
+
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting for BGP sessions to establish after underlay creation")
@@ -701,23 +696,25 @@ func dumpUnderlayVeths(cs clientset.Interface, label string) {
 	for _, node := range nodes {
 		nodeExec := executor.ForContainer(node.Name)
 
-		for _, loc := range []struct {
-			desc string
-			args []string
-		}{
-			{"default netns", []string{"ip", "-d", "link", "show", "toswitch"}},
-			{"perouter netns", []string{"ip", "netns", "exec", "perouter", "ip", "-d", "link", "show", "toswitch"}},
-		} {
-			out, err := nodeExec.Exec(loc.args[0], loc.args[1:]...)
-			if err != nil {
-				w.Printf("DIAG [%s]: %s toswitch in %s: not found\n", label, node.Name, loc.desc)
-			} else {
-				w.Printf("DIAG [%s]: %s toswitch in %s:\n%s\n", label, node.Name, loc.desc, out)
+		for _, iface := range []string{"toswitch1", "toswitch2"} {
+			for _, loc := range []struct {
+				desc string
+				args []string
+			}{
+				{"default netns", []string{"ip", "-d", "link", "show", iface}},
+				{"perouter netns", []string{"ip", "netns", "exec", "perouter", "ip", "-d", "link", "show", iface}},
+			} {
+				out, err := nodeExec.Exec(loc.args[0], loc.args[1:]...)
+				if err != nil {
+					w.Printf("DIAG [%s]: %s %s in %s: not found\n", label, node.Name, iface, loc.desc)
+				} else {
+					w.Printf("DIAG [%s]: %s %s in %s:\n%s\n", label, node.Name, iface, loc.desc, out)
+				}
 			}
 		}
 	}
 
-	for _, port := range []string{"kindctrlpl", "kindworker"} {
+	for _, port := range []string{"kindctrlpl1", "kindworker1", "kindctrlpl2", "kindworker2"} {
 		out, err := executor.Host.Exec("ip", "-d", "link", "show", port)
 		if err != nil {
 			w.Printf("DIAG [%s]: bridge port %s: not found\n", label, port)

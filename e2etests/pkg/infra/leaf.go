@@ -181,6 +181,12 @@ func (l LeafKind) UpdateConfig(nodes []corev1.Node, config LeafKindConfiguration
 	if config.PERouterASN == 0 {
 		config.PERouterASN = 64514
 	}
+	if config.ASN == 0 {
+		config.ASN = l.ASN
+	}
+	if config.SpinePeerAddress == "" {
+		config.SpinePeerAddress = l.SpinePeerAddress
+	}
 
 	neighbors := []Neighbor{}
 	for _, node := range nodes {

@@ -24,9 +24,10 @@ var (
 
 	// validLeftContainers lists the containers that are allowed for left veth monitoring.
 	validLeftContainers = []string{
-		"clab-kind-leafkind",
-		"clab-kind-leafkind-a",
-		"clab-kind-leafkind-b",
+		"clab-kind-leafkind1",   // singlecluster
+		"clab-kind-leafkind2",   // singlecluster
+		"clab-kind-leafkind-a",  // multicluster
+		"clab-kind-leafkind-b",  // multicluster
 	}
 )
 

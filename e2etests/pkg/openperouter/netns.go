@@ -55,15 +55,18 @@ func UnderlayConfigured(nodeName string) bool {
 	return err == nil
 }
 
-// UnderlayVethExists checks whether the toswitch interface exists on nodeName,
+// UnderlayVethExists checks whether the toswitch interfaces exist on nodeName,
 // either in the default netns or inside the perouter netns.
 func UnderlayVethExists(nodeName string) bool {
 	exec := executor.ForContainer(nodeName)
-	if _, err := exec.Exec("ip", "link", "show", "toswitch1"); err == nil {
-		return true
-	}
-	if _, err := exec.Exec("ip", "netns", "exec", namedNetns, "ip", "link", "show", "toswitch1"); err == nil {
-		return true
+	// Check for both toswitch1 and toswitch2 since we now have dual underlay
+	for _, iface := range []string{"toswitch1", "toswitch2"} {
+		if _, err := exec.Exec("ip", "link", "show", iface); err == nil {
+			return true
+		}
+		if _, err := exec.Exec("ip", "netns", "exec", namedNetns, "ip", "link", "show", iface); err == nil {
+			return true
+		}
 	}
 	return false
 }
