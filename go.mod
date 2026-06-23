@@ -1,6 +1,6 @@
 module github.com/openperouter/openperouter
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/apparentlymart/go-cidr v1.1.1
