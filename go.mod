@@ -12,7 +12,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/open-policy-agent/cert-controller v0.13.0
-	github.com/opencontainers/runtime-spec v1.2.1
+	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/ovn-kubernetes/libovsdb v0.8.1
 	github.com/pkg/errors v0.9.1
