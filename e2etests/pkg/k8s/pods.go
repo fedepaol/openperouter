@@ -94,6 +94,19 @@ func OnNode(nodeName string) func(*corev1.Pod) {
 	}
 }
 
+func WithCapabilities(caps ...corev1.Capability) PodModifier {
+	return func(pod *corev1.Pod) {
+		c := &pod.Spec.Containers[0]
+		if c.SecurityContext == nil {
+			c.SecurityContext = &corev1.SecurityContext{}
+		}
+		if c.SecurityContext.Capabilities == nil {
+			c.SecurityContext.Capabilities = &corev1.Capabilities{}
+		}
+		c.SecurityContext.Capabilities.Add = append(c.SecurityContext.Capabilities.Add, caps...)
+	}
+}
+
 func waitForPodReady(cs clientset.Interface, pod *corev1.Pod) (*corev1.Pod, error) {
 	timeout := time.After(3 * time.Minute)
 	ticker := time.NewTicker(500 * time.Millisecond)
