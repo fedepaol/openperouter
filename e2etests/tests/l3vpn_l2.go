@@ -14,7 +14,9 @@ import (
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
+	"github.com/openperouter/openperouter/e2etests/pkg/frr"
 	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
+	e2eipfamily "github.com/openperouter/openperouter/e2etests/pkg/ipfamily"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
@@ -239,6 +241,20 @@ var _ = Describe("SRV6 routes between bgp and the fabric", Ordered, func() {
 			FRRConfigurations: frrK8sConfigRed,
 		})
 		Expect(err).NotTo(HaveOccurred())
+
+		By("waiting for SRV6 L3VPN routes from leafSRV6 (IS-IS convergence on OCP takes 2-3 min)")
+		Eventually(func() error {
+			for exec := range routers.GetExecutors() {
+				l3vpnData, err := frr.L3VPNInfo(exec, e2eipfamily.IPv4)
+				if err != nil {
+					return err
+				}
+				if !l3vpnData.ContainsBGPRouteForL3VPN("192.170.20.0/24", infra.LeafSRV6Config.RouterID, vniRed.Spec.ImportRTs) {
+					return fmt.Errorf("SRV6 route not yet available on %s", exec.Name())
+				}
+			}
+			return nil
+		}, 5*time.Minute, 5*time.Second).Should(Succeed())
 
 		By("creating the namespace")
 		_, err = k8s.CreateNamespace(cs, testNamespace)

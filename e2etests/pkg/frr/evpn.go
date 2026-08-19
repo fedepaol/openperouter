@@ -94,6 +94,22 @@ func (e *EVPNData) ContainsType2MACIPRouteForVNI(ip string, vtep string, vni int
 	return false
 }
 
+// ContainsType2MACIPRoute checks if a Type 2 MAC+IP route exists for the given
+// bare IP address (e.g., "192.168.1.10"), regardless of VTEP or VNI. It is used
+// to confirm that the return path to an endpoint has been learned as a host
+// route before relying on reachability, avoiding a fallback to Type-5 ECMP.
+func (e *EVPNData) ContainsType2MACIPRoute(ip string) bool {
+	isType2MACIPRoute := func(p Path) bool {
+		return p.RouteType == 2 && p.IPLen > 0
+	}
+	for _, path := range e.matchingPaths(isType2MACIPRoute) {
+		if path.IP == ip {
+			return true
+		}
+	}
+	return false
+}
+
 // allPaths returns a flat slice of paths from all entries and prefixes.
 func (e *EVPNData) allPaths() []Path {
 	var paths []Path

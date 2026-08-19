@@ -186,7 +186,7 @@ var _ = Describe("SRV6 routes between bgp and the fabric", Ordered, func() {
 						}
 					}
 					return nil
-				}, 3*time.Minute, time.Second).WithOffset(1).ShouldNot(HaveOccurred())
+				}, 5*time.Minute, time.Second).WithOffset(1).ShouldNot(HaveOccurred())
 			}
 
 			Contains := true

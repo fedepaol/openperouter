@@ -107,7 +107,54 @@ func waitForType5Route(exec executor.Executor, prefix string) {
 			return fmt.Errorf("Type-5 route for %s not yet present", prefix)
 		}
 		return nil
-	}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
+	}, 5*time.Minute, time.Second).ShouldNot(HaveOccurred())
+}
+
+// waitForType2Route waits until a Type-2 MAC/IP route for the given bare IP is
+// present in the leaf's EVPN table. Endpoint reachability across the fabric
+// depends on the return path being a host route: without the Type-2 route the
+// leaf falls back to the Type-5 subnet prefix, which is ECMP across every node
+// advertising the connected subnet and blackholes replies on all but the node
+// actually hosting the endpoint.
+func waitForType2Route(exec executor.Executor, ip string) {
+	Eventually(func() error {
+		evpn, err := frr.EVPNInfo(exec)
+		if err != nil {
+			return err
+		}
+		if !evpn.ContainsType2MACIPRoute(ip) {
+			return fmt.Errorf("Type-2 route for %s not yet present", ip)
+		}
+		return nil
+	}, 5*time.Minute, time.Second).ShouldNot(HaveOccurred())
+}
+
+// waitForUnderlayTORSession blocks until the underlay BGP session between every
+// node's perouter and the given kind leaf is Established, as seen from the leaf.
+// Applying or reconfiguring the underlay tears these sessions down and they take
+// time to reconverge; asserting fabric routes before the underlay is back up
+// races that reconvergence and times out on whichever node reconverges last.
+//
+// neighborIP resolves the router side session address for the i-th node, which
+// differs per underlay flavor (the toswitch device address for the NetworkDevice
+// mode, a CNI or DHCP assigned address otherwise), so callers pass the resolver
+// that matches the underlay under test.
+func waitForUnderlayTORSession(leaf string, nodes []corev1.Node, neighborIP func(int, corev1.Node) (string, error)) {
+	GinkgoHelper()
+	leafExec := executor.ForContainer(leaf)
+	for i, node := range nodes {
+		ip, err := neighborIP(i, node)
+		Expect(err).NotTo(HaveOccurred())
+		validateSessionWithNeighbor(
+			leafExec,
+			validationParameters{
+				fromName:    leaf,
+				toName:      node.Name,
+				neighborIP:  ip,
+				established: Established,
+			},
+		)
+	}
 }
 
 // validateSessionDownForNeigh validates that the neighbor is down

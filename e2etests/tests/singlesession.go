@@ -218,7 +218,7 @@ var _ = Describe("Single Session Baseline", Ordered, func() {
 				return fmt.Errorf("expected hostname %q, got %q", testPod.Name, res)
 			}
 			return nil
-		}, 2*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
+		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 
 		By("Creating NAD for L2 connectivity")
 		l2GatewayIP := "192.171.24.1/24"

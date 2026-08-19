@@ -194,6 +194,9 @@ func evpnRoutesOverUnderlay(params evpnUnderlayParams) {
 		Eventually(func() error {
 			return params.ConfigureLeafKind(nodes)
 		}, 3*time.Minute, time.Second).Should(Succeed())
+
+		By("waiting for the underlay TOR sessions to reconverge after the flavor reconfig")
+		waitForUnderlayTORSession(infra.KindLeaf, nodes, params.NeighborIP)
 	})
 
 	AfterAll(func() {

@@ -158,6 +158,14 @@ var _ = Describe("BridgeRefresher E2E - Type 2 Route Persistence", Ordered, func
 			)
 			Expect(err).NotTo(HaveOccurred())
 
+			By("Waiting for VXLAN tunnels to establish on test node")
+			nodeExec := executor.ForNode(nodes[0].Name)
+			Eventually(func(g Gomega) {
+				out, err := nodeExec.Exec("ip", "netns", "exec", "perouter", "bridge", "fdb", "show", "dev", "vni110")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(out).To(ContainSubstring("dst"))
+			}).WithTimeout(2 * time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+
 			By("Pinging gateway once to establish neighbor entry")
 			podExec := executor.ForPod(testNamespace, silentPod.Name, "busybox")
 			// Ping the gateway IP once via the net1 interface (macvlan attached interface)

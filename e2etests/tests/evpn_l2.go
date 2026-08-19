@@ -4,6 +4,7 @@ package tests
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strings"
 	"time"
@@ -190,6 +191,41 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Orde
 					established: Established,
 				},
 			)
+		}
+
+		By("waiting for Type-5 routes to propagate through fabric before traffic check")
+		for _, gwIP := range tc.l2GatewayIPs {
+			_, subnet, err := net.ParseCIDR(gwIP)
+			Expect(err).NotTo(HaveOccurred())
+			waitForType5Route(leafExec, subnet.String())
+		}
+		waitForType5Route(leafExec, "192.168.20.0/24")
+
+		By("waiting for VXLAN tunnels to establish on test nodes")
+		for _, node := range nodes[:2] {
+			nodeExec := executor.ForNode(node.Name)
+			Eventually(func(g Gomega) {
+				out, err := nodeExec.Exec("ip", "netns", "exec", "perouter", "bridge", "fdb", "show", "dev", "vni110")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(out).To(ContainSubstring("dst"))
+			}).WithTimeout(2 * time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+		}
+
+		By("waiting for Type-2 routes for the pods to propagate to the fabric leaves")
+		leafAExec := executor.ForContainer(infra.LeafA)
+		leafBExec := executor.ForContainer(infra.LeafB)
+		podIPs := append(append([]string{}, tc.firstPodIPs...), tc.secondPodIPs...)
+		for _, podIP := range podIPs {
+			ip := discardAddressLength(podIP)
+			// IPv6 endpoints do not emit an unsolicited NA on address
+			// assignment, so their Type-2 MAC/IP route is only advertised once
+			// traffic triggers ND. Waiting for it pre-traffic would deadlock;
+			// the reachability curl below drives that convergence instead.
+			if net.ParseIP(ip).To4() == nil {
+				continue
+			}
+			waitForType2Route(leafAExec, ip)
+			waitForType2Route(leafBExec, ip)
 		}
 
 		podExecutor := executor.ForPod(firstPod.Namespace, firstPod.Name, "agnhost")
@@ -447,6 +483,16 @@ var _ = Describe("Disconnected L2VNI east/west traffic", Ordered, func() {
 		By("removing the default gateway via the primary interface")
 		Expect(removeGatewayFromPod(firstPod)).To(Succeed())
 		Expect(removeGatewayFromPod(secondPod)).To(Succeed())
+
+		By("waiting for VXLAN tunnels to establish on test nodes")
+		for _, node := range nodes[:2] {
+			nodeExec := executor.ForNode(node.Name)
+			Eventually(func(g Gomega) {
+				out, err := nodeExec.Exec("ip", "netns", "exec", "perouter", "bridge", "fdb", "show", "dev", "vni300")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(out).To(ContainSubstring("dst"))
+			}).WithTimeout(2 * time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+		}
 
 		By("checking bidirectional L2 reachability")
 		canPingFromPod(executor.ForPod(firstPod.Namespace, firstPod.Name, "agnhost"), secondPodIP)

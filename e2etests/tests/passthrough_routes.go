@@ -73,6 +73,13 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 			},
 		})
 		Expect(err).NotTo(HaveOccurred())
+
+		By("waiting for the underlay TOR sessions to converge before checking fabric routes")
+		nodes, err := k8s.GetNodes(cs)
+		Expect(err).NotTo(HaveOccurred())
+		waitForUnderlayTORSession(infra.KindLeaf, nodes, func(_ int, node corev1.Node) (string, error) {
+			return infra.NeighborIP(infra.KindLeaf, node.Name)
+		})
 	})
 
 	AfterAll(func() {
