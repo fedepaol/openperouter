@@ -1562,17 +1562,14 @@ func validateConfig[T any](config T, test string, pod *corev1.Pod) {
 		ShouldNot(HaveOccurred())
 }
 
-func ensureValidator(cs clientset.Interface, pod *corev1.Pod) {
-	if pod.Annotations != nil && pod.Annotations["validator"] == "true" {
+func ensureValidator(_ clientset.Interface, pod *corev1.Pod) {
+	podExec := executor.ForPod(pod.Namespace, pod.Name, "frr")
+	if _, err := podExec.Exec("test", "-f", "/validatehost"); err == nil {
 		return
 	}
 	dst := fmt.Sprintf("%s/%s:/", pod.Namespace, pod.Name)
 	fullargs := []string{"cp", ValidatorPath, dst}
 	_, err := exec.Command(executor.Kubectl, fullargs...).CombinedOutput()
-	Expect(err).NotTo(HaveOccurred())
-
-	pod.Annotations["validator"] = "true"
-	_, err = cs.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 }
 
