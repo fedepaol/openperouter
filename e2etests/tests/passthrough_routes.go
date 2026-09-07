@@ -73,13 +73,6 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 			},
 		})
 		Expect(err).NotTo(HaveOccurred())
-
-		By("waiting for the underlay TOR sessions to converge before checking fabric routes")
-		nodes, err := k8s.GetNodes(cs)
-		Expect(err).NotTo(HaveOccurred())
-		waitForUnderlayTORSession(infra.KindLeaf, nodes, func(_ int, node corev1.Node) (string, error) {
-			return infra.NeighborIP(infra.KindLeaf, node.Name)
-		})
 	})
 
 	AfterAll(func() {
@@ -91,6 +84,19 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 
 		err := Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
+
+		nodesItems, err := cs.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		By("waiting for the underlay to be removed from all nodes")
+		for _, node := range nodesItems.Items {
+			Eventually(func(g Gomega) {
+				isConfigured, err := openperouter.UnderlayConfigured(node.Name)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(isConfigured).To(BeFalse())
+			}, 2*time.Minute, time.Second).Should(Succeed())
+		}
+
 		By("waiting for all router pods to be ready after removing the underlay")
 		Eventually(func() error {
 			routers, err := openperouter.Get(cs, HostMode)
@@ -232,7 +238,7 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 		})
 
 		It("host and the pod from each other with the expected ips", func() {
-			_, err := openperouter.HostIPFromCIDRForNode(ptr.Deref(passthrough.Spec.HostSession.LocalCIDR.IPv4, ""), podNode)
+			hostSide, err := openperouter.HostIPFromCIDRForNode(ptr.Deref(passthrough.Spec.HostSession.LocalCIDR.IPv4, ""), podNode)
 			Expect(err).NotTo(HaveOccurred())
 
 			podIP, err := getPodIPByFamily(testPod, ipfamily.IPv4)
@@ -250,10 +256,12 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 				if err != nil {
 					return fmt.Errorf("curl %s:8090 failed: %s", externalHostIP, res)
 				}
-				// TODO: On OCP with OVN local gateway mode, inbound traffic from
-				// external hosts gets source-NATed to the OVN management port IP.
-				// Skipping source IP validation — connectivity verified by curl succeeding.
-				_ = res
+				clientIP, err := extractClientIP(res)
+				Expect(err).NotTo(HaveOccurred())
+
+				if clientIP != hostSide {
+					return fmt.Errorf("curl %s:8090 returned %s, expected %s", externalHostIP, clientIP, hostSide)
+				}
 
 				urlStr = url.Format("http://%s:8090/hostname", externalHostIP)
 				res, err = podExecutor.Exec("curl", "-sS", urlStr)
@@ -271,10 +279,12 @@ var _ = Describe("Routes between bgp and the fabric with Underlay in ipv4", Labe
 				if err != nil {
 					return fmt.Errorf("curl from %s to %s:8090 failed: %s", hostName, podIP, res)
 				}
-				// TODO: On OCP with OVN local gateway mode, inbound traffic from
-				// external hosts gets source-NATed to the OVN management port IP.
-				// Skipping source IP validation — connectivity verified by curl succeeding.
-				_ = res
+				hostClientIP, err := extractClientIP(res)
+				Expect(err).NotTo(HaveOccurred())
+
+				if hostClientIP != externalHostIP {
+					return fmt.Errorf("curl from %s to %s:8090 returned %s, expected %s", hostName, podIP, clientIP, externalHostIP)
+				}
 				return nil
 			}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 		})

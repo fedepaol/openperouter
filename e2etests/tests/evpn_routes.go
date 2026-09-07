@@ -117,7 +117,7 @@ var (
 // CNI plugins supported in the future (ipvlan, vlan, host-device, dhcp IPAM).
 var _ = DescribeTableSubtree("Routes between bgp and the fabric with Underlay in ipv4",
 	evpnRoutesOverUnderlay,
-	Entry("NetworkDevice", Ordered, networkDeviceUnderlay),
+	Entry("NetworkDevice", Ordered, GroutSupport, networkDeviceUnderlay),
 	Entry("MacvlanStatic", Ordered, macvlanStaticUnderlay),
 	Entry("MacvlanDHCP", Ordered, macvlanDHCPUnderlay),
 )
@@ -194,14 +194,19 @@ func evpnRoutesOverUnderlay(params evpnUnderlayParams) {
 		Eventually(func() error {
 			return params.ConfigureLeafKind(nodes)
 		}, 3*time.Minute, time.Second).Should(Succeed())
-
-		By("waiting for the underlay TOR sessions to reconverge after the flavor reconfig")
-		waitForUnderlayTORSession(infra.KindLeaf, nodes, params.NeighborIP)
 	})
 
 	AfterAll(func() {
 		err := Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
+		By("waiting for the underlay to be removed from all nodes")
+		for _, node := range nodes {
+			Eventually(func(g Gomega) {
+				isConfigured, err := openperouter.UnderlayConfigured(node.Name)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(isConfigured).To(BeFalse())
+			}, 2*time.Minute, time.Second).Should(Succeed())
+		}
 		By("restoring the standard leaf configuration")
 		Expect(infra.LeafKind1Config.UpdateConfig(nodes, infra.LeafKindConfiguration{})).To(Succeed())
 		By("waiting for all router pods to be ready after removing the underlay")
@@ -487,12 +492,12 @@ func evpnRoutesOverUnderlay(params evpnUnderlayParams) {
 				if err != nil {
 					return fmt.Errorf("curl from %s to %s:8090 failed: %s", hostName, podIP, res)
 				}
-				// TODO: On OCP with OVN local gateway mode, inbound traffic from
-				// external hosts gets source-NATed to the OVN management port IP.
-				// The pod sees ovn-k8s-mp0 as the client, not the external host.
-				// Skipping source IP validation for now — connectivity is verified
-				// by the curl succeeding.
-				_ = res
+				hostClientIP, err := extractClientIP(res)
+				Expect(err).NotTo(HaveOccurred())
+
+				if hostClientIP != externalHostIP {
+					return fmt.Errorf("curl from %s to %s:8090 returned %s, expected %s", hostName, podIP, clientIP, externalHostIP)
+				}
 				return nil
 			}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 		},
@@ -508,7 +513,7 @@ func evpnRoutesOverUnderlay(params evpnUnderlayParams) {
 	})
 }
 
-var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integration between a pod and the red hosts", func() {
+var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integration between a pod and the red hosts", GroutSupport, func() {
 	var cs clientset.Interface
 	var routers openperouter.Routers
 	var nodes []corev1.Node
@@ -640,6 +645,14 @@ var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integr
 
 		err = Updater.CleanAll()
 		Expect(err).NotTo(HaveOccurred())
+		By("waiting for the underlay to be removed from all nodes")
+		for _, node := range nodes {
+			Eventually(func(g Gomega) {
+				isConfigured, err := openperouter.UnderlayConfigured(node.Name)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(isConfigured).To(BeFalse())
+			}, 2*time.Minute, time.Second).Should(Succeed())
+		}
 		By("waiting for all router pods to be ready after removing the underlay")
 		Eventually(func() error {
 			routers, err := openperouter.Get(cs, HostMode)
@@ -697,10 +710,12 @@ var _ = Describe("Routes between bgp and the fabric with iBGP testing e2e integr
 			if err != nil {
 				return fmt.Errorf("curl from %s to %s:8090 failed: %s", hostName, podIP, res)
 			}
-			// TODO: On OCP with OVN local gateway mode, inbound traffic from
-			// external hosts gets source-NATed to the OVN management port IP.
-			// Skipping source IP validation — connectivity verified by curl succeeding.
-			_ = res
+			hostClientIP, err := extractClientIP(res)
+			Expect(err).NotTo(HaveOccurred())
+
+			if hostClientIP != externalHostIP {
+				return fmt.Errorf("curl from %s to %s:8090 returned %s, expected %s", hostName, podIP, clientIP, externalHostIP)
+			}
 			return nil
 		}, 5*time.Minute, 5*time.Second).ShouldNot(HaveOccurred())
 	})
