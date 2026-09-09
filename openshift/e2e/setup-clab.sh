@@ -6,7 +6,7 @@
 #     and both _V4 and _V6 subnets configured for dual-stack
 #   - OpenPerOuter operator deployed on the cluster
 #   - curl available (used to install containerlab when missing)
-#   - podman available
+#   - Docker Engine available
 #
 # Produces:
 #   - Running clab topology wired to extra network bridges
@@ -15,7 +15,7 @@
 # Usage:
 #   export KUBECONFIG=/root/dev-scripts/ocp/ostest/auth/kubeconfig
 #   ./openshift/e2e/setup-clab.sh
-#   cd e2etests && CONTAINER_RUNTIME=podman go test -v ./suite/ \
+#   cd e2etests && CONTAINER_RUNTIME=docker go test -v ./suite/ \
 #     --nodelink-config=../openshift/e2e/nodelink.json \
 #     --frrk8s-namespace=openshift-frr-k8s --openperouter-namespace=openshift-openperouter-system
 
@@ -26,7 +26,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NODELINK_OUT="${SCRIPT_DIR}/nodelink.json"
 
 
-CLI="sudo podman"
+CLI="sudo docker"
 
 if ! command -v containerlab >/dev/null 2>&1; then
     echo "containerlab not found; installing it"
@@ -82,12 +82,12 @@ rm -f ../singlecluster/leafkind2/frr.conf
     -toswitch-interface toswitch2 \
     -template generate_leaf_config/frr_template/leafkind.conf.template
 
-echo "=== Step 3: Enable podman socket ==="
-systemctl enable --now podman.socket 2>/dev/null || true
+echo "=== Step 3: Enable Docker Engine ==="
+systemctl enable --now docker
 
 echo "=== Step 4: Deploy clab topology ==="
 cd "${REPO_ROOT}"
-containerlab deploy --runtime podman \
+containerlab deploy --runtime docker \
     --topo "${SCRIPT_DIR}/ocp.clab.yml" --reconfigure
 
 echo "=== Step 5: Assign IPs to clab containers ==="

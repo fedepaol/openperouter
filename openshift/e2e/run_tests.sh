@@ -7,7 +7,7 @@ echo "=== Run e2e tests ==="
 
 pushd "$SCRIPT_DIR"/../..
 
-CONTAINER_RUNTIME=podman make e2etests \
+CONTAINER_RUNTIME=docker make e2etests \
 	TEST_ARGS="--nodelink-config=$SCRIPT_DIR/nodelink.json \
 		--frrk8s-namespace=openshift-frr-k8s \
 		--openperouter-namespace=openshift-openperouter-system" \
