@@ -20,8 +20,11 @@ echo "=== Deploy OpenPERouter ==="
 
 bash "$SCRIPT_DIR/deploy_openperouter.sh"
 
+echo "=== Deploy Docker ==="
+
+bash "$SCRIPT_DIR/deploy_docker.sh"
 
 echo "=== Setup CLAB ==="
-bash "$SCRIPT_DIR/setup-clab.sh"    
+bash "$SCRIPT_DIR/setup-clab.sh"
 
 echo "=== Deployment complete ==="
