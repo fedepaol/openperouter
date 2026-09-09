@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install Docker Engine from Docker's official repository on a RHEL 9 host.
+# Install Docker Engine from Docker's official repository on a RHEL 9 or
+# CentOS Stream 9 host.
 
 set -euo pipefail
 
@@ -10,10 +11,12 @@ fi
 
 # shellcheck disable=SC1091
 source /etc/os-release
-if [[ "${ID:-}" != "rhel" || "${VERSION_ID%%.*}" != "9" ]]; then
-    echo "this script supports RHEL 9 only (found ${PRETTY_NAME:-unknown})" >&2
+if [[ "${VERSION_ID%%.*}" != "9" ]] || [[ "${ID:-}" != "rhel" && "${ID:-}" != "centos" ]]; then
+    echo "this script supports RHEL 9 and CentOS Stream 9 only (found ${PRETTY_NAME:-unknown})" >&2
     exit 1
 fi
+
+DOCKER_REPO_OS="$ID"
 
 if (( EUID == 0 )); then
     SUDO=()
@@ -41,9 +44,9 @@ echo "Removing packages that conflict with Docker Engine"
     podman \
     runc
 
-echo "Configuring Docker's RHEL repository"
+echo "Configuring Docker's ${DOCKER_REPO_OS} repository"
 "${SUDO[@]}" dnf config-manager --add-repo \
-    https://download.docker.com/linux/rhel/docker-ce.repo
+    "https://download.docker.com/linux/${DOCKER_REPO_OS}/docker-ce.repo"
 
 echo "Installing Docker Engine"
 "${SUDO[@]}" dnf -y install \
