@@ -86,8 +86,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
+    localCIDRs:
+      - 192.169.10.0/24
 ---
 # Blue VNI (VNI 200)
 apiVersion: network.openperouter.io/v1alpha1
@@ -101,8 +101,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.11.0/24
+    localCIDRs:
+      - 192.169.11.0/24
 ```
 
 **VNI Details:**

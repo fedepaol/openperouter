@@ -70,8 +70,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
+    localCIDRs:
+      - 192.169.10.0/24
 ---
 apiVersion: network.openperouter.io/v1alpha1
 kind: L3VNI
@@ -84,8 +84,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.11.0/24
+    localCIDRs:
+      - 192.169.11.0/24
 ```
 
 ### MetalLB BGP Peer Configuration

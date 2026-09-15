@@ -57,7 +57,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					VRF:       "vrfa",
 					ImportRTs: []v1alpha1.RouteTarget{"65000:100"},
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -110,7 +110,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					ImportRTs:        []v1alpha1.RouteTarget{"65000:100"},
 					RDAssignedNumber: 100,
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -143,7 +143,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					VRF:       "vrfa",
 					ImportRTs: []v1alpha1.RouteTarget{"65000:100"},
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -191,7 +191,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					VRF:       "vrfa",
 					ImportRTs: []v1alpha1.RouteTarget{"65000:100"},
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -234,7 +234,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VRF: "vrfa",
 						HostSession: &v1alpha1.HostSession{
-							LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+							LocalCIDRs: []string{"192.0.3.0/24"},
 						},
 						NodeSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
@@ -254,7 +254,7 @@ func TestValidateL3VPNCreate(t *testing.T) {
 					RDAssignedNumber: 200,
 					ImportRTs:        []v1alpha1.RouteTarget{"65000:200"},
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.4.0/24")},
+						LocalCIDRs: []string{"192.0.4.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -379,7 +379,7 @@ func TestValidateL3VPNUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VPNSpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
@@ -390,13 +390,13 @@ func TestValidateL3VPNUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VPNSpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
 		},
 		{
-			name: "objects have different LocalCIDRs",
+			name: "objects have different localCIDRs",
 			newL3VPN: &v1alpha1.L3VPN{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
@@ -404,7 +404,7 @@ func TestValidateL3VPNUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VPNSpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 				},
 			},
@@ -415,11 +415,11 @@ func TestValidateL3VPNUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VPNSpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
-			errorString: "LocalCIDR cannot be changed",
+			errorString: "localCIDRs cannot be changed",
 		},
 	}
 	for _, tc := range tcs {

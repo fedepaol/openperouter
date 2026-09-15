@@ -523,7 +523,7 @@ func v4SubnetForL3(l3vni v1alpha1.L3VNI) *net.IPNet {
 	if l3vni.Spec.HostSession == nil {
 		return nil
 	}
-	ipv4 := ptr.Deref(l3vni.Spec.HostSession.LocalCIDR.IPv4, "")
+	ipv4 := ipfamily.CIDRForFamily(l3vni.Spec.HostSession.LocalCIDRs, ipfamily.IPv4)
 	if ipv4 == "" {
 		return nil
 	}
@@ -539,7 +539,7 @@ func v6SubnetForL3(l3vni v1alpha1.L3VNI) *net.IPNet {
 	if l3vni.Spec.HostSession == nil {
 		return nil
 	}
-	ipv6 := ptr.Deref(l3vni.Spec.HostSession.LocalCIDR.IPv6, "")
+	ipv6 := ipfamily.CIDRForFamily(l3vni.Spec.HostSession.LocalCIDRs, ipfamily.IPv6)
 	if ipv6 == "" {
 		return nil
 	}

@@ -58,8 +58,8 @@ type Neighbor struct {
 	// port is the port to dial when establishing the session.
 	// Defaults to 179.
 	// +optional
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=16384
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 	Port *int32 `json:"port,omitempty"`
 
 	// passwordSecret references a key in a Kubernetes Secret containing the

@@ -92,7 +92,7 @@ func validateL3VPNUpdate(l3vpn *v1alpha1.L3VPN, oldL3VPN *v1alpha1.L3VPN) error 
 	defer Logger.Debug("webhook l3vpn", "action", "end update", "name", l3vpn.Name, "namespace", l3vpn.Namespace)
 
 	if !reflect.DeepEqual(localCIDR(oldL3VPN.Spec.HostSession), localCIDR(l3vpn.Spec.HostSession)) {
-		return errors.New("LocalCIDR cannot be changed")
+		return errors.New("localCIDRs cannot be changed")
 	}
 
 	return validateL3VPN(l3vpn)

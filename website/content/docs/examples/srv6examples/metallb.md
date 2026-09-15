@@ -80,8 +80,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
+    localCIDRs:
+      - 192.169.10.0/24
   vrf: red
   rdAssignedNumber: 100
   exportRTs:
@@ -98,8 +98,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.11.0/24
+    localCIDRs:
+      - 192.169.11.0/24
   vrf: blue
   rdAssignedNumber: 200
   exportRTs:

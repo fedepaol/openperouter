@@ -30,7 +30,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1001,
 						VRF:         "vrf1",
-						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -39,7 +39,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1002,
 						VRF:         "vrf2",
-						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -50,7 +50,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1001,
 						VRF:         "vrf1",
-						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -59,7 +59,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1002,
 						VRF:         "vrf2",
-						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -73,7 +73,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1001,
 						VRF:         "vrf1",
-						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -82,7 +82,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1002,
 						VRF:         "vrf1",
-						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -93,7 +93,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VNISpec{
 						VNI:         1001,
 						VRF:         "vrf1",
-						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession: &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VNIStatus{},
 				},
@@ -110,7 +110,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1001,
 						VRF:              "vrf1",
-						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -119,7 +119,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1002,
 						VRF:              "vrf2",
-						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -130,7 +130,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1001,
 						VRF:              "vrf1",
-						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -139,7 +139,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1002,
 						VRF:              "vrf2",
-						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -153,7 +153,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1001,
 						VRF:              "vrf1",
-						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -162,7 +162,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1002,
 						VRF:              "vrf2",
-						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -171,7 +171,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1003,
 						VRF:              "vrf1",
-						HostSession:      &v1alpha1.HostSession{ASN: 65005, HostASN: new(int64(65006)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.3.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65005, HostASN: new(int64(65006)), LocalCIDRs: []string{"192.168.3.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -182,7 +182,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1001,
 						VRF:              "vrf1",
-						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.1.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65001, HostASN: new(int64(65002)), LocalCIDRs: []string{"192.168.1.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},
@@ -191,7 +191,7 @@ func TestFilterUniqueVRFs(t *testing.T) {
 					Spec: v1alpha1.L3VPNSpec{
 						RDAssignedNumber: 1002,
 						VRF:              "vrf2",
-						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.168.2.0/24")}},
+						HostSession:      &v1alpha1.HostSession{ASN: 65003, HostASN: new(int64(65004)), LocalCIDRs: []string{"192.168.2.0/24"}},
 					},
 					Status: &v1alpha1.L3VPNStatus{},
 				},

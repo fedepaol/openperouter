@@ -63,12 +63,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		Spec: v1alpha1.L3VNISpec{
 			VRF: "blue",
 			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: new(int64(64515)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: new("192.169.11.0/24"),
-					IPv6: new("2001:db8:2::/64"),
-				},
+				ASN:        64514,
+				HostASN:    new(int64(64515)),
+				LocalCIDRs: []string{"192.169.11.0/24", "2001:db8:2::/64"},
 			},
 			VNI: 200,
 		},
@@ -83,12 +80,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
 		Spec: v1alpha1.L3VNISpec{
 			VRF: "red",
 			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: new(int64(64515)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: new("192.169.10.0/24"),
-					IPv6: new("2001:db8:1::/64"),
-				},
+				ASN:        64514,
+				HostASN:    new(int64(64515)),
+				LocalCIDRs: []string{"192.169.10.0/24", "2001:db8:1::/64"},
 			},
 			VNI: 100,
 		},
@@ -99,9 +93,9 @@ var _ = Describe("Hybrid mode: static files and API configuration", Label("syste
     hostSession:
       asn: 64514
       hostASN: 64515
-      localCIDR:
-        ipv4: "192.169.10.0/24"
-        ipv6: "2001:db8:1::/64"
+      localCIDRs:
+        - "192.169.10.0/24"
+        - "2001:db8:1::/64"
     vni: 100
 `
 

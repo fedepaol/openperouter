@@ -20,13 +20,11 @@ router bgp 64514
 
   address-family ipv4 vpn
     neighbor fc00::2:172:31:1:12 activate
-    neighbor fc00::2:172:31:1:12 next-hop-self
     neighbor fc00::2:172:31:1:12 route-reflector-client
   exit-address-family
   !
   address-family ipv6 vpn
     neighbor fc00::2:172:31:1:12 activate
-    neighbor fc00::2:172:31:1:12 next-hop-self
     neighbor fc00::2:172:31:1:12 route-reflector-client
   exit-address-family
   !

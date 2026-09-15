@@ -12,8 +12,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64710
-    localCIDR:
-      ipv4: 192.169.21.0/24
+    localCIDRs:
+      - 192.169.21.0/24
 ---
 # L3Passthrough for internal nodes
 apiVersion: network.openperouter.io/v1alpha1
@@ -28,6 +28,5 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64720
-    localCIDR:
-      ipv4: 192.169.22.0/24
-
+    localCIDRs:
+      - 192.169.22.0/24

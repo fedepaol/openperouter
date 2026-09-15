@@ -10,9 +10,9 @@ import (
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	openpeerrors "github.com/openperouter/openperouter/internal/errors"
 	"github.com/openperouter/openperouter/internal/filter"
+	"github.com/openperouter/openperouter/internal/ipfamily"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 )
 
 // FilterValidL3VPNs validates L3VPNs per-field and returns the valid resources
@@ -205,7 +205,7 @@ func v4SubnetForL3VPN(l3vni v1alpha1.L3VPN) *net.IPNet {
 	if l3vni.Spec.HostSession == nil {
 		return nil
 	}
-	ipv4 := ptr.Deref(l3vni.Spec.HostSession.LocalCIDR.IPv4, "")
+	ipv4 := ipfamily.CIDRForFamily(l3vni.Spec.HostSession.LocalCIDRs, ipfamily.IPv4)
 	if ipv4 == "" {
 		return nil
 	}
@@ -221,7 +221,7 @@ func v6SubnetForL3VPN(l3vni v1alpha1.L3VPN) *net.IPNet {
 	if l3vni.Spec.HostSession == nil {
 		return nil
 	}
-	ipv6 := ptr.Deref(l3vni.Spec.HostSession.LocalCIDR.IPv6, "")
+	ipv6 := ipfamily.CIDRForFamily(l3vni.Spec.HostSession.LocalCIDRs, ipfamily.IPv6)
 	if ipv6 == "" {
 		return nil
 	}

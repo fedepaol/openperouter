@@ -113,7 +113,7 @@ The controller follows a specific sequence when reconciling VNI configurations:
 
 1. **Namespace Creation**: Ensures the named network namespace exists at `/var/run/netns/perouter`. If missing, creates it and sets up the bind mount.
 2. **Network Interface Creation**: For each VNI, creates the required network interfaces (bridge, VRF, VXLAN) for FRR operation inside the named namespace
-3. **L3 Veth Pair Setup**: Creates veth pairs to connect VRFs to the host, assigns IPs from the `localCIDR`, and moves one end to the named namespace
+3. **L3 Veth Pair Setup**: Creates veth pairs to connect VRFs to the host, assigns IPs from the `localCIDRs`, and moves one end to the named namespace
 4. **L2 Veth Pair Setup**: Creates veth pairs to connect VRFs to the host, attaches the PERouter side to the bridge
 corresponding to the L2 domain, eventually creates a bridge on the host, and attaches the host side to the bridge it
 just created or to an existing bridge (configurable)

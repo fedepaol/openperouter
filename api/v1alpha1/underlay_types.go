@@ -402,6 +402,10 @@ type UnderlayStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-underlay,mutating=false,failurePolicy=fail,groups=network.openperouter.io,resources=underlays,versions=v1alpha1,name=underlayvalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
+// +kubebuilder:printcolumn:name="ASN",type=integer,JSONPath=`.spec.asn`
+// +kubebuilder:printcolumn:name="Router ID Pool",type=string,JSONPath=`.spec.routerIDCIDR`
+// +kubebuilder:printcolumn:name="VTEP CIDR",type=string,JSONPath=`.spec.tunnelEndpoint.cidrs`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Underlay is the Schema for the underlays API.
 type Underlay struct {

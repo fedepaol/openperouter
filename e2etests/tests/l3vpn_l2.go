@@ -16,10 +16,10 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/frrk8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
+	"github.com/openperouter/openperouter/e2etests/pkg/ipfamily"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
-	"github.com/openperouter/openperouter/internal/ipfamily"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -59,12 +59,9 @@ var _ = Describe("SRV6 routes between bgp and the fabric", Ordered, func() {
 		Spec: v1alpha1.L3VPNSpec{
 			VRF: "red",
 			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: new(int64(64515)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: new("192.169.10.0/24"),
-					IPv6: new("2001:db8:1::/64"),
-				},
+				ASN:        64514,
+				HostASN:    new(int64(64515)),
+				LocalCIDRs: []string{"192.169.10.0/24", "2001:db8:1::/64"},
 			},
 			RDAssignedNumber: rdAssignedNumber,
 			ExportRTs: []v1alpha1.RouteTarget{
@@ -270,8 +267,8 @@ var _ = Describe("SRV6 routes between bgp and the fabric", Ordered, func() {
 		// E.g.: OpenPERouter: pe-100 (192.169.10.1) <-> Host OS: host-100 (192.169.10.3)
 		// Traffic leaving the OpenPERouter will be SNATted to the host IP address, meaning that leafSRV6 is
 		// expected to see e.g. 192.169.10.3.
-		localCIDRV4 := ptr.Deref(vniRed.Spec.HostSession.LocalCIDR.IPv4, "")
-		localCIDRV6 := ptr.Deref(vniRed.Spec.HostSession.LocalCIDR.IPv6, "")
+		localCIDRV4 := ipfamily.CIDRForFamily(vniRed.Spec.HostSession.LocalCIDRs, ipfamily.IPv4)
+		localCIDRV6 := ipfamily.CIDRForFamily(vniRed.Spec.HostSession.LocalCIDRs, ipfamily.IPv6)
 
 		By(fmt.Sprintf("Getting the HostIP address on CIDRs %s and %s", localCIDRV4, localCIDRV6))
 		firstPodHostSideV4, err := openperouter.HostIPFromCIDRForNode(localCIDRV4, firstPodNode)

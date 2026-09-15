@@ -40,6 +40,14 @@ router bgp 64514
   exit-address-family
 
 
+  address-family ipv4 unicast
+    neighbor fd00:10::/64 activate
+    neighbor fd00:10::/64 route-reflector-client
+  exit-address-family
+  address-family ipv6 unicast
+    neighbor fd00:10::/64 activate
+    neighbor fd00:10::/64 route-reflector-client
+  exit-address-family
 
   address-family ipv4 unicast
     neighbor 192.168.10.4 activate

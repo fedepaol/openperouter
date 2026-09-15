@@ -437,11 +437,9 @@ func TestValidateSuccessful(t *testing.T) {
 				"vrf": "testvrf",
 				"vni": int64(200),
 				"hostSession": map[string]any{
-					"asn":     int64(65000),
-					"hostASN": int64(65001),
-					"localCIDR": map[string]any{
-						"ipv4": "10.0.0.0/30",
-					},
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/30"},
 				},
 			}),
 		},
@@ -450,11 +448,9 @@ func TestValidateSuccessful(t *testing.T) {
 			gvk:  l3passthroughGVK,
 			obj: newUnstructured("L3Passthrough", map[string]any{
 				"hostSession": map[string]any{
-					"asn":     int64(65000),
-					"hostASN": int64(65001),
-					"localCIDR": map[string]any{
-						"ipv4": "10.0.0.0/30",
-					},
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/30"},
 				},
 			}),
 		},
@@ -480,6 +476,71 @@ func TestValidateSuccessful(t *testing.T) {
 				for _, e := range errs {
 					t.Errorf("  - %s", e)
 				}
+			}
+		})
+	}
+}
+
+func TestValidatePortRanges(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		port      int64
+		errSubstr string
+	}{
+		{name: "negative", port: -1, errSubstr: "should be greater than or equal to 1"},
+		{name: "zero", port: 0, errSubstr: "should be greater than or equal to 1"},
+		{name: "minimum", port: 1},
+		{name: "maximum", port: 65535},
+		{name: "above maximum", port: 65536, errSubstr: "should be less than or equal to 65535"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, resource := range []struct {
+				gvk  schema.GroupVersionKind
+				spec map[string]any
+			}{
+				{
+					gvk:  l2vniGVK,
+					spec: map[string]any{"vni": int64(100), "vxlanPort": tc.port},
+				},
+				{
+					gvk:  l3vniGVK,
+					spec: map[string]any{"vrf": "testvrf", "vni": int64(200), "vxlanPort": tc.port},
+				},
+				{
+					gvk: underlayGVK,
+					spec: map[string]any{
+						"asn": int64(65000),
+						"interfaces": []any{
+							map[string]any{
+								"type":          "NetworkDevice",
+								"networkDevice": map[string]any{"interfaceName": "eth0"},
+							},
+						},
+						"neighbors": []any{
+							map[string]any{"address": "192.168.1.1", "asn": int64(65001), "port": tc.port},
+						},
+					},
+				},
+			} {
+				t.Run(resource.gvk.Kind, func(t *testing.T) {
+					obj := newUnstructured(resource.gvk.Kind, resource.spec)
+					if err := ApplyDefaults(obj, resource.gvk); err != nil {
+						t.Fatalf("ApplyDefaults() returned error: %v", err)
+					}
+					errs := Validate(t.Context(), obj, resource.gvk)
+					if tc.errSubstr == "" {
+						if len(errs) > 0 {
+							t.Errorf("expected no validation errors, got: %v", errs)
+						}
+						return
+					}
+					if len(errs) == 0 {
+						t.Fatal("expected port validation error, got none")
+					}
+					if !strings.Contains(errs.ToAggregate().Error(), tc.errSubstr) {
+						t.Errorf("expected error containing %q, got: %v", tc.errSubstr, errs)
+					}
+				})
 			}
 		})
 	}
@@ -699,6 +760,76 @@ func TestValidateFailure(t *testing.T) {
 			}),
 			errSubstr: "should be less than or equal to 65535",
 		},
+		{
+			name: "L3VNI hostSession localCIDRs invalid CIDR",
+			gvk:  l3vniGVK,
+			obj: newUnstructured("L3VNI", map[string]any{
+				"vrf": "testvrf",
+				"vni": int64(200),
+				"hostSession": map[string]any{
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"not-a-cidr"},
+				},
+			}),
+			errSubstr: "all entries must be valid CIDRs",
+		},
+		{
+			name: "L3VNI hostSession localCIDRs two IPv4 CIDRs",
+			gvk:  l3vniGVK,
+			obj: newUnstructured("L3VNI", map[string]any{
+				"vrf": "testvrf",
+				"vni": int64(200),
+				"hostSession": map[string]any{
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/24", "10.1.0.0/24"},
+				},
+			}),
+			errSubstr: "at most one IPv4 CIDR is allowed",
+		},
+		{
+			name: "L3VNI hostSession localCIDRs two IPv6 CIDRs",
+			gvk:  l3vniGVK,
+			obj: newUnstructured("L3VNI", map[string]any{
+				"vrf": "testvrf",
+				"vni": int64(200),
+				"hostSession": map[string]any{
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"fd00::/64", "fd01::/64"},
+				},
+			}),
+			errSubstr: "at most one IPv6 CIDR is allowed",
+		},
+		{
+			name: "L3VNI hostSession localCIDRs empty list",
+			gvk:  l3vniGVK,
+			obj: newUnstructured("L3VNI", map[string]any{
+				"vrf": "testvrf",
+				"vni": int64(200),
+				"hostSession": map[string]any{
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{},
+				},
+			}),
+			errSubstr: "should have at least 1 items",
+		},
+		{
+			name: "L3VNI hostSession localCIDRs more than two entries",
+			gvk:  l3vniGVK,
+			obj: newUnstructured("L3VNI", map[string]any{
+				"vrf": "testvrf",
+				"vni": int64(200),
+				"hostSession": map[string]any{
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/24", "fd00::/64", "10.1.0.0/24"},
+				},
+			}),
+			errSubstr: "must have at most 2 items",
+		},
 	}
 
 	for _, tc := range tests {
@@ -756,28 +887,24 @@ func TestValidateOldSelfFiltering(t *testing.T) {
 			obj: newUnstructured("L3VNI", map[string]any{
 				"vrf": "testvrf",
 				"hostSession": map[string]any{
-					"asn":     int64(65000),
-					"hostASN": int64(65001),
-					"localCIDR": map[string]any{
-						"ipv4": "10.0.0.0/30",
-					},
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/30"},
 				},
 			}),
-			errField: "LocalCIDR can't be changed",
+			errField: "localCIDRs can't be changed",
 		},
 		{
 			name: "L3Passthrough with hostsession localcidr does not trigger oldSelf error",
 			gvk:  l3passthroughGVK,
 			obj: newUnstructured("L3Passthrough", map[string]any{
 				"hostSession": map[string]any{
-					"asn":     int64(65000),
-					"hostASN": int64(65001),
-					"localCIDR": map[string]any{
-						"ipv4": "10.0.0.0/30",
-					},
+					"asn":        int64(65000),
+					"hostASN":    int64(65001),
+					"localCIDRs": []any{"10.0.0.0/30"},
 				},
 			}),
-			errField: "LocalCIDR can't be changed",
+			errField: "localCIDRs can't be changed",
 		},
 	}
 

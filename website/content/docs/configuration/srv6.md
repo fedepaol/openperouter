@@ -149,8 +149,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
+    localCIDRs:
+      - 192.169.10.0/24
   vrf: red
   rdAssignedNumber: 100
   exportRTs:
@@ -183,8 +183,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.168.10.0/24
+    localCIDRs:
+      - 192.168.10.0/24
 ---
 # OAM VPN
 apiVersion: network.openperouter.io/v1alpha1
@@ -202,8 +202,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.168.20.0/24
+    localCIDRs:
+      - 192.168.20.0/24
 ```
 
 ## What Happens During Reconciliation
@@ -218,7 +218,7 @@ When you create or update L3VPN configurations, OpenPERouter automatically:
    minus overhead. The overhead is calculated depending on if H.Encaps.Red is
    used or not, and depending on if L2VNIs are used in combination
    with the L3VPN. MTU calculation is per VRF.
-4. **Assigns IP Addresses**: Allocates IPs from the `localCIDR` range:
+4. **Assigns IP Addresses**: Allocates IPs from the `localCIDRs` range:
    - Router side: First IP in the CIDR (e.g., `192.169.10.1`)
    - Host side: Each node gets a free IP in the CIDR, starting from the
      second (e.g., `192.169.10.15`)

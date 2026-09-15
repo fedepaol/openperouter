@@ -126,8 +126,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64600
-    localCIDR:
-      ipv4: 192.169.1.0/24
+    localCIDRs:
+      - 192.169.1.0/24
 ---
 # L3VNI for rack-2 nodes
 apiVersion: network.openperouter.io/v1alpha1
@@ -145,8 +145,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64600
-    localCIDR:
-      ipv4: 192.169.2.0/24
+    localCIDRs:
+      - 192.169.2.0/24
 ```
 
 ### Multiple VNIs on Same Nodes
@@ -169,8 +169,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64600
-    localCIDR:
-      ipv4: 192.169.5.0/24
+    localCIDRs:
+      - 192.169.5.0/24
 ---
 # Tenant B VNI on the same worker nodes
 apiVersion: network.openperouter.io/v1alpha1
@@ -187,8 +187,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64601
-    localCIDR:
-      ipv4: 192.169.6.0/24
+    localCIDRs:
+      - 192.169.6.0/24
 ---
 # Tenant C VNI on the same worker nodes
 apiVersion: network.openperouter.io/v1alpha1
@@ -205,8 +205,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64602
-    localCIDR:
-      ipv4: 192.169.7.0/24
+    localCIDRs:
+      - 192.169.7.0/24
 ```
 
 ## L2VNI Examples
@@ -256,6 +256,6 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64700
-    localCIDR:
-      ipv4: 192.169.20.0/24
+    localCIDRs:
+      - 192.169.20.0/24
 ```

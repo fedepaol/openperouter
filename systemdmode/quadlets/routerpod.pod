@@ -13,6 +13,7 @@ After=network-online.target
 [Pod]
 # Pod name - will create Podman pod named "systemd-routerpod"
 PodName=routerpod
+HostName=%H
 
 Network=ns:/var/run/netns/perouter
 

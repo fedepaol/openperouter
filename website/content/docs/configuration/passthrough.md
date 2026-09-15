@@ -58,8 +58,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
+    localCIDRs:
+      - 192.169.10.0/24
 ```
 
 ### Configuration Fields
@@ -68,8 +68,7 @@ spec:
 |-------|------|-------------|----------|
 | `hostSession.asn` | integer | Router ASN for BGP session with host | Yes |
 | `hostSession.hostASN` | integer | Host ASN for BGP session | Yes |
-| `hostSession.localCIDR.ipv4` | string | IPv4 CIDR for veth pair IP allocation | No |
-| `hostSession.localCIDR.ipv6` | string | IPv6 CIDR for veth pair IP allocation | No |
+| `hostSession.localCIDRs` | []string | CIDRs for veth pair IP allocation (at most one per family) | Yes |
 | `nodeSelector` | object | Label selector to target specific nodes (applies to all nodes if omitted) | No |
 
 ### Dual Stack Configuration
@@ -86,14 +85,14 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.10.0/24
-      ipv6: 2001:db8:10::/64
+    localCIDRs:
+      - 192.169.10.0/24
+      - 2001:db8:10::/64
 ```
 
 ### IP Allocation Strategy
 
-The IP addresses for the veth pair are allocated from the configured `localCIDR`:
+The IP addresses for the veth pair are allocated from the configured `localCIDRs`:
 
 - **Router side**: Always gets the first IP in the CIDR (e.g., `192.169.10.1`)
 - **Host side**: Each node gets a different IP from the CIDR, starting from the second value (e.g., `192.169.10.2`)
@@ -105,7 +104,7 @@ This consistent allocation strategy ensures that BGP-speaking components on the 
 When you create or update L3Passthrough configurations, OpenPERouter automatically:
 
 1. **Creates Veth Pair**: Sets up a veth pair named `pt-host` (host side) and `pt-ns` (router side)
-2. **Assigns IP Addresses**: Allocates IPs from the `localCIDR` range:
+2. **Assigns IP Addresses**: Allocates IPs from the `localCIDRs` range:
    - Router side: First IP in the CIDR (e.g., `192.169.10.1`)
    - Host side: Second IP in the CIDR (e.g., `192.169.10.2`)
 3. **Establishes BGP Session**: Opens BGP session between router and host using the specified ASNs

@@ -70,9 +70,9 @@ l3vnis:
     hostSession:
       asn: 64514
       hostASN: 64515
-      localCIDR:
-        ipv4: "192.169.10.0/24"
-        ipv6: "2001:db8:1::/64"
+      localCIDRs:
+        - "192.169.10.0/24"
+        - "2001:db8:1::/64"
 l2vnis:
   - name: storage
     vni: 300

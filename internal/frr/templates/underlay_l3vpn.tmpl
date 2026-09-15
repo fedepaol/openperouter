@@ -3,9 +3,10 @@
 {{- range $neighbor := .Underlay.Neighbors }}
 {{- if $neighbor.ActivateFor "ipv4" "vpn" }}
     neighbor {{ $neighbor.ID }} activate
-    neighbor {{ $neighbor.ID }} next-hop-self
 {{- if $neighbor.IsRouteReflectorClientFor "ipv4" "vpn" }}
     neighbor {{ $neighbor.ID }} route-reflector-client
+{{- else }}
+    neighbor {{ $neighbor.ID }} next-hop-self
 {{- end }}
 {{- end }}
 {{- end }}
@@ -15,9 +16,10 @@
 {{- range $neighbor := .Underlay.Neighbors }}
 {{- if $neighbor.ActivateFor "ipv6" "vpn" }}
     neighbor {{ $neighbor.ID }} activate
-    neighbor {{ $neighbor.ID }} next-hop-self
 {{- if $neighbor.IsRouteReflectorClientFor "ipv6" "vpn" }}
     neighbor {{ $neighbor.ID }} route-reflector-client
+{{- else }}
+    neighbor {{ $neighbor.ID }} next-hop-self
 {{- end }}
 {{- end }}
 {{- end }}

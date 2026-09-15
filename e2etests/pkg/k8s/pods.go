@@ -8,14 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os/exec"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	nadclientv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -91,6 +89,19 @@ func WithNad(name, namespace string, ips []string) func(*corev1.Pod) {
 func OnNode(nodeName string) func(*corev1.Pod) {
 	return func(pod *corev1.Pod) {
 		pod.Spec.NodeName = nodeName
+	}
+}
+
+func WithCapabilities(caps ...corev1.Capability) PodModifier {
+	return func(pod *corev1.Pod) {
+		c := &pod.Spec.Containers[0]
+		if c.SecurityContext == nil {
+			c.SecurityContext = &corev1.SecurityContext{}
+		}
+		if c.SecurityContext.Capabilities == nil {
+			c.SecurityContext.Capabilities = &corev1.Capabilities{}
+		}
+		c.SecurityContext.Capabilities.Add = append(c.SecurityContext.Capabilities.Add, caps...)
 	}
 }
 
@@ -228,16 +239,6 @@ func PodsForLabel(cs clientset.Interface, namespace, labelSelector string) ([]*c
 		res = append(res, &pods.Items[i])
 	}
 	return res, nil
-}
-
-func SendFileToPod(filePath string, p *corev1.Pod) error {
-	dst := fmt.Sprintf("%s/%s:/", p.Namespace, p.Name)
-	fullargs := []string{"cp", filePath, dst}
-	_, err := exec.Command(executor.Kubectl, fullargs...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to send file %s to pod %s:%s: %w", filePath, p.Namespace, p.Name, err)
-	}
-	return nil
 }
 
 func NodeSelectorForPod(pod *corev1.Pod) map[string]string {

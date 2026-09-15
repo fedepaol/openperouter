@@ -54,6 +54,8 @@ type L2VNISpec struct {
 	VNI int32 `json:"vni,omitempty"`
 
 	// vxlanPort is the port to be used for VXLan encapsulation.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 	// +default=4789
 	// +optional
 	VXLanPort *int32 `json:"vxlanPort,omitempty"`
@@ -174,11 +176,13 @@ type OVSBridgeConfig struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// +union
 // +kubebuilder:validation:XValidation:rule="(self.type == 'LinuxBridge' && has(self.linuxBridge) && !has(self.ovsBridge)) || (self.type == 'OVSBridge' && has(self.ovsBridge) && !has(self.linuxBridge))",message="type/config mismatch: 'LinuxBridge' requires linuxBridge field, 'OVSBridge' requires ovsBridge field"
 type HostMaster struct {
 	// type of the host interface. Supported values: "LinuxBridge", "OVSBridge".
 	// +kubebuilder:validation:Enum=LinuxBridge;OVSBridge
 	// +required
+	// +unionDiscriminator
 	Type string `json:"type,omitempty"`
 
 	// linuxBridge configuration. Must be set when Type is "LinuxBridge".
@@ -199,6 +203,10 @@ type L2VNIStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-l2vni,mutating=false,failurePolicy=fail,groups=network.openperouter.io,resources=l2vnis,versions=v1alpha1,name=l2vnivalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
+// +kubebuilder:printcolumn:name="VNI",type=integer,JSONPath=`.spec.vni`
+// +kubebuilder:printcolumn:name="Routing Domain",type=string,JSONPath=`.spec.routingDomain.*.name`
+// +kubebuilder:printcolumn:name="Gateway IPs",type=string,JSONPath=`.spec.gatewayIPs`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // L2VNI represents a VXLan VNI to receive EVPN type 2 routes
 // from.

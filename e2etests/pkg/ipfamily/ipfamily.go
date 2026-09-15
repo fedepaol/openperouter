@@ -84,6 +84,16 @@ func ForAddress(ip net.IP) Family {
 	return IPv4
 }
 
+// CIDRForFamily returns the first CIDR in cidrs that matches family, or "".
+func CIDRForFamily(cidrs []string, family Family) string {
+	for _, cidr := range cidrs {
+		if ForCIDRString(cidr) == family {
+			return cidr
+		}
+	}
+	return ""
+}
+
 // CIDRsForFamily returns all CIDRs matching the given address family.
 func CIDRsForFamily(cidrs []string, family Family) []string {
 	var res []string

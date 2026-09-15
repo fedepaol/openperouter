@@ -98,17 +98,17 @@ func validateL3VNIUpdate(l3vni *v1alpha1.L3VNI, oldL3VNI *v1alpha1.L3VNI) error 
 	defer Logger.Debug("webhook l3vni", "action", "end update", "name", l3vni.Name, "namespace", l3vni.Namespace)
 
 	if !reflect.DeepEqual(localCIDR(oldL3VNI.Spec.HostSession), localCIDR(l3vni.Spec.HostSession)) {
-		return errors.New("LocalCIDR cannot be changed")
+		return errors.New("localCIDRs cannot be changed")
 	}
 
 	return validateL3VNI(l3vni)
 }
 
-func localCIDR(hostSession *v1alpha1.HostSession) v1alpha1.LocalCIDRConfig {
+func localCIDR(hostSession *v1alpha1.HostSession) []string {
 	if hostSession == nil {
-		return v1alpha1.LocalCIDRConfig{}
+		return nil
 	}
-	return hostSession.LocalCIDR
+	return hostSession.LocalCIDRs
 }
 
 func validateL3VNIDelete(_ *v1alpha1.L3VNI) error {

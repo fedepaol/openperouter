@@ -14,7 +14,20 @@ spec:
     singular: underlay
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.asn
+      name: ASN
+      type: integer
+    - jsonPath: .spec.routerIDCIDR
+      name: Router ID Pool
+      type: string
+    - jsonPath: .spec.tunnelEndpoint.cidrs
+      name: VTEP CIDR
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Underlay is the Schema for the underlays API.
@@ -489,8 +502,8 @@ spec:
                         port is the port to dial when establishing the session.
                         Defaults to 179.
                       format: int32
-                      maximum: 16384
-                      minimum: 0
+                      maximum: 65535
+                      minimum: 1
                       type: integer
                     properties:
                       description: |-

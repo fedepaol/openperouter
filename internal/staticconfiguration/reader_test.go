@@ -292,12 +292,9 @@ func TestReadRouterConfigsFromFiles(t *testing.T) {
 			L3VNISpec: v1alpha1.L3VNISpec{
 				VRF: "red",
 				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: new(int64(64515)),
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: new("192.169.10.0/24"),
-						IPv6: new("2001:db8:1::/64"),
-					},
+					ASN:        64514,
+					HostASN:    new(int64(64515)),
+					LocalCIDRs: []string{"192.169.10.0/24", "2001:db8:1::/64"},
 				},
 				VNI: 100,
 			},
@@ -307,12 +304,9 @@ func TestReadRouterConfigsFromFiles(t *testing.T) {
 			L3VNISpec: v1alpha1.L3VNISpec{
 				VRF: "blue",
 				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: new(int64(64516)),
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: new("192.169.11.0/24"),
-						IPv6: new("2001:db8:2::/64"),
-					},
+					ASN:        64514,
+					HostASN:    new(int64(64516)),
+					LocalCIDRs: []string{"192.169.11.0/24", "2001:db8:2::/64"},
 				},
 				VNI: 200,
 			},
@@ -366,11 +360,9 @@ func TestReadRouterConfigsFromFiles(t *testing.T) {
 			L3VPNSpec: v1alpha1.L3VPNSpec{
 				VRF: "red",
 				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: new(int64(64515)),
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: new("192.169.10.0/24"),
-					},
+					ASN:        64514,
+					HostASN:    new(int64(64515)),
+					LocalCIDRs: []string{"192.169.10.0/24"},
 				},
 				RDAssignedNumber: 100,
 				ExportRTs:        []v1alpha1.RouteTarget{"64514:100"},
@@ -402,12 +394,9 @@ func TestReadRouterConfigsFromFiles(t *testing.T) {
 	// openpe_bgppassthrough.yaml
 	wantBGPPassthrough := v1alpha1.L3PassthroughSpec{
 		HostSession: v1alpha1.HostSession{
-			ASN:     64514,
-			HostASN: new(int64(64517)),
-			LocalCIDR: v1alpha1.LocalCIDRConfig{
-				IPv4: new("192.169.100.0/24"),
-				IPv6: new("2001:db8:100::/64"),
-			},
+			ASN:        64514,
+			HostASN:    new(int64(64517)),
+			LocalCIDRs: []string{"192.169.100.0/24", "2001:db8:100::/64"},
 		},
 	}
 

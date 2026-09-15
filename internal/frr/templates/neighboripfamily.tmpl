@@ -8,8 +8,9 @@
 {{- else }}
 {{- if .neighbor.IsRouteReflectorClientFor "ipv4" "unicast" }}
     neighbor {{.neighbor.ID}} route-reflector-client
-{{- end }}
+{{- else }}
     neighbor {{.neighbor.ID}} next-hop-self force
+{{- end }}
 {{- end }}
   exit-address-family
 
@@ -22,8 +23,9 @@
 {{- else }}
 {{- if .neighbor.IsRouteReflectorClientFor "ipv6" "unicast" }}
     neighbor {{.neighbor.ID}} route-reflector-client
-{{- end }}
+{{- else }}
     neighbor {{.neighbor.ID}} next-hop-self force
+{{- end }}
 {{- end }}
   exit-address-family
 {{- end -}}

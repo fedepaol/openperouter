@@ -14,8 +14,8 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64601
-    localCIDR:
-      ipv4: 192.169.3.0/24
+    localCIDRs:
+      - 192.169.3.0/24
 ---
 # L3VNI for us-west-1a
 apiVersion: network.openperouter.io/v1alpha1
@@ -32,6 +32,5 @@ spec:
   hostSession:
     asn: 64513
     hostASN: 64601
-    localCIDR:
-      ipv4: 192.169.4.0/24
-
+    localCIDRs:
+      - 192.169.4.0/24

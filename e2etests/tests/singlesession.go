@@ -54,12 +54,9 @@ var vniRedSingleSession = v1alpha1.L3VNI{
 	Spec: v1alpha1.L3VNISpec{
 		VRF: "red",
 		HostSession: &v1alpha1.HostSession{
-			ASN:     64514,
-			HostASN: new(int64(64515)),
-			LocalCIDR: v1alpha1.LocalCIDRConfig{
-				IPv4: new("192.169.10.0/24"),
-				IPv6: new("2001:db8:169:10::/64"),
-			},
+			ASN:        64514,
+			HostASN:    new(int64(64515)),
+			LocalCIDRs: []string{"192.169.10.0/24", "2001:db8:169:10::/64"},
 		},
 		VNI: 100,
 	},

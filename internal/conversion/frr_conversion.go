@@ -457,9 +457,9 @@ func passthroughToFRR(l3Passthroughs []v1alpha1.L3Passthrough, nodeIndex int) (*
 	}
 	passthrough := l3Passthroughs[0]
 
-	vethIPs, err := ipam.VethIPsFromPool(passthrough.Spec.HostSession.LocalCIDR.IPv4, passthrough.Spec.HostSession.LocalCIDR.IPv6, nodeIndex)
+	vethIPs, err := ipam.VethIPsFromPool(passthrough.Spec.HostSession.LocalCIDRs, nodeIndex)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get veth ips, cidr %v, nodeIndex %d", passthrough.Spec.HostSession.LocalCIDR, nodeIndex)
+		return nil, fmt.Errorf("failed to get veth ips, cidr %v, nodeIndex %d", passthrough.Spec.HostSession.LocalCIDRs, nodeIndex)
 	}
 
 	res := &frr.PassthroughConfig{
@@ -699,7 +699,7 @@ func routeDistinguisher(left string, right int32) string {
 }
 
 func hostSessionToHostSideIPs(hostSession *v1alpha1.HostSession, nodeIndex int) (map[ipfamily.Family]net.IPNet, error) {
-	veths, err := ipam.VethIPsFromPool(hostSession.LocalCIDR.IPv4, hostSession.LocalCIDR.IPv6, nodeIndex)
+	veths, err := ipam.VethIPsFromPool(hostSession.LocalCIDRs, nodeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get veths ips: %w", err)
 	}
@@ -974,10 +974,10 @@ func defaultNLPsForNeighbor(n v1alpha1.Neighbor,
 	}
 
 	for _, l3passthrough := range l3passthroughs {
-		if ptr.Deref(l3passthrough.Spec.HostSession.LocalCIDR.IPv4, "") != "" {
+		if ipfamily.CIDRForFamily(l3passthrough.Spec.HostSession.LocalCIDRs, ipfamily.IPv4) != "" {
 			addIPv4Unicast = true
 		}
-		if ptr.Deref(l3passthrough.Spec.HostSession.LocalCIDR.IPv6, "") != "" {
+		if ipfamily.CIDRForFamily(l3passthrough.Spec.HostSession.LocalCIDRs, ipfamily.IPv6) != "" {
 			addIPv6Unicast = true
 		}
 	}

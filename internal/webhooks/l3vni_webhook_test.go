@@ -44,7 +44,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "vrfa",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -74,7 +74,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "0123456789abcdefghijkl",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -105,7 +105,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "vrfa",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{},
+						LocalCIDRs: nil,
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -154,7 +154,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 					VRF: "vrfa",
 					VNI: 101,
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -188,7 +188,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 						RDAssignedNumber: 200,
 						ImportRTs:        []v1alpha1.RouteTarget{"65000:200"},
 						HostSession: &v1alpha1.HostSession{
-							LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.4.0/24")},
+							LocalCIDRs: []string{"192.0.4.0/24"},
 						},
 						NodeSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
@@ -206,7 +206,7 @@ func TestValidateL3VNICreate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "vrfa",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -313,7 +313,7 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VNISpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
@@ -324,13 +324,13 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VNISpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
 		},
 		{
-			name: "objects have different LocalCIDRs",
+			name: "objects have different localCIDRs",
 			newL3VNI: &v1alpha1.L3VNI{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
@@ -338,7 +338,7 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VNISpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 				},
 			},
@@ -349,11 +349,11 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				},
 				Spec: v1alpha1.L3VNISpec{
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.2.0/24")},
+						LocalCIDRs: []string{"192.0.2.0/24"},
 					},
 				},
 			},
-			errorString: "LocalCIDR cannot be changed",
+			errorString: "localCIDRs cannot be changed",
 		},
 		{
 			name: "testing validateL3VNI is hit - long VRF name",
@@ -375,7 +375,7 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "0123456789abcdefghijkl",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -392,7 +392,7 @@ func TestValidateL3VNIUpdate(t *testing.T) {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "vrfa",
 					HostSession: &v1alpha1.HostSession{
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.0.3.0/24")},
+						LocalCIDRs: []string{"192.0.3.0/24"},
 					},
 					NodeSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{

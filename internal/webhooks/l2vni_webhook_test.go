@@ -52,9 +52,7 @@ func TestValidateL2VNICreate(t *testing.T) {
 							},
 						},
 						HostSession: &v1alpha1.HostSession{
-							LocalCIDR: v1alpha1.LocalCIDRConfig{
-								IPv4: new("192.0.2.0/24"),
-							},
+							LocalCIDRs: []string{"192.0.2.0/24"},
 						},
 					},
 				},
@@ -123,9 +121,7 @@ func TestValidateL2VNICreate(t *testing.T) {
 							},
 						},
 						HostSession: &v1alpha1.HostSession{
-							LocalCIDR: v1alpha1.LocalCIDRConfig{
-								IPv4: new("192.0.2.0/24"),
-							},
+							LocalCIDRs: []string{"192.0.2.0/24"},
 						},
 					},
 				},
@@ -298,9 +294,7 @@ func TestValidateL2VNICreate(t *testing.T) {
 							},
 						},
 						HostSession: &v1alpha1.HostSession{
-							LocalCIDR: v1alpha1.LocalCIDRConfig{
-								IPv4: new("192.0.2.0/24"),
-							},
+							LocalCIDRs: []string{"192.0.2.0/24"},
 						},
 					},
 				},

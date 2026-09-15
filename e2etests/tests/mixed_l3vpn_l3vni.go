@@ -67,11 +67,9 @@ var _ = Describe("Mixed L3VPN and L3VNI coexistence in different VRFs", Ordered,
 		Spec: v1alpha1.L3VPNSpec{
 			VRF: "red",
 			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: new(int64(64515)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: new("192.169.10.0/24"),
-				},
+				ASN:        64514,
+				HostASN:    new(int64(64515)),
+				LocalCIDRs: []string{"192.169.10.0/24"},
 			},
 			RDAssignedNumber: l3vpnRDAssignedNumber,
 			ExportRTs: []v1alpha1.RouteTarget{
@@ -109,11 +107,9 @@ var _ = Describe("Mixed L3VPN and L3VNI coexistence in different VRFs", Ordered,
 		Spec: v1alpha1.L3VNISpec{
 			VRF: "blue",
 			HostSession: &v1alpha1.HostSession{
-				ASN:     64514,
-				HostASN: new(int64(64515)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{
-					IPv4: new("192.169.11.0/24"),
-				},
+				ASN:        64514,
+				HostASN:    new(int64(64515)),
+				LocalCIDRs: []string{"192.169.11.0/24"},
 			},
 			VNI: l3vniVNI,
 		},

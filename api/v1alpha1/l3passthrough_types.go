@@ -41,6 +41,9 @@ type L3PassthroughStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:webhook:verbs=create;update,path=/validate-openperouter-io-v1alpha1-l3passthrough,mutating=false,failurePolicy=fail,groups=network.openperouter.io,resources=l3passthroughs,versions=v1alpha1,name=l3passthroughvalidationwebhook.openperouter.io,sideEffects=None,admissionReviewVersions=v1
+// +kubebuilder:printcolumn:name="ASN",type=integer,JSONPath=`.spec.hostSession.asn`
+// +kubebuilder:printcolumn:name="HostASN",type=integer,JSONPath=`.spec.hostSession.hostASN`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // L3Passthrough represents a session with the host which is not encapsulated and
 // takes part to the bgp fabric.

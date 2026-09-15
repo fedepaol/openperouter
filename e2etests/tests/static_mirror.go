@@ -50,8 +50,8 @@ var staticL3VNIYAML = `l3vnis:
     hostSession:
       asn: 64514
       hostASN: 64515
-      localCIDR:
-        ipv4: "192.169.80.0/24"
+      localCIDRs:
+        - "192.169.80.0/24"
 `
 
 var staticL3VNIUpdatedYAML = `l3vnis:
@@ -61,8 +61,8 @@ var staticL3VNIUpdatedYAML = `l3vnis:
     hostSession:
       asn: 64514
       hostASN: 64515
-      localCIDR:
-        ipv4: "192.169.80.0/24"
+      localCIDRs:
+        - "192.169.80.0/24"
 `
 
 var _ = Describe("Mirror static config to Kubernetes", Label("systemdmode"), Ordered, func() {
@@ -373,11 +373,9 @@ var _ = Describe("Mirror static config to Kubernetes", Label("systemdmode"), Ord
 				VRF: "conflict-vrf",
 				VNI: 8100,
 				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: new(int64(64518)),
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: new("192.169.90.0/24"),
-					},
+					ASN:        64514,
+					HostASN:    new(int64(64518)),
+					LocalCIDRs: []string{"192.169.90.0/24"},
 				},
 			},
 		}
@@ -401,11 +399,9 @@ var _ = Describe("Mirror static config to Kubernetes", Label("systemdmode"), Ord
 				VRF: "noconflict-vrf",
 				VNI: 9999,
 				HostSession: &v1alpha1.HostSession{
-					ASN:     64514,
-					HostASN: new(int64(64519)),
-					LocalCIDR: v1alpha1.LocalCIDRConfig{
-						IPv4: new("192.169.91.0/24"),
-					},
+					ASN:        64514,
+					HostASN:    new(int64(64519)),
+					LocalCIDRs: []string{"192.169.91.0/24"},
 				},
 			},
 		}

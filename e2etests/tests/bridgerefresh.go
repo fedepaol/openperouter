@@ -155,6 +155,7 @@ var _ = Describe("BridgeRefresher E2E - Type 2 Route Persistence", Ordered, func
 				testNamespace,
 				k8s.WithNad(testNad.Name, testNamespace, []string{silentPodIP}),
 				k8s.OnNode(nodes[0].Name),
+				k8s.WithCapabilities("NET_RAW"),
 			)
 			Expect(err).NotTo(HaveOccurred())
 

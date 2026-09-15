@@ -11,6 +11,5 @@ spec:
   hostSession:
     asn: 64512
     hostASN: 64700
-    localCIDR:
-      ipv4: 192.169.20.0/24
-
+    localCIDRs:
+      - 192.169.20.0/24

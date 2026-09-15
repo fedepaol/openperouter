@@ -368,7 +368,7 @@ func TestReadStaticConfigs_ExistingTestdata(t *testing.T) {
 					VRF: "red", VNI: 100, VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
 						ASN: 64514, HostASN: new(int64(64515)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.10.0/24"), IPv6: new("2001:db8:1::/64")},
+						LocalCIDRs: []string{"192.169.10.0/24", "2001:db8:1::/64"},
 					},
 					NodeSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/hostname": "test-node"}},
 				},
@@ -387,7 +387,7 @@ func TestReadStaticConfigs_ExistingTestdata(t *testing.T) {
 					VRF: "blue", VNI: 200, VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
 						ASN: 64514, HostASN: new(int64(64516)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.11.0/24"), IPv6: new("2001:db8:2::/64")},
+						LocalCIDRs: []string{"192.169.11.0/24", "2001:db8:2::/64"},
 					},
 					NodeSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/hostname": "test-node"}},
 				},
@@ -482,9 +482,9 @@ func TestReadStaticConfigs_ExistingTestdata(t *testing.T) {
 						"64520:100",
 					},
 					HostSession: &v1alpha1.HostSession{
-						ASN:       64514,
-						HostASN:   new(int64(64515)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.10.0/24")},
+						ASN:        64514,
+						HostASN:    new(int64(64515)),
+						LocalCIDRs: []string{"192.169.10.0/24"},
 					},
 				},
 			},
@@ -503,7 +503,7 @@ func TestReadStaticConfigs_ExistingTestdata(t *testing.T) {
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
 						ASN: 64514, HostASN: new(int64(64517)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.100.0/24"), IPv6: new("2001:db8:100::/64")},
+						LocalCIDRs: []string{"192.169.100.0/24", "2001:db8:100::/64"},
 					},
 					NodeSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/hostname": "test-node"}},
 				},
@@ -852,9 +852,9 @@ func TestStaticConfigToAPIConfig_WithNodeName(t *testing.T) {
 					VRF: "red",
 					VNI: 100,
 					HostSession: &v1alpha1.HostSession{
-						ASN:       64514,
-						HostASN:   new(int64(64515)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.10.0/24")},
+						ASN:        64514,
+						HostASN:    new(int64(64515)),
+						LocalCIDRs: []string{"192.169.10.0/24"},
 					},
 				},
 			},
@@ -864,9 +864,9 @@ func TestStaticConfigToAPIConfig_WithNodeName(t *testing.T) {
 					VRF: "blue",
 					VNI: 200,
 					HostSession: &v1alpha1.HostSession{
-						ASN:       64514,
-						HostASN:   new(int64(64516)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.11.0/24")},
+						ASN:        64514,
+						HostASN:    new(int64(64516)),
+						LocalCIDRs: []string{"192.169.11.0/24"},
 					},
 				},
 			},
@@ -876,9 +876,9 @@ func TestStaticConfigToAPIConfig_WithNodeName(t *testing.T) {
 		},
 		BGPPassthrough: v1alpha1.L3PassthroughSpec{
 			HostSession: v1alpha1.HostSession{
-				ASN:       64514,
-				HostASN:   new(int64(64517)),
-				LocalCIDR: v1alpha1.LocalCIDRConfig{IPv4: new("192.169.100.0/24")},
+				ASN:        64514,
+				HostASN:    new(int64(64517)),
+				LocalCIDRs: []string{"192.169.100.0/24"},
 			},
 		},
 		RawFRRConfigs: []v1alpha1.RawFRRConfigSpec{

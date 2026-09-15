@@ -1391,6 +1391,10 @@ func TestRouteReflector(t *testing.T) {
 	ipv4 := networklayerprotocol.NLP{AFI: networklayerprotocol.IPv4, SAFI: networklayerprotocol.Unicast}
 	evpnWithRRClient := networklayerprotocol.NLP{AFI: evpn.AFI, SAFI: evpn.SAFI,
 		Properties: networklayerprotocol.NLPProperties{RouteReflectorClient: true}}
+	ipv4WithRRClient := networklayerprotocol.NLP{AFI: networklayerprotocol.IPv4, SAFI: networklayerprotocol.Unicast,
+		Properties: networklayerprotocol.NLPProperties{RouteReflectorClient: true}}
+	ipv6WithRRClient := networklayerprotocol.NLP{AFI: networklayerprotocol.IPv6, SAFI: networklayerprotocol.Unicast,
+		Properties: networklayerprotocol.NLPProperties{RouteReflectorClient: true}}
 
 	config := Config{
 		Underlay: UnderlayConfig{
@@ -1416,11 +1420,15 @@ func TestRouteReflector(t *testing.T) {
 					NetworkLayerProtocols: []networklayerprotocol.NLP{evpnWithRRClient},
 				},
 				{
-					ASN:                   mustNewPeerASNFromType("Internal"),
-					ListenRange:           "fd00:10::/64",
-					ID:                    "fd00:10::/64",
-					ExtendedNexthop:       true,
-					NetworkLayerProtocols: []networklayerprotocol.NLP{evpnWithRRClient},
+					ASN:             mustNewPeerASNFromType("Internal"),
+					ListenRange:     "fd00:10::/64",
+					ID:              "fd00:10::/64",
+					ExtendedNexthop: true,
+					NetworkLayerProtocols: []networklayerprotocol.NLP{
+						evpnWithRRClient,
+						ipv4WithRRClient,
+						ipv6WithRRClient,
+					},
 				},
 				{
 					ASN:                   mustNewPeerASNFromType("Internal"),

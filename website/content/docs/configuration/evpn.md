@@ -82,8 +82,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.169.11.0/24
+    localCIDRs:
+      - 192.169.11.0/24
   vni: 200
 
 ```
@@ -97,7 +97,7 @@ spec:
 | `underlayAddressFamily` | string | VTEP address family for this VNI (`IPv4` or `IPv6`). Defaults to available family (IPv4 preferred in dual-stack). | No |
 | `hostSession.asn` | integer | Router ASN for BGP session with host | Yes |
 | `hostSession.hostASN` | integer | Host ASN for BGP session | Yes |
-| `hostSession.localCIDR` | string | CIDR for veth pair IP allocation | Yes |
+| `hostSession.localCIDRs` | []string | CIDRs for veth pair IP allocation | Yes |
 | `nodeSelector` | object | Label selector to target specific nodes (applies to all nodes if omitted) | No |
 
 ### Multiple VNIs Example
@@ -117,8 +117,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.168.10.0/24
+    localCIDRs:
+      - 192.168.10.0/24
 ---
 # Development VNI
 apiVersion: network.openperouter.io/v1alpha1
@@ -132,8 +132,8 @@ spec:
   hostSession:
     asn: 64514
     hostASN: 64515
-    localCIDR:
-      ipv4: 192.168.20.0/24
+    localCIDRs:
+      - 192.168.20.0/24
 ```
 
 ## What Happens During Reconciliation
@@ -144,7 +144,7 @@ When you create or update VNI configurations, OpenPERouter automatically:
 2. **Establishes Connectivity**: Creates veth pair and moves one end to the router's namespace
 3. **Adjusts Veth MTU**: Sets the MTU on both veth legs to the underlay NIC's MTU minus 50 bytes to
    account for VXLan encapsulation overhead. MTU calculation is per VRF.
-4. **Assigns IP Addresses**: Allocates IPs from the `localCIDR` range:
+4. **Assigns IP Addresses**: Allocates IPs from the `localCIDRs` range:
    - Router side: First IP in the CIDR (e.g., `192.169.11.1`)
    - Host side: Each node gets a free IP in the CIDR, starting from the second (e.g., `192.169.11.15`)
 5. **Creates BGP Session**: Opens BGP session between router and host using the specified ASNs

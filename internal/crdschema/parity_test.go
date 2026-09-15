@@ -345,12 +345,9 @@ func TestParityRoundTrip(t *testing.T) {
 					VNI:       2000,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65000,
-						HostASN: new(int64(65001)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-							IPv6: new("fd00::/64"),
-						},
+						ASN:        65000,
+						HostASN:    new(int64(65001)),
+						LocalCIDRs: []string{"10.0.0.0/24", "fd00::/64"},
 					},
 				},
 			},
@@ -366,11 +363,9 @@ func TestParityRoundTrip(t *testing.T) {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN:     65000,
-						HostASN: new(int64(65001)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-						},
+						ASN:        65000,
+						HostASN:    new(int64(65001)),
+						LocalCIDRs: []string{"10.0.0.0/24"},
 					},
 				},
 			},

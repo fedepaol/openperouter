@@ -14,7 +14,20 @@ spec:
     singular: l2vni
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.vni
+      name: VNI
+      type: integer
+    - jsonPath: .spec.routingDomain.*.name
+      name: Routing Domain
+      type: string
+    - jsonPath: .spec.gatewayIPs
+      name: Gateway IPs
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
@@ -251,6 +264,8 @@ spec:
                 default: 4789
                 description: vxlanPort is the port to be used for VXLan encapsulation.
                 format: int32
+                maximum: 65535
+                minimum: 1
                 type: integer
             required:
             - vni

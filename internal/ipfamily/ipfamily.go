@@ -118,6 +118,16 @@ func ForService(svc *v1.Service) (Family, error) {
 	return ForAddresses(addresses...)
 }
 
+// CIDRForFamily returns the first CIDR in cidrs that matches family, or "".
+func CIDRForFamily(cidrs []string, family Family) string {
+	for _, cidr := range cidrs {
+		if ForCIDRString(cidr) == family {
+			return cidr
+		}
+	}
+	return ""
+}
+
 // StripCIDRMask removes the CIDR mask from an IP address string.
 // e.g., "192.168.1.1/24" -> "192.168.1.1"
 func StripCIDRMask(ipCIDR string) string {

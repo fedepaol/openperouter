@@ -38,11 +38,9 @@ var _ = Describe("Webhooks", func() {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "test-vrf-1",
 					HostSession: &v1alpha1.HostSession{
-						ASN: 65001,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-						},
-						HostASN: new(int64(65002)),
+						ASN:        65001,
+						LocalCIDRs: []string{"10.0.0.0/24"},
+						HostASN:    new(int64(65002)),
 					},
 					VNI:       100,
 					VXLanPort: new(int32(4789)),
@@ -71,11 +69,9 @@ var _ = Describe("Webhooks", func() {
 					VNI:       103,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65001,
-						HostASN: new(int64(65002)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.3.0/24"),
-						},
+						ASN:        65001,
+						HostASN:    new(int64(65002)),
+						LocalCIDRs: []string{"10.0.3.0/24"},
 					},
 				},
 			}, "spec.vrf: Required value"),
@@ -89,11 +85,9 @@ var _ = Describe("Webhooks", func() {
 					VNI:       100,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65001,
-						HostASN: new(int64(65002)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.1.0/24"),
-						},
+						ASN:        65001,
+						HostASN:    new(int64(65002)),
+						LocalCIDRs: []string{"10.0.1.0/24"},
 					},
 				},
 			}, "duplicate vni"),
@@ -107,14 +101,12 @@ var _ = Describe("Webhooks", func() {
 					VNI:       101,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65001,
-						HostASN: new(int64(65002)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("invalid-cidr"),
-						},
+						ASN:        65001,
+						HostASN:    new(int64(65002)),
+						LocalCIDRs: []string{"invalid-cidr"},
 					},
 				},
-			}, "invalid local CIDR"),
+			}, "all entries must be valid CIDRs"),
 		)
 	})
 
@@ -146,12 +138,9 @@ var _ = Describe("Webhooks", func() {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "test-vrf-1",
 					HostSession: &v1alpha1.HostSession{
-						ASN: 65001,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-							IPv6: new("2000::1/64"),
-						},
-						HostASN: new(int64(65002)),
+						ASN:        65001,
+						LocalCIDRs: []string{"10.0.0.0/24", "2000::1/64"},
+						HostASN:    new(int64(65002)),
 					},
 					VNI:       100,
 					VXLanPort: new(int32(4789)),
@@ -193,12 +182,9 @@ var _ = Describe("Webhooks", func() {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "test-vrf-1",
 					HostSession: &v1alpha1.HostSession{
-						ASN: 65001,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-							IPv6: new("2000::1/64"),
-						},
-						HostASN: new(int64(65002)),
+						ASN:        65001,
+						LocalCIDRs: []string{"10.0.0.0/24", "2000::1/64"},
+						HostASN:    new(int64(65002)),
 					},
 					VNI:       100,
 					VXLanPort: new(int32(4789)),
@@ -212,11 +198,9 @@ var _ = Describe("Webhooks", func() {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "test-vrf-2",
 					HostSession: &v1alpha1.HostSession{
-						ASN: 65001,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.2.0/24"),
-						},
-						HostASN: new(int64(65002)),
+						ASN:        65001,
+						LocalCIDRs: []string{"10.0.2.0/24"},
+						HostASN:    new(int64(65002)),
 					},
 					VNI:       102,
 					VXLanPort: new(int32(4789)),
@@ -585,22 +569,20 @@ var _ = Describe("Webhooks", func() {
 					VNI:       400,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65000,
-						HostASN: new(int64(65001)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.0.0/24"),
-						},
+						ASN:        65000,
+						HostASN:    new(int64(65001)),
+						LocalCIDRs: []string{"10.0.0.0/24"},
 					},
 				},
 			}
-			By("creating an L3VNI with LocalCIDR")
+			By("creating an L3VNI with localCIDRs")
 			err := Updater.Update(config.Resources{
 				L3VNIs: []v1alpha1.L3VNI{l3vni1},
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should block updates to LocalCIDR", func() {
+		It("should block updates to localCIDRs", func() {
 			l3vniUpdated := v1alpha1.L3VNI{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "l3vni-immutable",
@@ -611,11 +593,9 @@ var _ = Describe("Webhooks", func() {
 					VNI:       400,
 					VXLanPort: new(int32(4789)),
 					HostSession: &v1alpha1.HostSession{
-						ASN:     65000,
-						HostASN: new(int64(65001)),
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.0.1.0/24"),
-						},
+						ASN:        65000,
+						HostASN:    new(int64(65001)),
+						LocalCIDRs: []string{"10.0.1.0/24"},
 					},
 				},
 			}
@@ -623,7 +603,7 @@ var _ = Describe("Webhooks", func() {
 			err := Updater.Update(config.Resources{
 				L3VNIs: []v1alpha1.L3VNI{l3vniUpdated},
 			})
-			Expect(err).To(MatchError(ContainSubstring("LocalCIDR can't be changed")))
+			Expect(err).To(MatchError(ContainSubstring("localCIDRs can't be changed")))
 		})
 	})
 
@@ -778,11 +758,9 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65010,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.10.0.0/24"),
-						},
-						HostASN: new(int64(65011)),
+						ASN:        65010,
+						LocalCIDRs: []string{"10.10.0.0/24"},
+						HostASN:    new(int64(65011)),
 					},
 				},
 			}
@@ -800,11 +778,9 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65020,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.20.0.0/24"),
-						},
-						HostASN: new(int64(65021)),
+						ASN:        65020,
+						LocalCIDRs: []string{"10.20.0.0/24"},
+						HostASN:    new(int64(65021)),
 					},
 				},
 			}
@@ -828,14 +804,12 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65030,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("invalid-cidr"),
-						},
-						HostASN: new(int64(65031)),
+						ASN:        65030,
+						LocalCIDRs: []string{"invalid-cidr"},
+						HostASN:    new(int64(65031)),
 					},
 				},
-			}, "invalid local CIDR"),
+			}, "all entries must be valid CIDRs"),
 		)
 	})
 
@@ -848,22 +822,20 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65050,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.50.0.0/24"),
-						},
-						HostASN: new(int64(65051)),
+						ASN:        65050,
+						LocalCIDRs: []string{"10.50.0.0/24"},
+						HostASN:    new(int64(65051)),
 					},
 				},
 			}
-			By("creating an L3Passthrough with LocalCIDR")
+			By("creating an L3Passthrough with localCIDRs")
 			err := Updater.Update(config.Resources{
 				L3Passthrough: []v1alpha1.L3Passthrough{passthrough1},
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should block updates to LocalCIDR", func() {
+		It("should block updates to localCIDRs", func() {
 			passthroughUpdated := v1alpha1.L3Passthrough{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "passthrough-immutable",
@@ -871,11 +843,9 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65050,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.60.0.0/24"), // Different LocalCIDR
-						},
-						HostASN: new(int64(65051)),
+						ASN:        65050,
+						LocalCIDRs: []string{"10.60.0.0/24"},
+						HostASN:    new(int64(65051)),
 					},
 				},
 			}
@@ -883,7 +853,7 @@ var _ = Describe("Webhooks", func() {
 			err := Updater.Update(config.Resources{
 				L3Passthrough: []v1alpha1.L3Passthrough{passthroughUpdated},
 			})
-			Expect(err).To(MatchError(ContainSubstring("LocalCIDR can't be changed")))
+			Expect(err).To(MatchError(ContainSubstring("localCIDRs can't be changed")))
 		})
 	})
 
@@ -897,24 +867,22 @@ var _ = Describe("Webhooks", func() {
 				Spec: v1alpha1.L3VNISpec{
 					VRF: "vrf-overlap",
 					HostSession: &v1alpha1.HostSession{
-						ASN: 65070,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.70.0.0/24"),
-						},
-						HostASN: new(int64(65071)),
+						ASN:        65070,
+						LocalCIDRs: []string{"10.70.0.0/24"},
+						HostASN:    new(int64(65071)),
 					},
 					VNI:       500,
 					VXLanPort: new(int32(4789)),
 				},
 			}
-			By("creating an L3VNI with a specific LocalCIDR")
+			By("creating an L3VNI with localCIDRs")
 			err := Updater.Update(config.Resources{
 				L3VNIs: []v1alpha1.L3VNI{l3vni1},
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should block L3Passthrough creation with overlapping LocalCIDR", func() {
+		It("should block L3Passthrough creation with overlapping localCIDRs", func() {
 			passthroughOverlap := v1alpha1.L3Passthrough{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "passthrough-overlap",
@@ -922,11 +890,9 @@ var _ = Describe("Webhooks", func() {
 				},
 				Spec: v1alpha1.L3PassthroughSpec{
 					HostSession: v1alpha1.HostSession{
-						ASN: 65080,
-						LocalCIDR: v1alpha1.LocalCIDRConfig{
-							IPv4: new("10.70.0.0/24"), // Same CIDR as L3VNI
-						},
-						HostASN: new(int64(65081)),
+						ASN:        65080,
+						LocalCIDRs: []string{"10.70.0.0/24"},
+						HostASN:    new(int64(65081)),
 					},
 				},
 			}

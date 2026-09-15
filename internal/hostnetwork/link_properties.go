@@ -7,14 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -108,34 +104,34 @@ func interfaceHasNoIP(link netlink.Link, family int) (bool, error) {
 }
 
 // setAddrGenModeNone sets addr_gen_mode to none (value "1") on the given link.
-// It is idempotent: if already set, it does nothing to avoid unnecessary netlink events.
 func setAddrGenModeNone(l netlink.Link) error {
-	fileName := fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/addr_gen_mode", l.Attrs().Name)
-	fileName = filepath.Clean(fileName)
-	if !strings.HasPrefix(fileName, "/proc/sys/") {
-		panic(fmt.Errorf("attempt to escape")) // TODO: replace with os.Root when Go 1.24 is out
+	return netlink.LinkSetIP6AddrGenMode(l, 1)
+}
+
+// SuppressLinkLocal stops the kernel from managing an IPv6 link-local address on
+// the named interface: it sets addr_gen_mode to none so no new one is generated
+// and removes any that already exists.
+func SuppressLinkLocal(ifaceName string) error {
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("failed to find interface %s: %w", ifaceName, err)
 	}
 
-	currentValue, err := os.ReadFile(fileName)
-	if err != nil {
-		return fmt.Errorf("addrGenModeNone: error reading file: %w", err)
-	}
-	if strings.TrimSpace(string(currentValue)) == "1" {
-		return nil
+	if err := setAddrGenModeNone(link); err != nil {
+		return fmt.Errorf("failed to set addr_gen_mode none on %s: %w", ifaceName, err)
 	}
 
-	file, err := os.OpenFile(fileName, os.O_WRONLY, 0)
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
 	if err != nil {
-		return fmt.Errorf("addrGenModeNone: error opening file: %w", err)
+		return fmt.Errorf("failed to list addresses on %s: %w", ifaceName, err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			slog.Error("failed to close file", "file", fileName, "error", err)
+	for _, addr := range addrs {
+		if !addr.IP.IsLinkLocalUnicast() {
+			continue
 		}
-	}()
-
-	if _, err := fmt.Fprintf(file, "%s\n", "1"); err != nil {
-		return fmt.Errorf("addrGenModeNone: error writing to file: %w", err)
+		if err := netlink.AddrDel(link, &addr); err != nil {
+			return fmt.Errorf("failed to remove link-local %s from %s: %w", addr.IPNet, ifaceName, err)
+		}
 	}
 	return nil
 }
@@ -183,28 +179,6 @@ func linkSetMaster(link, master netlink.Link) error {
 	}
 
 	return netlink.LinkSetMaster(link, master)
-}
-
-// setNeighSuppression sets neighbor suppression to the given link.
-func setNeighSuppression(link netlink.Link) error {
-	req := nl.NewNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
-
-	msg := nl.NewIfInfomsg(unix.AF_BRIDGE)
-	var err error
-	msg.Index, err = intToInt32(link.Attrs().Index)
-	if err != nil {
-		return fmt.Errorf("invalid index for %s", link.Attrs().Name)
-	}
-	req.AddData(msg)
-
-	br := nl.NewRtAttr(unix.IFLA_PROTINFO|unix.NLA_F_NESTED, nil)
-	br.AddRtAttr(32, []byte{1})
-	req.AddData(br)
-	_, err = req.Execute(unix.NETLINK_ROUTE, 0)
-	if err != nil {
-		return fmt.Errorf("error executing request: %w", err)
-	}
-	return nil
 }
 
 // moveInterfaceToNamespace takes the given interface and moves it from the given to the given namespace.
@@ -280,13 +254,6 @@ func DeleteAddressFromInterface(ifaceName string, addr netlink.Addr) error {
 		return fmt.Errorf("failed to find underlay interface %s: %w", ifaceName, err)
 	}
 	return netlink.AddrDel(link, &addr)
-}
-
-func intToInt32(val int) (int32, error) {
-	if val < math.MinInt32 || val > math.MaxInt32 {
-		return 0, fmt.Errorf("can't convert %d to int32", val)
-	}
-	return int32(val), nil
 }
 
 func LinkExists(name string) (bool, error) {
