@@ -1,0 +1,16 @@
+[Unit]
+Description=Generate and start OpenPERouter host services
+After=local-fs.target
+RequiresMountsFor=/etc/openperouter /var/lib/openperouter /var/lib/containers
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/openperouter/bootstrap.env
+TimeoutStartSec=1830
+ExecStartPre=/usr/bin/rm -f /run/openperouter-bootstrap.cid
+ExecStart=/usr/bin/podman run --rm --pull=never --cidfile=/run/openperouter-bootstrap.cid --name openperouter-bootstrap --privileged --pid=host --network=host --security-opt=label=disable --mount=type=bind,src=/,dst=/host,bind-propagation=rslave --entrypoint=/bootstrap ${BOOTSTRAP_IMAGE} apply --config=/etc/openperouter/bootstrap.yaml --host-root=/host
+ExecStopPost=-/bin/sh -c 'cidfile=/run/openperouter-bootstrap.cid; cid=$$(/usr/bin/cat "$$cidfile" 2>/dev/null); case "$$cid" in (*[!0-9a-f]*|"") ;; (*) [ "$${#cid}" -eq 64 ] && /usr/bin/podman rm --force "$$cid" >/dev/null 2>&1 || true ;; esac; /usr/bin/rm -f "$$cidfile"'
+
+[Install]
+WantedBy=multi-user.target
