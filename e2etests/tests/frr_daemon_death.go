@@ -15,9 +15,11 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/config"
 	"github.com/openperouter/openperouter/e2etests/pkg/executor"
 	"github.com/openperouter/openperouter/e2etests/pkg/infra"
+	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
 	"github.com/openperouter/openperouter/e2etests/pkg/validate"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
@@ -68,6 +70,15 @@ var _ = Describe("FRR daemon death", PodModeOnly, Ordered, func() {
 		Expect(routerPods).To(HaveLen(len(nodes)), "expected one router pod per selected node")
 		routerPod := routerPods[0]
 		nodeName := routerPod.Spec.NodeName
+		controllerPods, err := openperouter.ControllerPods(cs)
+		Expect(err).NotTo(HaveOccurred())
+		var localControllers []*corev1.Pod
+		for _, pod := range controllerPods {
+			if pod.Spec.NodeName == nodeName {
+				localControllers = append(localControllers, pod)
+			}
+		}
+		Expect(localControllers).To(HaveLen(1), "expected one controller pod on %s", nodeName)
 		frrExec := executor.ForPod(openperouter.Namespace, routerPod.Name, "frr")
 
 		validateNeighborSession := func() {
@@ -110,7 +121,8 @@ var _ = Describe("FRR daemon death", PodModeOnly, Ordered, func() {
 		}, 10*time.Second, time.Second).Should(Succeed())
 
 		By(fmt.Sprintf("killing %s with SIGKILL in the router pod", killed))
-		Expect(frrExec.Exec("kill", "-9", pidsBefore[killed][0])).Error().ToNot(HaveOccurred())
+		killedAt := metav1.Now()
+		Expect(frrExec.Exec("kill", "-9", pidsBefore[killed][0])).Error().To(Succeed())
 
 		By("waiting for the whole stack to come back")
 		Eventually(func(g Gomega) {
@@ -136,6 +148,11 @@ var _ = Describe("FRR daemon death", PodModeOnly, Ordered, func() {
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(openperouter.AreReady(routers)).To(Succeed())
 		}, 4*time.Minute, 2*time.Second).Should(Succeed())
+
+		By("waiting for the controller to reapply the unchanged FRR configuration")
+		Eventually(func() (string, error) {
+			return k8s.PodLogsSinceTime(cs, localControllers[0], "controller", &killedAt)
+		}, time.Minute, 2*time.Second).Should(ContainSubstring("FRR configuration reapplied after daemon restart"))
 
 		validateNeighborSession()
 	})

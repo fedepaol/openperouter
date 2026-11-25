@@ -4,8 +4,11 @@ package systemd_static
 
 import (
 	"fmt"
+	"iter"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,6 +18,7 @@ import (
 	"github.com/openperouter/openperouter/e2etests/pkg/k8s"
 	"github.com/openperouter/openperouter/e2etests/pkg/k8sclient"
 	"github.com/openperouter/openperouter/e2etests/pkg/openperouter"
+	"github.com/openperouter/openperouter/e2etests/pkg/validate"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
@@ -68,6 +72,49 @@ var _ = Describe("Static configuration", Ordered, func() {
 
 			By("removing a route from leafA on vni 100")
 			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, emptyPrefixes, emptyPrefixes)).To(Succeed())
+		})
+
+		It("reapplies unchanged FRR configuration after bgpd dies", func() {
+			next, stop := iter.Pull(routers.GetExecutors())
+			defer stop()
+			router, ok := next()
+			Expect(ok).To(BeTrue(), "expected at least one Quadlet router")
+			node := executor.ForContainer(router.NodeName())
+
+			emptyPrefixes := []string{}
+			redPrefixes := []string{"192.168.20.0/24", "2001:db8:20::/64"}
+			By("establishing VNI 100 routing before the crash")
+			Expect(infra.LeafAConfig.ChangePrefixes(emptyPrefixes, redPrefixes, emptyPrefixes)).To(Succeed())
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, mustContain, redPrefixes)
+
+			readBGPPID := func() (string, error) {
+				pid, err := router.Exec("cat", "/var/run/frr/bgpd.pid")
+				return strings.TrimSpace(pid), err
+			}
+			beforePID, err := readBGPPID()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(beforePID).To(MatchRegexp(`^[1-9][0-9]*$`))
+
+			By("killing bgpd inside the FRR Quadlet container")
+			killedAt := time.Now()
+			Expect(router.Exec("kill", "-9", beforePID)).Error().To(Succeed())
+
+			By("waiting for a replacement bgpd and for the controller to reapply the configuration")
+			Eventually(readBGPPID, 4*time.Minute, 2*time.Second).Should(
+				SatisfyAll(MatchRegexp(`^[1-9][0-9]*$`), Not(Equal(beforePID))),
+			)
+			Eventually(func() (string, error) {
+				return node.Exec("podman", "logs", "--since", killedAt.Format(time.RFC3339Nano), "controller")
+			}, 4*time.Minute, 2*time.Second).Should(ContainSubstring("FRR configuration reapplied after daemon restart"))
+
+			By("verifying that the BGP session and VNI 100 routes recover")
+			validate.SessionWithNeighbor(router, validate.SessionParameters{
+				FromName:    router.NodeName(),
+				ToName:      infra.KindLeaf,
+				NeighborIP:  "192.168.11.2", // Configured in testdata/openpe_underlay.yaml.
+				Established: true,
+			})
+			checkRouteFromLeaf(infra.LeafAConfig, routers, vniRed, mustContain, redPrefixes)
 		})
 
 		It("dynamically adds and removes a VNI via file watching", func() {

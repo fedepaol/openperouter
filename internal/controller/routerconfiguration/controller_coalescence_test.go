@@ -4,6 +4,7 @@ package routerconfiguration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -29,6 +30,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/openperouter/openperouter/api/v1alpha1"
+	"github.com/openperouter/openperouter/internal/frrconfig"
 )
 
 const coalescenceNodeName = "worker-1"
@@ -399,7 +401,12 @@ func serveFRRReloader(t *testing.T, socketPath string) *atomic.Int32 {
 		t.Fatalf("failed to listen on %s: %v", socketPath, err)
 	}
 	calls := &atomic.Int32{}
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == frrconfig.RecoveryPath {
+			state := frrconfig.RecoveryState{Token: frrconfig.RecoveryToken{InstanceID: "reloader-1"}, Ready: true}
+			_ = json.NewEncoder(w).Encode(state)
+			return
+		}
 		calls.Add(1)
 		w.WriteHeader(http.StatusOK)
 	})}

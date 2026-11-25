@@ -13,6 +13,7 @@ import (
 
 	"github.com/openperouter/openperouter/api/v1alpha1"
 	"github.com/openperouter/openperouter/internal/conversion"
+	"github.com/openperouter/openperouter/internal/frrconfig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,12 +39,17 @@ func TestConfigureFRR(t *testing.T) {
 		},
 	}
 	type step struct {
-		apiConfig  conversion.APIConfigData
-		instanceID string
-		logLevel   string
-		failReload bool
-		wantCalls  int
+		apiConfig     conversion.APIConfigData
+		instanceID    string
+		recoveryToken frrconfig.RecoveryToken
+		logLevel      string
+		failReload    bool
+		wantCalls     int
 	}
+	beforeRestart := frrconfig.RecoveryToken{InstanceID: "reloader-1"}
+	afterRestart := frrconfig.RecoveryToken{InstanceID: "reloader-1", Generation: 1}
+	afterNextRestart := frrconfig.RecoveryToken{InstanceID: "reloader-1", Generation: 2}
+	afterReloaderRestart := frrconfig.RecoveryToken{InstanceID: "reloader-2"}
 	tests := []struct {
 		name  string
 		steps []step
@@ -85,6 +91,18 @@ func TestConfigureFRR(t *testing.T) {
 				{apiConfig: apiConfigA, wantCalls: 1},
 				{apiConfig: apiConfigB, wantCalls: 2},
 				{apiConfig: apiConfigA, wantCalls: 3},
+			},
+		},
+		{
+			name: "a daemon or reloader restart forces a reload and a failed reload is retried",
+			steps: []step{
+				{apiConfig: rawConfigA, recoveryToken: beforeRestart, wantCalls: 1},
+				{apiConfig: rawConfigA, recoveryToken: afterRestart, failReload: true, wantCalls: 2},
+				{apiConfig: rawConfigA, recoveryToken: afterRestart, wantCalls: 3},
+				{apiConfig: rawConfigA, recoveryToken: afterRestart, wantCalls: 3},
+				{apiConfig: rawConfigA, recoveryToken: afterNextRestart, wantCalls: 4},
+				{apiConfig: rawConfigA, recoveryToken: afterReloaderRestart, wantCalls: 5},
+				{apiConfig: rawConfigA, recoveryToken: afterReloaderRestart, wantCalls: 5},
 			},
 		},
 		{
@@ -134,10 +152,12 @@ func TestConfigureFRR(t *testing.T) {
 						}}
 						require.NoError(t, invalidateFRRConfigCacheOnRestart(context.Background(), router))
 					}
+					previousRecoveryToken := lastAppliedFRRRecoveryToken
 					err := configureFRR(context.Background(), frrConfigData{
 						configFile:    configFile,
 						APIConfigData: step.apiConfig,
 						logLevel:      step.logLevel,
+						recoveryToken: step.recoveryToken,
 						updater: func(_ context.Context, config string) error {
 							calls++
 							if err := os.WriteFile(configFile, []byte(config), 0600); err != nil {
@@ -153,10 +173,12 @@ func TestConfigureFRR(t *testing.T) {
 					if step.failReload {
 						require.EqualError(t, err, "failed to update the frr configuration: reload failed", "step %d", i)
 						require.Nil(t, lastAppliedFRRConfig, "step %d", i)
+						require.Equal(t, previousRecoveryToken, lastAppliedFRRRecoveryToken, "step %d", i)
 						return
 					}
 					require.NoError(t, err, "step %d", i)
 					require.NotNil(t, lastAppliedFRRConfig, "step %d", i)
+					require.Equal(t, step.recoveryToken, lastAppliedFRRRecoveryToken, "step %d", i)
 				})
 			}
 		})
@@ -209,11 +231,13 @@ func resetFRRConfigCache(t testing.TB) {
 	t.Helper()
 	frrConfigMutex.Lock()
 	lastAppliedFRRConfig = nil
+	lastAppliedFRRRecoveryToken = frrconfig.RecoveryToken{}
 	lastFRRInstanceID = ""
 	frrConfigMutex.Unlock()
 	t.Cleanup(func() {
 		frrConfigMutex.Lock()
 		lastAppliedFRRConfig = nil
+		lastAppliedFRRRecoveryToken = frrconfig.RecoveryToken{}
 		lastFRRInstanceID = ""
 		frrConfigMutex.Unlock()
 	})

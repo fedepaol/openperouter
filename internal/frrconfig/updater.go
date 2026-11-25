@@ -15,11 +15,7 @@ func UpdaterForSocket(socketPath, configFile string) func(context.Context, strin
 	return func(ctx context.Context, config string) error {
 		updaterClient := func(ctx context.Context) error {
 			client := &http.Client{
-				Transport: &http.Transport{
-					DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-						return net.Dial("unix", socketPath)
-					},
-				},
+				Transport: unixSocketTransport(socketPath),
 			}
 
 			slog.InfoContext(ctx, "updater requesting update", "socket", socketPath)
@@ -46,5 +42,15 @@ func UpdaterForSocket(socketPath, configFile string) func(context.Context, strin
 			return fmt.Errorf("failed to write the config to %s", configFile)
 		}
 		return updaterClient(ctx)
+	}
+}
+
+func unixSocketTransport(socketPath string) *http.Transport {
+	return &http.Transport{
+		DisableKeepAlives: true,
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			dialer := &net.Dialer{}
+			return dialer.DialContext(ctx, "unix", socketPath)
+		},
 	}
 }

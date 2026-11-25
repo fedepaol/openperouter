@@ -13,14 +13,16 @@ import (
 
 	"github.com/openperouter/openperouter/internal/conversion"
 	"github.com/openperouter/openperouter/internal/frr"
+	"github.com/openperouter/openperouter/internal/frrconfig"
 )
 
 // The controller manages one FRR instance at a time. Reconciliation checks its
 // identity because a fresh instance has no applied configuration.
 var (
-	lastAppliedFRRConfig *frr.Config
-	lastFRRInstanceID    string
-	frrConfigMutex       sync.Mutex
+	lastAppliedFRRConfig        *frr.Config
+	lastAppliedFRRRecoveryToken frrconfig.RecoveryToken
+	lastFRRInstanceID           string
+	frrConfigMutex              sync.Mutex
 )
 
 type frrConfigData struct {
@@ -30,6 +32,7 @@ type frrConfigData struct {
 	nodeIndex               int
 	logLevel                string
 	interfaceNameTranslator conversion.InterfaceNameTranslator
+	recoveryToken           frrconfig.RecoveryToken
 }
 
 type frrConfiguratorType func(ctx context.Context, data frrConfigData) error
@@ -54,7 +57,7 @@ func configureFRR(ctx context.Context, data frrConfigData) error {
 	frrConfigMutex.Lock()
 	defer frrConfigMutex.Unlock()
 
-	if reflect.DeepEqual(lastAppliedFRRConfig, &frrConfig) {
+	if lastAppliedFRRRecoveryToken == data.recoveryToken && reflect.DeepEqual(lastAppliedFRRConfig, &frrConfig) {
 		slog.DebugContext(ctx, "FRR configuration unchanged, skipping reload")
 		return nil
 	}
@@ -67,6 +70,12 @@ func configureFRR(ctx context.Context, data frrConfigData) error {
 		return fmt.Errorf("failed to update the frr configuration: %w", err)
 	}
 	lastAppliedFRRConfig = &frrConfig
+	if data.recoveryToken != lastAppliedFRRRecoveryToken && data.recoveryToken.Generation != 0 {
+		slog.InfoContext(ctx, "FRR configuration reapplied after daemon restart", "generation", data.recoveryToken.Generation)
+	}
+	// A daemon can restart during the apply, so only acknowledge the token
+	// that the reconciler read before starting the reload.
+	lastAppliedFRRRecoveryToken = data.recoveryToken
 	newConfig, newErr := os.ReadFile(data.configFile)
 	if newErr != nil {
 		slog.WarnContext(ctx, "failed to read FRR config after update", "error", newErr)

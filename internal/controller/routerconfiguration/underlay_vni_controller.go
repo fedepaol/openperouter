@@ -69,6 +69,7 @@ type PERouterReconciler struct {
 	// notStaticConfigsListOpts filters out mirrored resources (source=static) when listing CRDs.
 	// Built once in SetupWithManager since the label is const.
 	notStaticConfigsListOpts *client.ListOptions
+	frrRecovery              *frrRecovery
 }
 
 type requestKey string
@@ -156,6 +157,10 @@ func (r *PERouterReconciler) reconcile(ctx context.Context, logger *slog.Logger)
 		logger.Info("router is not ready for reconciliation, requeueing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
+	frrConfigurator, requeueAfter, err := r.frrRecovery.configurator(ctx)
+	if err != nil || requeueAfter > 0 {
+		return ctrl.Result{RequeueAfter: requeueAfter}, err
+	}
 	if err := invalidateFRRConfigCacheOnRestart(ctx, router); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -169,7 +174,7 @@ func (r *PERouterReconciler) reconcile(ctx context.Context, logger *slog.Logger)
 	}
 
 	reconcileErr := Reconcile(ctx, config, nodeIndex, r.LogLevel, r.FRRConfigPath, targetNS, updater,
-		r.DatapathConfigurator, configureFRR)
+		r.DatapathConfigurator, frrConfigurator)
 	if reconcileErr != nil {
 		logger.Error("failed to reconcile host configuration", "error", reconcileErr)
 	}
@@ -493,6 +498,11 @@ func (r *PERouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if r.TriggerChan != nil {
 		builder = builder.WatchesRawSource(source.Channel(r.TriggerChan, enqueueLocalNodeRequestForObject))
+	}
+	if r.FRRReloadSocket != "" {
+		r.frrRecovery = newFRRRecovery(r.FRRReloadSocket)
+		req := ctrl.Request{NamespacedName: types.NamespacedName{Name: r.MyNode}}
+		builder = builder.WatchesRawSource(r.frrRecovery.source(req))
 	}
 
 	return builder.Complete(r)

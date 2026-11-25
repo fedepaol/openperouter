@@ -20,6 +20,12 @@ func ProcessAlive(pid int) error {
 
 type CheckFn func() error
 
+// DaemonState is the state reported by watchfrr for a supervised daemon.
+type DaemonState struct {
+	Name  string
+	State string
+}
+
 // WatchFRR reports whether watchfrr is running and responding on its VTY.
 func WatchFRR(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func(int) error) error {
 	_, err := watchFRROutput(pidFilePath, watchFRRCli, processAlive)
@@ -28,11 +34,42 @@ func WatchFRR(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func(int) 
 
 // WatchFRRReady reports whether every daemon supervised by watchfrr is Up.
 func WatchFRRReady(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func(int) error) error {
-	output, err := watchFRROutput(pidFilePath, watchFRRCli, processAlive)
+	daemons, err := WatchFRRDaemonStates(pidFilePath, watchFRRCli, processAlive)
 	if err != nil {
 		return err
 	}
-	return checkWatchFRRDaemons(output)
+
+	unhealthyDaemons := []string{}
+	for _, daemon := range daemons {
+		if daemon.State != "Up" {
+			unhealthyDaemons = append(unhealthyDaemons, fmt.Sprintf("%s is %s", daemon.Name, daemon.State))
+		}
+	}
+
+	if len(unhealthyDaemons) > 0 {
+		return fmt.Errorf("watchfrr reports unhealthy daemons: %s", strings.Join(unhealthyDaemons, ", "))
+	}
+	return nil
+}
+
+// WatchFRRDaemonStates fetches the states of all daemons supervised by watchfrr.
+func WatchFRRDaemonStates(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func(int) error) ([]DaemonState, error) {
+	output, err := watchFRROutput(pidFilePath, watchFRRCli, processAlive)
+	if err != nil {
+		return nil, err
+	}
+
+	var daemons []DaemonState
+	for line := range strings.SplitSeq(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 {
+			daemons = append(daemons, DaemonState{Name: fields[0], State: fields[1]})
+		}
+	}
+	if len(daemons) == 0 {
+		return nil, errors.New("watchfrr did not report any daemon states")
+	}
+	return daemons, nil
 }
 
 func watchFRROutput(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func(int) error) (string, error) {
@@ -53,28 +90,4 @@ func watchFRROutput(pidFilePath string, watchFRRCli vtysh.Cli, processAlive func
 		return "", fmt.Errorf("watchfrr %d does not answer on its vty: %w", pid, err)
 	}
 	return monitorOutput, nil
-}
-
-func checkWatchFRRDaemons(output string) error {
-	unhealthyDaemons := []string{}
-	reportedDaemons := false
-	for line := range strings.SplitSeq(output, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			continue
-		}
-		reportedDaemons = true
-		if fields[1] == "Up" {
-			continue
-		}
-		unhealthyDaemons = append(unhealthyDaemons, fmt.Sprintf("%s is %s", fields[0], fields[1]))
-	}
-
-	if !reportedDaemons {
-		return errors.New("watchfrr did not report any daemon states")
-	}
-	if len(unhealthyDaemons) > 0 {
-		return fmt.Errorf("watchfrr reports unhealthy daemons: %s", strings.Join(unhealthyDaemons, ", "))
-	}
-	return nil
 }

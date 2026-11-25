@@ -10,6 +10,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -35,6 +36,11 @@ type StaticConfigReconciler struct {
 	DatapathConfigurator DatapathConfigurator
 
 	TriggerChan chan event.GenericEvent
+	frrRecovery *frrRecovery
+}
+
+var staticConfigRequest = ctrl.Request{
+	NamespacedName: types.NamespacedName{Name: "static-config-trigger", Namespace: "default"},
 }
 
 func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -71,6 +77,10 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		logger.Info("router not ready for reconciliation, will retry", "retryAfter", "10s")
 		return ctrl.Result{Requeue: true, RequeueAfter: 2 * time.Second}, nil
 	}
+	frrConfigurator, requeueAfter, err := r.frrRecovery.configurator(ctx)
+	if err != nil || requeueAfter > 0 {
+		return ctrl.Result{RequeueAfter: requeueAfter}, err
+	}
 	if err := invalidateFRRConfigCacheOnRestart(ctx, router); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -82,7 +92,8 @@ func (r *StaticConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	updater := frrconfig.UpdaterForSocket(r.FRRReloadSocket, r.FRRConfigPath)
 
-	err = Reconcile(ctx, apiConfig, r.NodeIndex, r.LogLevel, r.FRRConfigPath, targetNS, updater, r.DatapathConfigurator, configureFRR)
+	err = Reconcile(ctx, apiConfig, r.NodeIndex, r.LogLevel, r.FRRConfigPath, targetNS, updater,
+		r.DatapathConfigurator, frrConfigurator)
 	for _, f := range openpeerrors.CollectFailures(err) {
 		logger.Warn("resource skipped", "kind", f.Kind, "name", f.Name, "reason", f.Reason, "message", f.Message)
 	}
@@ -104,17 +115,21 @@ func (r *StaticConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					Kind:       "ConfigMap",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "static-config-trigger",
-					Namespace: "default",
+					Name:      staticConfigRequest.Name,
+					Namespace: staticConfigRequest.Namespace,
 				},
 			},
 		}
 	}(r.TriggerChan)
 
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		Named("static-config-controller").
-		WatchesRawSource(source.Channel(r.TriggerChan, &handler.EnqueueRequestForObject{})).
-		Complete(r)
+		WatchesRawSource(source.Channel(r.TriggerChan, &handler.EnqueueRequestForObject{}))
+	if r.FRRReloadSocket != "" {
+		r.frrRecovery = newFRRRecovery(r.FRRReloadSocket)
+		builder = builder.WatchesRawSource(r.frrRecovery.source(staticConfigRequest))
+	}
+	return builder.Complete(r)
 }
 
 func (r *StaticConfigReconciler) TriggerReconcile() {
@@ -126,8 +141,8 @@ func (r *StaticConfigReconciler) TriggerReconcile() {
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "static-config-trigger",
-				Namespace: "default",
+				Name:      staticConfigRequest.Name,
+				Namespace: staticConfigRequest.Namespace,
 			},
 		},
 	}:

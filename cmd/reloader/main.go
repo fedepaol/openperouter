@@ -93,9 +93,11 @@ func serveReload(args Args) error {
 		return fmt.Errorf("failed to listen on unix socket %s: %w", args.unixSocket, err)
 	}
 
-	unixServer := newServer(
-		[]handlerConfig{{pattern: "/", handler: reloadHandler(args.frrConfigPath)}},
-	)
+	monitor := newDaemonMonitor()
+	unixServer := newServer([]handlerConfig{
+		{pattern: "/", handler: reloadHandler(args.frrConfigPath)},
+		{pattern: "GET " + frrconfig.RecoveryPath, handler: monitor.serveState},
+	})
 
 	watchfrrCli := vtysh.NewDaemonCLIWithTimeout(args.vtyshTimeout, "watchfrr")
 	healthServer := newServer(
@@ -124,6 +126,7 @@ func serveReload(args Args) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	go monitor.run(ctx, args.watchfrrPidFile, watchfrrCli)
 
 	serverErr := make(chan error, 1)
 	go func() {
