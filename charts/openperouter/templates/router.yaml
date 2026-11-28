@@ -357,9 +357,6 @@ spec:
           - name: netns
             mountPath: /var/run/netns
             mountPropagation: HostToContainer
-          - name: host-nsenter
-            mountPath: /usr/bin/nsenter
-            readOnly: true
           - name: dev-net-tun
             mountPath: /dev/net/tun
           - name: dpdk-runtime
@@ -427,10 +424,6 @@ spec:
           hostPath:
             path: /var/run/openperouter/grout
             type: DirectoryOrCreate
-        - name: host-nsenter
-          hostPath:
-            path: /usr/bin/nsenter
-            type: File
         - name: dev-net-tun
           hostPath:
             path: /dev/net/tun
