@@ -25,11 +25,24 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 )
 
+// fabricRoutePresence selects which BGP paths count when checking whether a
+// scenario's route is present on a node.
+type fabricRoutePresence int
+
+const (
+	// anyReceivedPath matches every path advertised to the node, including
+	// invalid ones, so a route leaked to the receiver fails the absence check
+	// even when it is unusable there.
+	anyReceivedPath fabricRoutePresence = iota
+	// validBestPath matches only valid, selected paths, asserting the route is
+	// usable on the node that learned it.
+	validBestPath
+)
+
 type fabricRoute interface {
-	checkFabricTransit(executor.Executor, fabricTransitScenario) (bool, error)
 	configureIsolatedLeafkindPeers(fabricTransitScenario, infra.Neighbor, infra.Neighbor)
 	leafFamilies(ipfamily.Family) []networklayerprotocol.NLP
-	fabricRoutePresent(executor.Executor, fabricTransitScenario) (bool, error)
+	fabricRoutePresent(executor.Executor, fabricTransitScenario, fabricRoutePresence) (bool, error)
 }
 
 // fabricRouteIdentity holds the prefix and address-family-specific attributes used
@@ -211,7 +224,7 @@ func checkFabricTransit(
 	GinkgoHelper()
 	By("learning A's route on OpenPERouter")
 	Eventually(func() (bool, error) {
-		return scenario.route.checkFabricTransit(routerExecutor, scenario)
+		return scenario.route.fabricRoutePresent(routerExecutor, scenario, validBestPath)
 	}, 2*time.Minute, time.Second).Should(BeTrue())
 
 	By("keeping A's route absent on B")
@@ -223,7 +236,7 @@ func checkFabricTransit(
 		if neighbor.BgpState != "Established" {
 			return false, fmt.Errorf("receiver BGP session to %s is %s", receiverNeighbor, neighbor.BgpState)
 		}
-		return scenario.route.fabricRoutePresent(receiverExecutor, scenario)
+		return scenario.route.fabricRoutePresent(receiverExecutor, scenario, anyReceivedPath)
 	}, 5*time.Second, time.Second).Should(BeFalse())
 }
 
@@ -261,12 +274,6 @@ func unnumberedTwoLeafUnderlay(nodeName string) v1alpha1.Underlay {
 
 type fabricUnicastRoute struct{}
 
-func (route fabricUnicastRoute) checkFabricTransit(
-	exec executor.Executor, scenario fabricTransitScenario,
-) (bool, error) {
-	return route.fabricRoutePresent(exec, scenario)
-}
-
 func (route fabricUnicastRoute) configureIsolatedLeafkindPeers(
 	scenario fabricTransitScenario, leaf1Neighbor, leaf2Neighbor infra.Neighbor,
 ) {
@@ -281,26 +288,22 @@ func (fabricUnicastRoute) leafFamilies(family ipfamily.Family) []networklayerpro
 	return []networklayerprotocol.NLP{{AFI: networklayerprotocol.AFI(family), SAFI: networklayerprotocol.Unicast}}
 }
 
-func (fabricUnicastRoute) fabricRoutePresent(exec executor.Executor, scenario fabricTransitScenario) (bool, error) {
+func (fabricUnicastRoute) fabricRoutePresent(
+	exec executor.Executor, scenario fabricTransitScenario, presence fabricRoutePresence,
+) (bool, error) {
 	routes, err := frr.BGPIPRoutesFor(exec, scenario.routeFamily)
 	if err != nil {
 		return false, err
 	}
-	_, present, err := selectedValidBestPaths(routes, scenario.learnedRoute.prefix)
-	return present, err
+	if presence == validBestPath {
+		_, present, err := selectedValidBestPaths(routes, scenario.learnedRoute.prefix)
+		return present, err
+	}
+	_, present := routes.Routes[scenario.learnedRoute.prefix]
+	return present, nil
 }
 
 type fabricEVPNRoute struct{}
-
-func (fabricEVPNRoute) checkFabricTransit(exec executor.Executor, scenario fabricTransitScenario) (bool, error) {
-	routes, err := frr.EVPNInfo(exec)
-	if err != nil {
-		return false, err
-	}
-	return slices.ContainsFunc(evpnPathsForRoute(routes, scenario.learnedRoute), func(path frr.Path) bool {
-		return path.Valid && path.Bestpath
-	}), nil
-}
 
 func (route fabricEVPNRoute) configureIsolatedLeafkindPeers(
 	scenario fabricTransitScenario, leaf1Neighbor, leaf2Neighbor infra.Neighbor,
@@ -320,30 +323,22 @@ func (fabricEVPNRoute) leafFamilies(ipfamily.Family) []networklayerprotocol.NLP 
 	return []networklayerprotocol.NLP{{AFI: networklayerprotocol.L2VPN, SAFI: networklayerprotocol.EVPN}}
 }
 
-func (fabricEVPNRoute) fabricRoutePresent(exec executor.Executor, scenario fabricTransitScenario) (bool, error) {
+func (fabricEVPNRoute) fabricRoutePresent(
+	exec executor.Executor, scenario fabricTransitScenario, presence fabricRoutePresence,
+) (bool, error) {
 	routes, err := frr.EVPNInfo(exec)
 	if err != nil {
 		return false, err
+	}
+	if presence == validBestPath {
+		return slices.ContainsFunc(evpnPathsForRoute(routes, scenario.learnedRoute), func(path frr.Path) bool {
+			return path.Valid && path.Bestpath
+		}), nil
 	}
 	return evpnContainsRoute(routes, scenario.learnedRoute), nil
 }
 
 type fabricVPNRoute struct{}
-
-func (fabricVPNRoute) checkFabricTransit(exec executor.Executor, scenario fabricTransitScenario) (bool, error) {
-	routes, err := frr.L3VPNInfo(exec, scenario.routeFamily)
-	if err != nil {
-		return false, err
-	}
-	prefixes := routes.Routes.RouteDistinguishers[frr.RouteDistinguisher(scenario.learnedRoute.rd)]
-	for _, path := range prefixes[frr.BGPPrefix(scenario.learnedRoute.prefix)] {
-		if path.Valid && path.Bestpath.Overall && slices.Contains(
-			strings.Fields(path.ExtendedCommunity.String), "RT:"+scenario.learnedRoute.routeTarget) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
 
 func (route fabricVPNRoute) configureIsolatedLeafkindPeers(
 	scenario fabricTransitScenario, leaf1Neighbor, leaf2Neighbor infra.Neighbor,
@@ -364,10 +359,15 @@ func (fabricVPNRoute) leafFamilies(family ipfamily.Family) []networklayerprotoco
 	return []networklayerprotocol.NLP{{AFI: networklayerprotocol.AFI(family), SAFI: networklayerprotocol.Unicast}}
 }
 
-func (fabricVPNRoute) fabricRoutePresent(exec executor.Executor, scenario fabricTransitScenario) (bool, error) {
+func (fabricVPNRoute) fabricRoutePresent(
+	exec executor.Executor, scenario fabricTransitScenario, presence fabricRoutePresence,
+) (bool, error) {
 	routes, err := frr.L3VPNInfo(exec, scenario.routeFamily)
 	if err != nil {
 		return false, err
+	}
+	if presence == validBestPath {
+		return vpnRouteUsable(routes, scenario.learnedRoute), nil
 	}
 	return frr.ContainsPrefixWithRouteTarget(routes, scenario.learnedRoute.prefix, scenario.learnedRoute.routeTarget), nil
 }
@@ -407,6 +407,19 @@ func selectedValidBestPaths(routes frr.IPInfo, prefix string) ([]frr.FRRRoute, b
 		return nil, true, fmt.Errorf("no valid best path among %d paths", len(paths))
 	}
 	return selected, true, nil
+}
+
+// vpnRouteUsable reports whether the route was learned as a valid best path
+// carrying the expected route target.
+func vpnRouteUsable(routes frr.L3VPNData, route fabricRouteIdentity) bool {
+	prefixes := routes.Routes.RouteDistinguishers[frr.RouteDistinguisher(route.rd)]
+	for _, path := range prefixes[frr.BGPPrefix(route.prefix)] {
+		if path.Valid && path.Bestpath.Overall && slices.Contains(
+			strings.Fields(path.ExtendedCommunity.String), "RT:"+route.routeTarget) {
+			return true
+		}
+	}
+	return false
 }
 
 func evpnContainsRoute(data frr.EVPNData, route fabricRouteIdentity) bool {

@@ -160,6 +160,9 @@ jobs:
         run: |
           make test
 
+      - name: E2etests module unit tests
+        run: make e2etests-unit
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:

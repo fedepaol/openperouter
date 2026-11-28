@@ -112,6 +112,10 @@ test: fmt vet envtest $(LOCALBIN) kind-node-image-build docker-build ## Run test
 	done; \
 	$(CONTAINER_ENGINE) run --rm --privileged -v $$(pwd):/src -w /src --entrypoint /src/hack/integration_tests.sh $(KIND_NODE_IMG) $$RUNASROOT_TESTS
 
+.PHONY: e2etests-unit
+e2etests-unit: ## Run the unit tests of the e2etests module (no cluster required).
+	cd e2etests && go test ./pkg/... ./tests
+
 BENCHMARK_BASE ?= HEAD
 
 .PHONY: check-benchmark
