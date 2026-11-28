@@ -110,6 +110,22 @@ func TestFromEnvironment(t *testing.T) {
 			},
 		},
 		{
+			desc: "with grout emulated VFs",
+			setup: func() {
+				setBasics()
+				_ = os.Setenv("GROUT_EMULATED_VFS", "true")
+			},
+			expected: EnvConfig{
+				Namespace:        "test-namespace",
+				ControllerImage:  ImageInfo{Repo: "test-controller-image", Tag: "1"},
+				FRRImage:         ImageInfo{Repo: "test-frr-image", Tag: "2"},
+				KubeRBacImage:    ImageInfo{Repo: "test-kube-rbac-proxy-image", Tag: "3"},
+				GroutEmulatedVFs: true,
+				MetricsPort:      7472,
+				FRRMetricsPort:   7473,
+			},
+		},
+		{
 			desc: "with grout max MTU",
 			setup: func() {
 				setBasics()
@@ -214,6 +230,7 @@ func unset() {
 	_ = os.Unsetenv("GROUT_TEST_MODE")
 	_ = os.Unsetenv("GROUT_TAP_UNDERLAY")
 	_ = os.Unsetenv("GROUT_MAX_MTU")
+	_ = os.Unsetenv("GROUT_EMULATED_VFS")
 }
 
 func setBasics() {

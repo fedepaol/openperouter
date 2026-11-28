@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-    createdAt: "2026-11-12T14:08:10Z"
+    createdAt: "2026-11-27T23:33:28Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: openperouter-operator.v0.0.0
@@ -224,6 +224,8 @@ spec:
                   value: "false"
                 - name: GROUT_MAX_MTU
                   value: "0"
+                - name: GROUT_EMULATED_VFS
+                  value: "false"
                 image: quay.io/openperouter/router:main
                 imagePullPolicy: IfNotPresent
                 name: operator

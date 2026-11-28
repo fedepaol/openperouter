@@ -82,6 +82,13 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if .Values.openperouter.grout.emulatedVFs }}
+        # Test-only knob, see internal/pci: resolves trunk VFs from the
+        # netdevs named "<pf>v<index>" instead of the PF's virtfn sysfs
+        # links, for environments where independent NICs emulate the VFs.
+        - name: TEST_FLAG_DO_NOT_USE_EMULATED_SRIOV_VFS
+          value: "true"
+        {{- end }}
         image: {{ .Values.openperouter.image.repository }}:{{ .Values.openperouter.image.tag | default .Chart.AppVersion }}
         {{- if .Values.openperouter.image.pullPolicy }}
         imagePullPolicy: {{ .Values.openperouter.image.pullPolicy }}

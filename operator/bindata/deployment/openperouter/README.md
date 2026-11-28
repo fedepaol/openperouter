@@ -40,6 +40,7 @@ Kubernetes: `>= 1.21.0-0`
 | openperouter.frr.reloader.resources | object | `{"requests":{"cpu":"100m","memory":"128Mi"}}` | Resources of the reloader container in router pods. CPU and memory requests keep configuration reloads responsive. |
 | openperouter.frr.reloader.vtyshTimeout | string | `""` | Timeout for vtysh commands used in health checks. Increase under heavy VNI load. Defaults to 10s. |
 | openperouter.frr.resources | object | `{"requests":{"cpu":"250m","memory":"256Mi"}}` | Resources of the FRR container in router pods. CPU and memory requests keep BGP and BFD timely on busy nodes. |
+| openperouter.grout.emulatedVFs | bool | `false` | Resolve the VFs of SR-IOV trunks from the netdevs named "<pf>v<index>" instead of the PF's virtfn sysfs links. Only for test environments where independent NICs emulate a PF's VFs, such as the QEMU e2e lab. |
 | openperouter.grout.image.pullPolicy | string | `""` |  |
 | openperouter.grout.image.repository | string | `"quay.io/openperouter/router"` |  |
 | openperouter.grout.image.tag | string | `"main-grout"` |  |

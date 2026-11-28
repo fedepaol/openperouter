@@ -193,6 +193,7 @@ func patchChartValues(envConfig envconfig.EnvConfig, crdConfig *operatorapi.Open
 			"enabled":     true,
 			"testMode":    envConfig.GroutTestMode,
 			"tapUnderlay": envConfig.GroutTapUnderlay,
+			"emulatedVFs": envConfig.GroutEmulatedVFs,
 			"image": map[string]any{
 				"repository": groutImage.Repo,
 				"tag":        groutImage.Tag,

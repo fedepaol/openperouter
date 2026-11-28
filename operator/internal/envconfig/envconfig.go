@@ -24,6 +24,7 @@ type EnvConfig struct {
 	GroutTestMode         bool
 	GroutTapUnderlay      bool
 	GroutMaxMTU           int
+	GroutEmulatedVFs      bool
 	FRRMetricsPort        int
 	SecureFRRMetricsPort  int
 	MetricsPort           int
@@ -60,6 +61,7 @@ func FromEnvironment(isOpenshift bool) (EnvConfig, error) {
 	res.GroutImage = optionalImageFromEnv("GROUT_IMAGE")
 	res.GroutTestMode = boolFromEnv("GROUT_TEST_MODE")
 	res.GroutTapUnderlay = boolFromEnv("GROUT_TAP_UNDERLAY")
+	res.GroutEmulatedVFs = boolFromEnv("GROUT_EMULATED_VFS")
 	res.GroutMaxMTU, err = intValueWithDefault("GROUT_MAX_MTU", 0)
 	if err != nil {
 		return EnvConfig{}, err

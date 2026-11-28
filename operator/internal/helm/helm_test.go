@@ -48,6 +48,7 @@ const (
 	certControllerDeploymentName = "certcontroller"
 	groutContainerName           = "grout"
 	groutDatapath                = "grout"
+	emulatedVFsEnv               = "TEST_FLAG_DO_NOT_USE_EMULATED_SRIOV_VFS"
 	daemonSetKind                = "DaemonSet"
 	deploymentKind               = "Deployment"
 )
@@ -327,6 +328,59 @@ func TestParseChartWithGroutEnabled(t *testing.T) {
 	}
 	g.Expect(routerFound).To(BeTrue())
 	g.Expect(controllerFound).To(BeTrue())
+}
+
+func TestParseChartWithGroutEmulatedVFs(t *testing.T) {
+	g := NewGomegaWithT(t)
+	chart, err := NewChart(testChartPath, openperouterChartName, openperouterTestNamespace, testKubeVersion)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	openperouter := &operatorapi.OpenPERouter{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "openperouter",
+			Namespace: openperouterTestNamespace,
+		},
+		Spec: operatorapi.OpenPERouterSpec{
+			LogLevel: new(operatorapi.LogLevelInfo),
+			Datapath: new(groutDatapath),
+		},
+	}
+
+	// controllerEnv renders the chart with the given env config and returns
+	// the env of the controller container, or nil if either is missing.
+	controllerEnv := func(envConfig envconfig.EnvConfig) map[string]string {
+		objs, err := chart.Objects(envConfig, openperouter)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		for _, obj := range objs {
+			if obj.GetKind() != daemonSetKind || obj.GetName() != controllerDaemonSetName {
+				continue
+			}
+			controller := appsv1.DaemonSet{}
+			err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &controller)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			for _, c := range controller.Spec.Template.Spec.Containers {
+				if c.Name != controllerDaemonSetName {
+					continue
+				}
+				env := map[string]string{}
+				for _, e := range c.Env {
+					env[e.Name] = e.Value
+				}
+				return env
+			}
+		}
+		return nil
+	}
+
+	g.Expect(controllerEnv(defaultEnvConfig)).ToNot(HaveKey(emulatedVFsEnv))
+
+	envConfig := defaultEnvConfig
+	envConfig.GroutEmulatedVFs = true
+	env := controllerEnv(envConfig)
+	g.Expect(env).ToNot(BeNil())
+	g.Expect(env[emulatedVFsEnv]).To(Equal("true"))
 }
 
 func TestParseChartWithGroutTestModeAndTapUnderlay(t *testing.T) {

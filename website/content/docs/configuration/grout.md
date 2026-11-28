@@ -96,6 +96,7 @@ openperouter:
 | `grout.tapUnderlay` | bool | `false` | Use TAP ports for grout underlay interfaces instead of PCI ports |
 | `grout.testMode` | bool | `false` | Run grout in test mode. See [Test mode](#test-mode) |
 | `grout.maxMTU` | int | `""` (grout default, 1800) | Maximum MTU grout accepts on its ports. See [MTU](#mtu) |
+| `grout.emulatedVFs` | bool | `false` | Resolve SR-IOV trunk VFs from emulated netdevs. See [SR-IOV Trunks](#sr-iov-trunks) |
 | `grout.image.repository` | string | `quay.io/openperouter/router` | Grout container image repository |
 | `grout.image.tag` | string | `main-grout` | Grout container image tag |
 | `grout.image.pullPolicy` | string | `""` | Image pull policy (defaults to Kubernetes default) |
@@ -372,6 +373,12 @@ When the trunk is created, the controller:
    namespace, and creates the grout port named after the last 10 characters of
    the PF name followed by the VF index in two hexadecimal digits (e.g.
    `enp1s001` for VF 1 of `enp1s0`)
+
+In test environments where independent NICs emulate a PF's VFs, such as the
+QEMU e2e lab, the `virtfn` sysfs links do not exist. Set
+`openperouter.grout.emulatedVFs` to resolve VF `<vfIndex>` of `<pfName>` from
+the netdev named `<pfName>v<vfIndex>` instead. With the operator, set
+`GROUT_EMULATED_VFS=true` on the operator deployment.
 
 `mlx5_core` VFs need the RDMA subsystem in shared network namespace mode, see
 [DPDK-Accelerated Underlay Ports](#dpdk-accelerated-underlay-ports).

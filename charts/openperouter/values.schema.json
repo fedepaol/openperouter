@@ -478,6 +478,11 @@
             "type": "object",
             "description": "Configuration for the grout DPDK dataplane sidecar. Only used when datapath is set to \"grout\".",
             "properties": {
+              "emulatedVFs": {
+                "type": "boolean",
+                "description": "Resolve the VFs of SR-IOV trunks from the netdevs named \"<pf>v<index>\" instead of the PF's virtfn sysfs links. Only for test environments where independent NICs emulate a PF's VFs, such as the QEMU e2e lab.",
+                "default": false
+              },
               "tapUnderlay": {
                 "type": "boolean",
                 "description": "Use TAP ports for grout underlay interfaces instead of PCI ports.",
