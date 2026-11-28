@@ -272,7 +272,10 @@ func parseL2VPNEVPN(data []byte) (EVPNData, error) {
 		return EVPNData{}, fmt.Errorf("error unmarshalling JSON: %v", err)
 	}
 
-	for k, v := range dynamicData {
+	// Iterate the route distinguisher keys in sorted order so the parsed
+	// entries do not depend on Go's random map iteration.
+	for _, k := range slices.Sorted(maps.Keys(dynamicData)) {
+		v := dynamicData[k]
 		if strings.Contains(k, ":") { // Route Distinguisher
 			entry := RdEntry{
 				RD:       k,
